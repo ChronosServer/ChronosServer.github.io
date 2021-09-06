@@ -1,0 +1,26 @@
+body {
+    background-color: #000000;
+    font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
+    color: #fff;
+}
+
+.navbar {
+    z-index: 9999;
+}
+
+.lead {
+    text-align: center;
+    margin-bottom: 8px;
+ }
+
+.lead.slogan {
+    line-height:2 !important;
+}
+
+.bg-dark {
+    background: 0 0 !important;
+}
+
+.bg-dark.scrolled {
+    background: #000000 !important;
+}
