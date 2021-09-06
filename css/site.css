@@ -4,6 +4,22 @@ body {
     color: #fff;
 }
 
+#contents > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -o-user-select: none;
+    user-select: none; 
+}
+
 .navbar {
     z-index: 9999;
 }
