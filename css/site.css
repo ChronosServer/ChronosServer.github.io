@@ -1,54 +1,33 @@
 body {
-    background-color: #000000;
     font-family: Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
-    color: #fff;
+    background-color: black;
+    background-image: url("../assets/background2.png");
+    background-size: cover;
+    background-repeat: no-repeat;
 }
 
-#contents > div {
+#contents {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100%;
     width: 100%;
     position: fixed;
-    color: black;
+    color: white;
     padding-bottom: 300px;
 }
 
-#contents div:nth-last-child(1) {
+#contents:nth-last-child(3) {
     flex-direction: column;
 }
 
-.navbar {
-    z-index: 9999;
-}
-
-.lead {
-    text-align: center;
-    margin-bottom: 8px;
-    color: 000000;
- }
-
-.lead.slogan {
-    line-height:2 !important;
-}
-
-.bg-dark {
-    background: 0 0 !important;
-}
-
-.bg-dark.scrolled {
-    background: #000000 !important;
-}
-
 .btn-outline-light {
-    color: #000;
-    border-color: #000;
+    color: white;
+    border-color: white;
 }
 
 .btn-outline-light:hover {
-    color: #212121;
-    border-color: #212121;
-    background-color: rgba(0, 0, 0, 0.1);
+    color: white;
+    border-color: white;
+    background-color: rgba(255, 255, 255, 0.15);
 }
-
