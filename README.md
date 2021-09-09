@@ -1,4 +1,9 @@
 # Overview
+![GitHub repo size](https://img.shields.io/github/repo-size/ChronosServer/ChronosServer.github.io)
+![Lines of code](https://img.shields.io/tokei/lines/github/ChronosServer/ChronosServer.github.io)
+![License](https://img.shields.io/github/license/ChronosServer/ChronosServer.github.io)
+![Last commit](https://img.shields.io/github/last-commit/ChronosServer/ChronosServer.github.io)
+
 **GitHub Pages website for the Chronos Technical Minecraft server.**
 
 ## How to run locally
