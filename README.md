@@ -6,6 +6,8 @@
 
 **GitHub Pages website for the Chronos Technical Minecraft server.**
 
+❤️ Made with love by [GoodPro712](https://github.com/GoodPro712)
+
 ## How to run locally
 ### Prerequisites
  - [Ruby](https://www.ruby-lang.org/en/documentation/installation/)
