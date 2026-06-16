@@ -19,17 +19,6 @@
     <meta name="twitter:card" content="summary_large_image">
 
     <style>
-      nav a {
-        color: rgba(255,255,255,0.75);
-        text-decoration: none;
-        font-size: 0.85rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        transition: color 0.2s;
-      }
-      nav a:hover {
-        color: white;
-      }
       nav {
         position: fixed;
         top: 0;
@@ -39,12 +28,28 @@
         display: flex;
         gap: 2rem;
         z-index: 100;
-        background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.25);
+      }
+      nav a {
+        color: rgba(255,255,255,0.75);
+        text-decoration: none;
+        font-size: 1rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: color 0.2s;
+      }
+      nav a:hover {
+        color: white;
       }
       .subtext {
-        font-size: 1.1rem;
+        font-size: 2.2rem;
         color: rgba(255,255,255,0.65);
         margin-bottom: 1.5rem;
+      }
+      #contents {
+        padding-top: 5px;
       }
     </style>
   </head>
@@ -54,6 +59,7 @@
       <a href="/">Home</a>
       <a href="/members">Members</a>
       <a href="/gallery">Gallery</a>
+      <a href="/storage">Storage</a>
       <a href="/archive">Public Archive</a>
       <a href="/status">Status</a>
       <a href="/map">Map</a>
