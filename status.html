@@ -1,0 +1,189 @@
+---
+layout: null
+---
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
+    <link rel="stylesheet" href="/css/animate.min.css">
+    <link rel="stylesheet" href="/css/site.css">
+    <title>Status — Chronos</title>
+    <style>
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 1.25rem;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 0.4rem;
+        }
+        .stat-value {
+            font-size: 1.6rem;
+            color: white;
+            margin-bottom: 0.2rem;
+        }
+        .stat-sub {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.4);
+        }
+        .bar-bg {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            margin-top: 0.75rem;
+        }
+        .bar-fill {
+            height: 4px;
+            background: white;
+            transition: width 0.5s;
+        }
+        .bar-fill.warn { background: #f0a500; }
+        .bar-fill.danger { background: #e05555; }
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+        .server-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.75rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.07);
+            font-size: 0.85rem;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot-online { background: #4caf50; }
+        .dot-offline { background: #e05555; }
+        .dot-unknown { background: rgba(255,255,255,0.2); }
+        .last-updated {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.25);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/members">Members</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/storage">Storage</a>
+        <a href="/archive">Public Archive</a>
+        <a href="/status">Status</a>
+        <a href="/map" target="_blank">Map</a>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="page-title">Status</div>
+
+        <div class="section-label">Hardware</div>
+        <div class="status-grid" id="hw-grid">
+            <div class="stat-card"><div class="stat-label">Loading...</div></div>
+        </div>
+
+        <div class="section-label">Servers</div>
+        <div class="server-grid" id="server-grid">
+            <div class="stat-card"><div class="stat-label">Loading...</div></div>
+        </div>
+
+        <div class="last-updated" id="last-updated"></div>
+    </div>
+
+    <script>
+        function barClass(pct) {
+            if (pct > 90) return 'danger';
+            if (pct > 70) return 'warn';
+            return '';
+        }
+
+        function bar(pct) {
+            return `<div class="bar-bg"><div class="bar-fill ${barClass(pct)}" style="width:${pct}%"></div></div>`;
+        }
+
+        function renderHardware(d) {
+            const grid = document.getElementById('hw-grid');
+            const tempStr = d.cpu.temp ? ` · ${d.cpu.temp}°C` : '';
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">CPU · ${d.cpu.cores}C/${d.cpu.threads}T</div>
+                    <div class="stat-value">${d.cpu.percent}%</div>
+                    <div class="stat-sub">Load ${d.cpu.load.join(' / ')}${tempStr} · Up ${d.cpu.uptime}</div>
+                    ${bar(d.cpu.percent)}
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">RAM</div>
+                    <div class="stat-value">${d.ram.used} <span style="font-size:1rem;opacity:.4">/ ${d.ram.total} GB</span></div>
+                    <div class="stat-sub">${d.ram.percent}% used</div>
+                    ${bar(d.ram.percent)}
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Swap (overflow RAM on disk)</div>
+                    <div class="stat-value">${d.swap.used} <span style="font-size:1rem;opacity:.4">/ ${d.swap.total} GB</span></div>
+                    <div class="stat-sub">${d.swap.percent}% used</div>
+                    ${bar(d.swap.percent)}
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Disk</div>
+                    <div class="stat-value">${d.disk.used} <span style="font-size:1rem;opacity:.4">/ ${d.disk.total} GB (${d.disk.total_tb} TB)</span></div>
+                    <div class="stat-sub">${d.disk.percent}% used · ↑ ${d.disk.write_gb} GB ↓ ${d.disk.read_gb} GB</div>
+                    ${bar(d.disk.percent)}
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Network (since boot)</div>
+                    <div class="stat-value" style="font-size:1.1rem">↑ ${d.net.sent_gb} GB &nbsp; ↓ ${d.net.recv_gb} GB</div>
+                </div>
+            `;
+        }
+
+        function renderServers(servers) {
+            const grid = document.getElementById('server-grid');
+            grid.innerHTML = '';
+            Object.entries(servers).forEach(([name, status]) => {
+                const online = status === 'Online';
+                const unknown = status !== 'Online' && status !== 'Offline';
+                const dotClass = online ? 'dot-online' : unknown ? 'dot-unknown' : 'dot-offline';
+                const row = document.createElement('div');
+                row.className = 'server-row';
+                row.innerHTML = `<span>${name.toUpperCase()}</span><div class="status-dot ${dotClass}" title="${status}"></div>`;
+                grid.appendChild(row);
+            });
+        }
+
+        async function poll() {
+            try {
+                const [hw, sv] = await Promise.all([
+                    fetch('/api/status').then(r => r.json()),
+                    fetch('/data/server_status.json').then(r => r.json()).catch(() => ({})),
+                ]);
+                renderHardware(hw);
+                if (Object.keys(sv).length) renderServers(sv);
+                document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+            } catch(e) {
+                console.error('Status poll failed:', e);
+            }
+        }
+
+        poll();
+        setInterval(poll, 10000);
+    </script>
+</body>
+</html>

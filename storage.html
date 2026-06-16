@@ -1,0 +1,155 @@
+---
+layout: null
+---
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
+    <link rel="stylesheet" href="/css/animate.min.css">
+    <link rel="stylesheet" href="/css/site.css">
+    <title>Storage — Chronos</title>
+    <style>
+        .tab-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .tab-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            padding: 0.4rem 1.2rem;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.15s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            border-color: white;
+            color: white;
+        }
+        .item-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 0.5rem;
+        }
+        .item-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .item-row img {
+            width: 28px;
+            height: 28px;
+            image-rendering: pixelated;
+        }
+        .item-name {
+            flex: 1;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+        }
+        .item-count {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.45);
+            white-space: nowrap;
+        }
+        .no-icon {
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/members">Members</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/storage">Storage</a>
+        <a href="/archive">Public Archive</a>
+        <a href="/status">Status</a>
+        <a href="/map" target="_blank">Map</a>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="page-title">Storage</div>
+        <div class="tab-bar">
+            <button class="tab-btn active" id="btn-ms" onclick="switchTab('ms')">Main Storage</button>
+            <button class="tab-btn" id="btn-dig" onclick="switchTab('dig')">Dig Storage</button>
+        </div>
+        <input class="search-bar" id="search" placeholder="Search items..." oninput="filterItems()">
+        <div class="item-list" id="item-list"></div>
+    </div>
+
+    <script>
+        let currentData = {};
+        let currentTab = 'ms';
+
+        function imgSrc(rawName) {
+            // convert "Diamond Sword" back to minecraft id for texture
+            const id = rawName.toLowerCase().replace(/ /g, '_');
+            return `https://mc-heads.net/blocks/${id}`;
+        }
+
+        function formatCount(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+            return n.toLocaleString();
+        }
+
+        function renderItems(data) {
+            const list = document.getElementById('item-list');
+            const q = document.getElementById('search').value.toLowerCase();
+            list.innerHTML = '';
+            Object.entries(data).forEach(([name, count]) => {
+                if (q && !name.toLowerCase().includes(q)) return;
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                const img = document.createElement('img');
+                img.src = imgSrc(name);
+                img.onerror = function() {
+                    this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
+                };
+                const nameEl = document.createElement('span');
+                nameEl.className = 'item-name';
+                nameEl.textContent = name;
+                const countEl = document.createElement('span');
+                countEl.className = 'item-count';
+                countEl.textContent = formatCount(count);
+                row.append(img, nameEl, countEl);
+                list.appendChild(row);
+            });
+        }
+
+        function filterItems() {
+            renderItems(currentData[currentTab] || {});
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('btn-ms').classList.toggle('active', tab === 'ms');
+            document.getElementById('btn-dig').classList.toggle('active', tab === 'dig');
+            document.getElementById('search').value = '';
+            renderItems(currentData[tab] || {});
+        }
+
+        Promise.all([
+            fetch('/data/ms_storage.json').then(r => r.json()),
+            fetch('/data/dig_storage.json').then(r => r.json()),
+        ]).then(([ms, dig]) => {
+            currentData = { ms, dig };
+            renderItems(currentData.ms);
+        });
+    </script>
+</body>
+</html>

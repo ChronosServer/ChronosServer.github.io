@@ -1,0 +1,89 @@
+---
+layout: null
+---
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
+    <link rel="stylesheet" href="/css/animate.min.css">
+    <link rel="stylesheet" href="/css/site.css">
+    <title>Members — Chronos</title>
+    <style>
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1.5rem;
+        }
+        .member-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            text-align: center;
+        }
+        .member-card img {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255,255,255,0.15);
+        }
+        .member-card span {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.75);
+            word-break: break-word;
+        }
+        .member-card.inactive img {
+            filter: grayscale(0.7);
+            opacity: 0.6;
+        }
+        .member-card.inactive span {
+            color: rgba(255,255,255,0.35);
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/members">Members</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/storage">Storage</a>
+        <a href="/archive">Public Archive</a>
+        <a href="/status">Status</a>
+        <a href="/map" target="_blank">Map</a>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="page-title">Members</div>
+        <div class="section-label">Members</div>
+        <div class="members-grid" id="grid-members"></div>
+        <div class="section-label">Trial Members</div>
+        <div class="members-grid" id="grid-trial"></div>
+        <div class="section-label">Inactive</div>
+        <div class="members-grid" id="grid-inactive"></div>
+    </div>
+
+    <script>
+        function renderGrid(id, members, extraClass) {
+            const grid = document.getElementById(id);
+            members.forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'member-card' + (extraClass ? ' ' + extraClass : '');
+                card.innerHTML = `<img src="${m.avatar}" alt="${m.name}"><span>${m.name}</span>`;
+                grid.appendChild(card);
+            });
+        }
+
+        fetch('/data/members.json')
+            .then(r => r.json())
+            .then(data => {
+                renderGrid('grid-members', data.members);
+                renderGrid('grid-trial', data.trial);
+                renderGrid('grid-inactive', data.inactive, 'inactive');
+            });
+    </script>
+</body>
+</html>

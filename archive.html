@@ -1,0 +1,298 @@
+---
+layout: null
+---
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
+    <link rel="stylesheet" href="/css/animate.min.css">
+    <link rel="stylesheet" href="/css/site.css">
+    <title>Public Archive — Chronos</title>
+    <style>
+        .tag-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .tag-btn {
+            background: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            padding: 0.25rem 0.75rem;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: all 0.15s;
+        }
+        .tag-btn.active, .tag-btn:hover {
+            border-color: white;
+            color: white;
+        }
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+        .post-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            overflow: hidden;
+        }
+        .post-card:hover {
+            border-color: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.07);
+        }
+        .post-thumb {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            display: block;
+            filter: brightness(0.85);
+        }
+        .post-thumb-placeholder {
+            width: 100%;
+            height: 160px;
+            background: rgba(255,255,255,0.04);
+        }
+        .post-body {
+            padding: 0.75rem;
+        }
+        .post-author {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .post-author img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .post-author-name {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.5);
+        }
+        .post-title {
+            font-size: 0.95rem;
+            color: white;
+            margin-bottom: 0.4rem;
+            line-height: 1.3;
+        }
+        .post-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .post-tag {
+            font-size: 0.65rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+            border: 1px solid rgba(255,255,255,0.15);
+            padding: 0.1rem 0.4rem;
+        }
+
+        /* modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+        }
+        .modal-overlay.active { display: block; }
+        .modal-box {
+            max-width: 780px;
+            margin: 0 auto;
+            background: rgba(30,30,30,0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 2rem;
+            color: white;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        .modal-close:hover { opacity: 1; }
+        .modal-title { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .modal-meta { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-bottom: 1rem; }
+        .modal-content { font-size: 0.9rem; line-height: 1.7; color: rgba(255,255,255,0.8); white-space: pre-wrap; }
+        .modal-img { max-width: 100%; margin: 1rem 0; display: block; }
+        .reply {
+            border-top: 1px solid rgba(255,255,255,0.07);
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+        }
+        .reply-author {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .reply-author img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+        .reply-author-name { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+        .reply-content { font-size: 0.85rem; color: rgba(255,255,255,0.75); white-space: pre-wrap; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/members">Members</a>
+        <a href="/gallery">Gallery</a>
+        <a href="/storage">Storage</a>
+        <a href="/archive">Public Archive</a>
+        <a href="/status">Status</a>
+        <a href="/map" target="_blank">Map</a>
+    </nav>
+
+    <div class="page-wrapper">
+        <div class="page-title">Public Archive</div>
+        <input class="search-bar" id="search" placeholder="Search posts..." oninput="render()">
+        <div class="tag-bar" id="tag-bar"></div>
+        <div class="posts-grid" id="posts-grid"></div>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="modal-box" id="modal-box">
+            <button class="modal-close" id="modal-close">&times;</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let allPosts = [];
+        let activeTag = null;
+
+        function formatDate(iso) {
+            return new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+        }
+
+        function getThumb(post) {
+            if (post.attachments && post.attachments.length) return post.attachments[0];
+            if (post.embeds) {
+                for (const e of post.embeds) {
+                    if (e.image) return e.image;
+                    if (e.thumbnail) return e.thumbnail;
+                }
+            }
+            return null;
+        }
+
+        function render() {
+            const q = document.getElementById('search').value.toLowerCase();
+            const grid = document.getElementById('posts-grid');
+            grid.innerHTML = '';
+
+            allPosts.forEach(post => {
+                if (q && !post.title.toLowerCase().includes(q) && !post.content.toLowerCase().includes(q)) return;
+                if (activeTag && !post.tags.includes(activeTag)) return;
+
+                const thumb = getThumb(post);
+                const card = document.createElement('div');
+                card.className = 'post-card';
+                card.onclick = () => openPost(post);
+
+                card.innerHTML = `
+                    ${thumb ? `<img class="post-thumb" src="${thumb}" loading="lazy" onerror="this.style.display='none'">` : '<div class="post-thumb-placeholder"></div>'}
+                    <div class="post-body">
+                        <div class="post-author">
+                            <img src="${post.author_avatar}" onerror="this.style.display='none'">
+                            <span class="post-author-name">${post.author} · ${formatDate(post.timestamp)}</span>
+                        </div>
+                        <div class="post-title">${post.title}</div>
+                        <div class="post-tags">${post.tags.map(t => `<span class="post-tag">${t}</span>`).join('')}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openPost(post) {
+            const c = document.getElementById('modal-content');
+            const allImgs = [
+                ...(post.attachments || []),
+                ...(post.embeds || []).map(e => e.image || e.thumbnail).filter(Boolean)
+            ];
+
+            c.innerHTML = `
+                <div class="modal-title">${post.title}</div>
+                <div class="modal-meta">${post.author} · ${formatDate(post.timestamp)} ${post.tags.map(t => `<span class="post-tag">${t}</span>`).join(' ')}</div>
+                <div class="modal-content">${post.content}</div>
+                ${allImgs.map(u => `<img class="modal-img" src="${u}" onerror="this.style.display='none'">`).join('')}
+                ${(post.messages || []).map(msg => {
+                    const msgImgs = [
+                        ...(msg.attachments || []),
+                        ...(msg.embeds || []).map(e => e.image || e.thumbnail).filter(Boolean)
+                    ];
+                    return `
+                        <div class="reply">
+                            <div class="reply-author">
+                                <img src="${msg.author_avatar}" onerror="this.style.display='none'">
+                                <span class="reply-author-name">${msg.author} · ${formatDate(msg.timestamp)}</span>
+                            </div>
+                            <div class="reply-content">${msg.content}</div>
+                            ${msgImgs.map(u => `<img class="modal-img" src="${u}" onerror="this.style.display='none'">`).join('')}
+                        </div>
+                    `;
+                }).join('')}
+            `;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        document.getElementById('modal-close').onclick = () => document.getElementById('modal').classList.remove('active');
+        document.getElementById('modal').onclick = (e) => { if (e.target === document.getElementById('modal')) document.getElementById('modal').classList.remove('active'); };
+        document.onkeydown = (e) => { if (e.key === 'Escape') document.getElementById('modal').classList.remove('active'); };
+
+        fetch('/data/archive.json')
+            .then(r => r.json())
+            .then(data => {
+                allPosts = data;
+
+                const tags = [...new Set(data.flatMap(p => p.tags))].sort();
+                const bar = document.getElementById('tag-bar');
+                const allBtn = document.createElement('button');
+                allBtn.className = 'tag-btn active';
+                allBtn.textContent = 'All';
+                allBtn.onclick = () => { activeTag = null; bar.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active')); allBtn.classList.add('active'); render(); };
+                bar.appendChild(allBtn);
+
+                tags.forEach(tag => {
+                    const btn = document.createElement('button');
+                    btn.className = 'tag-btn';
+                    btn.textContent = tag;
+                    btn.onclick = () => {
+                        activeTag = tag;
+                        bar.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        render();
+                    };
+                    bar.appendChild(btn);
+                });
+
+                render();
+            });
+    </script>
+</body>
+</html>
