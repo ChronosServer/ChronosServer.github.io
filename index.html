@@ -4,13 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <!-- Fork Awesome CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css" integrity="sha256-gsmEoJAws/Kd3CjuOQzLie5Q3yshhvmo7YNtBG7aaEY=" crossorigin="anonymous">
-    <!-- Animate CSS -->
     <link rel="stylesheet" href="css/animate.min.css">
-    <!-- Main Site CSS -->
     <link rel="stylesheet" href="css/site.css">
 
     <title>Chronos</title>
@@ -18,27 +14,63 @@
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://chronosserver.github.io" />
     <meta property="og:image" content="/assets/background2.png" />
-    <meta property="og:description" content="" />-->
+    <meta property="og:description" content="" />
     <meta name="theme-color" content="#3f9d98">
     <meta name="twitter:card" content="summary_large_image">
 
+    <style>
+      nav a {
+        color: rgba(255,255,255,0.75);
+        text-decoration: none;
+        font-size: 0.85rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: color 0.2s;
+      }
+      nav a:hover {
+        color: white;
+      }
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 1rem 2rem;
+        display: flex;
+        gap: 2rem;
+        z-index: 100;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+      }
+      .subtext {
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.65);
+        margin-bottom: 1.5rem;
+      }
+    </style>
   </head>
   
   <body>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/members">Members</a>
+      <a href="/gallery">Gallery</a>
+      <a href="/archive">Public Archive</a>
+      <a href="/status">Status</a>
+      <a href="/map">Map</a>
+    </nav>
+
     <div id="contents">
-      <h1 class="font-weight-light animate__animated animate__fadeInUp" style="animation-delay: 0.2s;">Chronos Technical Minecraft</h1>
-      <!--<p class="lead slogan animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">Creators of the Chronos™️ Raid Farm</p>-->
-      
+      <h1 class="font-weight-light animate__animated animate__fadeInUp" style="animation-delay: 0.2s; font-size: 3.5rem;">Chronos Technical Minecraft</h1>
+      <p class="subtext animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">Where creativity meets innovation</p>
       <p class="lead">
         <a target="_blank" href="https://github.com/ChronosServer" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-github"></a>
-        <a target="_blank" href="https://discord.gg/VvPucVAjUS " style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-discord"></a>
+        <a target="_blank" href="https://discord.gg/VvPucVAjUS" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-discord"></a>
+        <a target="_blank" href="https://www.patreon.com/cw/Chronos_SMP" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-patreon"></a>
       </p>
-  </div>
-  
-  <!-- JQuery -->
-  <script src="js/jquery.min.js"></script>
-  <!-- Bootstrap and Popper JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" 
-    integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    </div>
+
+    <script src="js/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" 
+      integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
   </body>
 </html>
