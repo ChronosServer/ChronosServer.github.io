@@ -86,26 +86,21 @@ permalink: /gallery/
     </div>
 
     <script>
-        const images = [
-            {% assign gallery_files = site.static_files | where_exp: "f", "f.path contains '/gallery/'" %}
-            {% for file in gallery_files %}
-                {% if file.extname == '.jpg' or file.extname == '.jpeg' or file.extname == '.png' or file.extname == '.gif' or file.extname == '.webp' %}
-                "{{ file.path }}",
-                {% endif %}
-            {% endfor %}
-        ];
-
-        const grid = document.getElementById('gallery-grid');
-        images.forEach(src => {
-            const item = document.createElement('div');
-            item.className = 'gallery-item';
-            const img = document.createElement('img');
-            img.src = src;
-            img.loading = 'lazy';
-            img.onclick = () => openLightbox(src);
-            item.appendChild(img);
-            grid.appendChild(item);
-        });
+        fetch('/gallery/index.json')
+            .then(r => r.json())
+            .then(images => {
+                const grid = document.getElementById('gallery-grid');
+                images.forEach(src => {
+                    const item = document.createElement('div');
+                    item.className = 'gallery-item';
+                    const img = document.createElement('img');
+                    img.src = src;
+                    img.loading = 'lazy';
+                    img.onclick = () => openLightbox(src);
+                    item.appendChild(img);
+                    grid.appendChild(item);
+                });
+            });
 
         const lightbox = document.getElementById('lightbox');
         const lightboxImg = document.getElementById('lightbox-img');
