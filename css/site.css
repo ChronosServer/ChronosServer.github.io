@@ -97,8 +97,8 @@ nav a:hover {
 }
 
 .search-bar:focus {
-    border-color: rgba(255,255,255,0.5);
-    background: rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.75);
+    border-color: rgba(255,255,255,0.35);
 }
 
 .section-label {
@@ -180,4 +180,37 @@ nav a:hover {
     object-fit: cover;
     border: 2px solid rgba(255,255,255,0.2);
     background: rgba(0,0,0,0.4);
+}
+
+/* archive search + tag buttons match post card bg */
+.search-bar {
+    background: rgba(0,0,0,0.65);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+.tag-btn {
+    background: rgba(0,0,0,0.65);
+}
+.tab-btn {
+    background: rgba(0,0,0,0.65);
+}
+
+/* member card dark backing */
+.member-card {
+    background: rgba(0,0,0,0.65);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 0.75rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+}
+.member-card span {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.75);
+    word-break: break-word;
+}
+.member-card.inactive span {
+    color: rgba(255,255,255,0.35);
 }

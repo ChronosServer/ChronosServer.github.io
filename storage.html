@@ -98,7 +98,9 @@ permalink: /storage/
 
         function imgSrc(name) {
             const id = name.toLowerCase().replace(/ /g, '_');
-            return `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.1.2/assets/minecraft/textures/item/${id}.png`;
+            const itemUrl = `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.1.2/assets/minecraft/textures/item/${id}.png`;
+            const blockUrl = `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.1.2/assets/minecraft/textures/block/${id}.png`;
+            return { itemUrl, blockUrl };
         }
 
         function formatCount(n) {
@@ -115,10 +117,15 @@ permalink: /storage/
                 if (q && !name.toLowerCase().includes(q)) return;
                 const row = document.createElement('div');
                 row.className = 'item-row';
+                const { itemUrl, blockUrl } = imgSrc(name);
                 const img = document.createElement('img');
-                img.src = imgSrc(name);
+                img.src = itemUrl;
                 img.onerror = function() {
-                    this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
+                    if (this.src !== blockUrl) {
+                        this.src = blockUrl;
+                    } else {
+                        this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
+                    }
                 };
                 const nameEl = document.createElement('span');
                 nameEl.className = 'item-name';
