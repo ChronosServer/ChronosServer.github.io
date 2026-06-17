@@ -96,10 +96,9 @@ permalink: /storage/
         let currentData = {};
         let currentTab = 'ms';
 
-        function imgSrc(rawName) {
-            // convert "Diamond Sword" back to minecraft id for texture
-            const id = rawName.toLowerCase().replace(/ /g, '_');
-            return `https://mc-heads.net/blocks/${id}`;
+        function imgSrc(name) {
+            const id = name.toLowerCase().replace(/ /g, '_');
+            return `https://mc-heads.net/item/${id}`;
         }
 
         function formatCount(n) {
