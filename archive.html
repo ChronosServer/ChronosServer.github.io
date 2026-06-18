@@ -145,7 +145,7 @@ permalink: /archive/
 </div>
 
 <script>
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 12;
 let allPosts = [];
 let filtered = [];
 let activeTag = null;
@@ -195,12 +195,49 @@ function renderEmbeds(embeds) {
     }).join('');
 }
 
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const img = entry.target;
+            if (img.dataset.src) {
+                img.src = img.dataset.src;
+                img.removeAttribute('data-src');
+                observer.unobserve(img);
+            }
+        }
+    });
+}, { rootMargin: '200px' });
+
 function renderPost(post) {
     const thumb = getThumb(post);
     const card = document.createElement('div');
     card.className = 'post-card';
+
+    let thumbHtml = '<div class="post-thumb-placeholder"></div>';
+    if (thumb) {
+        const img = document.createElement('img');
+        img.className = 'post-thumb';
+        img.dataset.src = thumb;
+        img.onerror = function() { this.style.display='none'; };
+        // placeholder until observed
+        thumbHtml = '';
+        card.innerHTML = `
+            <div class="post-body">
+                <div class="post-author">
+                    <img src="${post.author_avatar}" onerror="this.style.display='none'">
+                    <span class="post-author-name">${post.author} · ${formatDate(post.timestamp)}</span>
+                </div>
+                <div class="post-title">${post.title}</div>
+                <div class="post-tags">${(post.tags||[]).map(t=>`<span class="post-tag">${t}</span>`).join('')}</div>
+            </div>`;
+        card.prepend(img);
+        observer.observe(img);
+        card.onclick = () => openPost(post);
+        return card;
+    }
+
     card.innerHTML = `
-        ${thumb ? `<img class="post-thumb" src="${thumb}" loading="lazy" onerror="this.style.display='none'">` : '<div class="post-thumb-placeholder"></div>'}
+        ${thumbHtml}
         <div class="post-body">
             <div class="post-author">
                 <img src="${post.author_avatar}" onerror="this.style.display='none'">

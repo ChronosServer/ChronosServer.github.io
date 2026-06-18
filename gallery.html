@@ -22,16 +22,25 @@ permalink: /gallery/
             margin-bottom: 1rem;
             cursor: pointer;
             overflow: hidden;
+            background: rgba(0,0,0,0.3);
         }
         .gallery-item img {
             width: 100%;
             display: block;
-            transition: transform 0.2s;
+            transition: transform 0.2s, filter 0.2s, opacity 0.2s;
             filter: brightness(0.85);
+        }
+        .gallery-item img.loading {
+            image-rendering: pixelated;
+            filter: blur(8px) brightness(0.85);
+            transform: scale(1.05);
         }
         .gallery-item:hover img {
             transform: scale(1.02);
             filter: brightness(1);
+        }
+        .gallery-item:hover img.loading {
+            transform: scale(1.07);
         }
         .lightbox {
             display: none;
@@ -42,9 +51,7 @@ permalink: /gallery/
             justify-content: center;
             align-items: center;
         }
-        .lightbox.active {
-            display: flex;
-        }
+        .lightbox.active { display: flex; }
         .lightbox img {
             max-width: 90vw;
             max-height: 90vh;
@@ -86,22 +93,6 @@ permalink: /gallery/
     </div>
 
     <script>
-        fetch('/gallery/index.json')
-            .then(r => r.json())
-            .then(images => {
-                const grid = document.getElementById('gallery-grid');
-                images.forEach(src => {
-                    const item = document.createElement('div');
-                    item.className = 'gallery-item';
-                    const img = document.createElement('img');
-                    img.src = src;
-                    img.loading = 'lazy';
-                    img.onclick = () => openLightbox(src);
-                    item.appendChild(img);
-                    grid.appendChild(item);
-                });
-            });
-
         const lightbox = document.getElementById('lightbox');
         const lightboxImg = document.getElementById('lightbox-img');
 
@@ -113,6 +104,54 @@ permalink: /gallery/
         document.getElementById('lightbox-close').onclick = () => lightbox.classList.remove('active');
         lightbox.onclick = (e) => { if (e.target === lightbox) lightbox.classList.remove('active'); };
         document.onkeydown = (e) => { if (e.key === 'Escape') lightbox.classList.remove('active'); };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const img = entry.target;
+                const full = img.dataset.full;
+                if (!full) return;
+                observer.unobserve(img);
+
+                const loader = new Image();
+                loader.onload = () => {
+                    img.src = full;
+                    img.classList.remove('loading');
+                    delete img.dataset.full;
+                };
+                loader.src = full;
+            });
+        }, { rootMargin: '400px' });
+
+        fetch('/gallery/index.json')
+            .then(r => r.json())
+            .then(images => {
+                const grid = document.getElementById('gallery-grid');
+                images.forEach(src => {
+                    const thumbSrc = src.replace('/gallery/', '/gallery/thumbs/');
+
+                    const item = document.createElement('div');
+                    item.className = 'gallery-item';
+
+                    const img = document.createElement('img');
+                    img.className = 'loading';
+                    img.src = thumbSrc;
+                    img.dataset.full = src;
+                    img.loading = 'lazy';
+                    img.onerror = function() {
+                        // no thumb — load full res directly without blur
+                        this.src = src;
+                        this.classList.remove('loading');
+                        delete this.dataset.full;
+                        observer.unobserve(this);
+                    };
+                    img.onclick = () => openLightbox(src);
+
+                    item.appendChild(img);
+                    grid.appendChild(item);
+                    observer.observe(img);
+                });
+            });
     </script>
 </body>
 </html>

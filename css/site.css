@@ -208,6 +208,20 @@ nav a:hover {
     background: rgba(0,0,0,0.82) !important;
 }
 
+.post-thumb {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    display: block;
+    filter: brightness(.85);
+    background: rgba(255,255,255,0.03);
+    transition: opacity 0.2s;
+    opacity: 0;
+}
+.post-thumb[src] {
+    opacity: 1;
+}
+
 /* ── modal ── */
 .modal-box {
     max-width: 780px;
