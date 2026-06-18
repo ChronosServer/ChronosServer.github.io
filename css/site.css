@@ -45,7 +45,7 @@ nav a:hover {
     width: 100%;
     color: white;
     text-align: center;
-    padding: 120px 2rem 4rem;
+    padding: 80px 2rem 4rem;
     box-sizing: border-box;
 }
 
@@ -280,3 +280,16 @@ body[data-bg="gallery"] { background-image: url("../assets/bg_gallery.png"); }
 body[data-bg="archive"] { background-image: url("../assets/bg_archive.png"); }
 body[data-bg="storage"] { background-image: url("../assets/bg_storage.png"); }
 body[data-bg="status"]  { background-image: url("../assets/bg_status.png"); }
+
+#contents h1 {
+    font-size: clamp(1.5rem, 5vw, 3.5rem);
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.subtext {
+    font-size: clamp(1rem, 3vw, 2.2rem);
+    color: rgba(255,255,255,0.65);
+    margin-bottom: 1.5rem;
+    margin-top: 0.5rem;
+}
