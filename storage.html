@@ -96,11 +96,16 @@ permalink: /storage/
         let currentData = {};
         let currentTab = 'ms';
 
-        function imgSrc(name) {
+        function renderItemImg(name) {
             const id = name.toLowerCase().replace(/ /g, '_');
-            const itemUrl = `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.1.2/assets/minecraft/textures/item/${id}.png`;
-            const blockUrl = `https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/26.1.2/assets/minecraft/textures/block/${id}.png`;
-            return { itemUrl, blockUrl };
+            const cached = `/cache/items/${id}.png`;
+            const img = document.createElement('img');
+            img.src = cached;
+            img.onerror = function() {
+                // fallback to no-icon div if cache miss
+                this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
+            };
+            return img;
         }
 
         function formatCount(n) {
@@ -117,16 +122,7 @@ permalink: /storage/
                 if (q && !name.toLowerCase().includes(q)) return;
                 const row = document.createElement('div');
                 row.className = 'item-row';
-                const { itemUrl, blockUrl } = imgSrc(name);
-                const img = document.createElement('img');
-                img.src = itemUrl;
-                img.onerror = function() {
-                    if (this.src !== blockUrl) {
-                        this.src = blockUrl;
-                    } else {
-                        this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
-                    }
-                };
+                const img = renderItemImg(name);
                 const nameEl = document.createElement('span');
                 nameEl.className = 'item-name';
                 nameEl.textContent = name;
