@@ -166,6 +166,14 @@ permalink: /boltmap/
             white-space: nowrap;
             display: none;
         }
+
+        .legend-diamond {
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 200, 100, 0.8);
+            transform: rotate(45deg);
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -199,6 +207,7 @@ permalink: /boltmap/
         <div class="legend-row"><span class="legend-vert"></span> Vertical section</div>
         <div class="legend-row"><span class="legend-dot"></span> Junction</div>
         <div class="legend-row"><span class="legend-square"></span> Station</div>
+        <div class="legend-row"><span class="legend-diamond"></span> Transition</div>
         <div class="legend-row" style="color:rgba(255,100,100,0.8)">✕ Hub (0,0 relative)</div>
     </div>
 
@@ -255,22 +264,19 @@ permalink: /boltmap/
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         if (!data || !data.segments) return;
 
         const lineWidth = Math.max(0.5, 1.5 * scale);
-        const dotR = Math.max(2, 5 * scale);
-        const squareS = Math.max(2, 5 * scale);
+        const markerR = Math.min(8, Math.max(2, lineWidth * 1.5));
+        const showMarkers = scale > 0.1;
 
         // segments
         for (const seg of data.segments) {
             const [sx, sy_] = w2c(seg.start.x, seg.start.z);
-            const [ex, ey] = w2c(seg.end.x, seg.end.z);
-
+            const [ex, ey]  = w2c(seg.end.x,   seg.end.z);
             ctx.beginPath();
             ctx.moveTo(sx, sy_);
             ctx.lineTo(ex, ey);
-
             if (seg.type === 'diagonal') {
                 ctx.strokeStyle = 'rgba(255,255,255,0.55)';
             } else if (seg.type === 'vertical') {
@@ -284,79 +290,91 @@ permalink: /boltmap/
             ctx.setLineDash([]);
         }
 
-        // turns (small dots)
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        for (const t of (data.turns || [])) {
-            const [px, py] = w2c(t.x, t.z);
-            ctx.beginPath();
-            ctx.arc(px, py, Math.max(1, 2 * scale), 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // junctions (white filled circles)
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.lineWidth = 1;
-        for (const j of (data.junctions || [])) {
-            const [px, py] = w2c(j.x, j.z);
-            ctx.beginPath();
-            ctx.arc(px, py, dotR, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-        }
-
-        // stations (white squares)
-        ctx.fillStyle = 'white';
-        for (const s of (data.stations || [])) {
-            const [px, py] = w2c(s.x, s.z);
-            ctx.fillRect(px - squareS, py - squareS, squareS * 2, squareS * 2);
-            ctx.strokeRect(px - squareS, py - squareS, squareS * 2, squareS * 2);
-        }
-
-        // center cross (hub)
+        // hub cross (always visible)
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        const arm = 10 * scale;
+        const arm = Math.max(6, 10 * scale);
         ctx.strokeStyle = 'rgba(255,80,80,0.9)';
         ctx.lineWidth = Math.max(1, 2 * scale);
         ctx.beginPath();
         ctx.moveTo(hx - arm, hy); ctx.lineTo(hx + arm, hy);
         ctx.moveTo(hx, hy - arm); ctx.lineTo(hx, hy + arm);
         ctx.stroke();
+
+        if (!showMarkers) return;
+
+        // junctions
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1;
+        for (const j of (data.junctions || [])) {
+            const [px, py] = w2c(j.x, j.z);
+            ctx.beginPath();
+            ctx.arc(px, py, markerR, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        // stations
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1;
+        for (const s of (data.stations || [])) {
+            if (s.is_hub) continue;
+            const [px, py] = w2c(s.x, s.z);
+            ctx.fillRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
+            ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
+        }
+
+        // transitions — yellow diamond
+        ctx.fillStyle = 'rgba(255, 200, 100, 0.85)';
+        for (const t of (data.transitions || [])) {
+            const [px, py] = w2c(t.x, t.z);
+            const r = markerR * 0.85;
+            ctx.beginPath();
+            ctx.moveTo(px,     py - r);
+            ctx.lineTo(px + r, py    );
+            ctx.lineTo(px,     py + r);
+            ctx.lineTo(px - r, py    );
+            ctx.closePath();
+            ctx.fill();
+        }
     }
 
     // ── Tooltip hit testing ──────────────────────────────────────────────────
     function hitTest(mouseX, mouseY) {
         if (!data) return null;
-        const HIT_R = 12 / scale;
+        const HIT_PX = 10;
 
-        const [wx, wz] = c2w(mouseX, mouseY);
+        // hub first
+        const [hx, hy] = w2c(CENTER_X, CENTER_Z);
+        if (Math.sqrt((mouseX-hx)**2 + (mouseY-hy)**2) < HIT_PX) {
+            const hub = (data.stations || []).find(s => s.is_hub);
+            if (hub) return { type: 'station', data: hub };
+        }
 
-        // check junctions
         for (const j of (data.junctions || [])) {
             const [px, py] = w2c(j.x, j.z);
-            const dx = mouseX - px, dy = mouseY - py;
-            if (Math.sqrt(dx*dx + dy*dy) < 10) {
+            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
                 return { type: 'junction', data: j };
-            }
         }
 
-        // check stations
         for (const s of (data.stations || [])) {
             const [px, py] = w2c(s.x, s.z);
-            const dx = mouseX - px, dy = mouseY - py;
-            if (Math.sqrt(dx*dx + dy*dy) < 10) {
+            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
                 return { type: 'station', data: s };
-            }
         }
 
-        // check segment proximity (point-to-line distance)
+        for (const t of (data.transitions || [])) {
+            const [px, py] = w2c(t.x, t.z);
+            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
+                return { type: 'transition', data: t };
+        }
+
         for (const seg of (data.segments || [])) {
             const [sx, sy] = w2c(seg.start.x, seg.start.z);
-            const [ex, ey] = w2c(seg.end.x, seg.end.z);
-            const dist = pointToSegmentDist(mouseX, mouseY, sx, sy, ex, ey);
-            if (dist < 6) {
+            const [ex, ey] = w2c(seg.end.x,   seg.end.z);
+            if (pointToSegmentDist(mouseX, mouseY, sx, sy, ex, ey) < 6)
                 return { type: 'segment', data: seg };
-            }
         }
 
         return null;
@@ -373,42 +391,37 @@ permalink: /boltmap/
     }
 
     function showTooltip(e, hit) {
-        if (!hit) {
-            tooltip.style.display = 'none';
-            return;
-        }
+        if (!hit) { tooltip.style.display = 'none'; return; }
         let html = '';
         if (hit.type === 'segment') {
             const s = hit.data;
-            html = `
-                <strong>${s.type.toUpperCase()} BOLT</strong><br>
-                Direction: ${s.direction}<br>
-                Length: ${s.length} blocks<br>
-                Start: ${s.start.x}, ${s.start.y}, ${s.start.z}<br>
-                End: ${s.end.x}, ${s.end.y}, ${s.end.z}
-            `;
+            html = `<strong>${s.type.toUpperCase()} BOLT</strong><br>
+                    Direction: ${s.direction}<br>
+                    Length: ${s.length} blocks<br>
+                    Start: ${s.start.x}, ${s.start.y}, ${s.start.z}<br>
+                    End: ${s.end.x}, ${s.end.y}, ${s.end.z}`;
         } else if (hit.type === 'junction') {
             const j = hit.data;
-            html = `
-                <strong>JUNCTION</strong><br>
-                Connections: ${j.connections}<br>
-                X: ${j.x} &nbsp; Y: ${j.y} &nbsp; Z: ${j.z}
-            `;
+            html = `<strong>JUNCTION</strong><br>
+                    Connections: ${j.connections}<br>
+                    X: ${j.x} &nbsp; Y: ${j.y} &nbsp; Z: ${j.z}`;
         } else if (hit.type === 'station') {
             const s = hit.data;
-            html = `
-                <strong>STATION</strong><br>
-                X: ${s.x} &nbsp; Y: ${s.y} &nbsp; Z: ${s.z}
-            `;
+            html = `<strong>${s.is_hub ? 'HUB STATION' : 'STATION'}</strong><br>
+                    X: ${s.x} &nbsp; Y: ${s.y} &nbsp; Z: ${s.z}`;
+        } else if (hit.type === 'transition') {
+            const t = hit.data;
+            html = `<strong>TRANSITION</strong><br>
+                    Straight ↔ Diagonal<br>
+                    X: ${t.x} &nbsp; Y: ${t.y} &nbsp; Z: ${t.z}`;
         }
         tooltip.innerHTML = html;
         tooltip.style.display = 'block';
-        let tx = e.clientX + 14;
-        let ty = e.clientY + 14;
+        let tx = e.clientX + 14, ty = e.clientY + 14;
         if (tx + 260 > window.innerWidth) tx = e.clientX - 260 - 14;
         if (ty + 120 > window.innerHeight) ty = e.clientY - 120;
         tooltip.style.left = tx + 'px';
-        tooltip.style.top = ty + 'px';
+        tooltip.style.top  = ty + 'px';
     }
 
     // ── Events ───────────────────────────────────────────────────────────────
@@ -495,11 +508,12 @@ permalink: /boltmap/
     // ── Load data ─────────────────────────────────────────────────────────────
     function updateStats(d) {
         if (!d.stats && !d.segments) return;
-        const segs = d.segments ? d.segments.length : 0;
-        const juns = d.junctions ? d.junctions.length : 0;
-        const stas = d.stations ? d.stations.length : 0;
-        const len  = d.total_length || 0;
-        statsBar.textContent = `Segments: ${segs}  |  Junctions: ${juns}  |  Stations: ${stas}  |  Total length: ${len} blocks`;
+        const segs  = d.segments    ? d.segments.length    : 0;
+        const juns  = d.junctions   ? d.junctions.length   : 0;
+        const trans = d.transitions ? d.transitions.length : 0;
+        const stas  = d.stations    ? d.stations.length    : 0;
+        const len   = d.total_length || 0;
+        statsBar.textContent = `Segments: ${segs}  |  Junctions: ${juns}  |  Transitions: ${trans}  |  Stations: ${stas}  |  Total length: ${len} blocks`;
         statsBar.style.display = 'block';
     }
 
