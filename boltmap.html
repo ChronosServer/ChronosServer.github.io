@@ -76,13 +76,13 @@ permalink: /boltmap/
             font-size: 0.72rem;
             line-height: 1.8;
         }
-        .legend-row { display: flex; align-items: center; gap: 0.5rem; }
-        .legend-line { width: 24px; height: 2px; background: white; display: inline-block; }
-        .legend-diag { width: 24px; height: 2px; background: rgba(255,255,255,0.5); display: inline-block; }
-        .legend-vert { width: 2px; height: 14px; background: rgba(255,255,255,0.5); display: inline-block; }
-        .legend-dot  { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
-        .legend-square { width: 8px; height: 8px; background: white; display: inline-block; }
-        .legend-hub  { width: 10px; height: 10px; background: rgba(255,200,50,0.9); display: inline-block; }
+        .legend-row   { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-line  { width: 24px; height: 2px; background: white; display: inline-block; }
+        .legend-diag  { width: 24px; height: 2px; background: rgba(255,255,255,0.5); display: inline-block; }
+        .legend-vert  { width: 2px; height: 14px; background: rgba(255,255,255,0.5); display: inline-block; }
+        .legend-dot   { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
+        .legend-square{ width: 8px; height: 8px; background: white; display: inline-block; }
+        .legend-hub   { width: 10px; height: 10px; background: rgba(255,200,50,0.9); display: inline-block; }
 
         #loading {
             position: fixed;
@@ -151,17 +151,17 @@ permalink: /boltmap/
     </div>
 
     <script>
-    const CENTER_X = 264;
-    const CENTER_Z = -162;
+    const CENTER_X    = 264;
+    const CENTER_Z    = -162;
     const SCAN_RADIUS = 7500;
 
-    const canvas  = document.getElementById('canvas');
-    const ctx     = canvas.getContext('2d');
-    const tooltip = document.getElementById('tooltip');
+    const canvas    = document.getElementById('canvas');
+    const ctx       = canvas.getContext('2d');
+    const tooltip   = document.getElementById('tooltip');
     const coordsEl  = document.getElementById('coords');
-    const statsBar   = document.getElementById('stats-bar');
-    const loadingEl  = document.getElementById('loading');
-    const container  = document.getElementById('map-container');
+    const statsBar  = document.getElementById('stats-bar');
+    const loadingEl = document.getElementById('loading');
+    const container = document.getElementById('map-container');
 
     let data = null;
     let scale = 1, offsetX = 0, offsetY = 0;
@@ -174,7 +174,6 @@ permalink: /boltmap/
         if (data) draw();
     }
 
-    // world → canvas
     function w2c(wx, wz) {
         const x_min = CENTER_X - SCAN_RADIUS;
         const z_min = CENTER_Z - SCAN_RADIUS;
@@ -184,7 +183,6 @@ permalink: /boltmap/
         return [px * scale + offsetX, py * scale + offsetY];
     }
 
-    // canvas → world
     function c2w(cx, cy) {
         const x_min = CENTER_X - SCAN_RADIUS;
         const z_min = CENTER_Z - SCAN_RADIUS;
@@ -201,18 +199,31 @@ permalink: /boltmap/
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!data || !data.segments) return;
 
-        // Marker sizes proportional to bolt line width — "a little bigger than the line"
-        const lineWidth = Math.max(0.5, 1.5 * scale);
-        const markerR   = lineWidth * 1.4;
-        const showMarkers = markerR >= 1.5;
+        // World-to-screen: how many pixels is one world block at current zoom?
+        // canvas covers SCAN_RADIUS*2 world blocks across its width at scale=1.
+        const wts = (scale * canvas.width) / (SCAN_RADIUS * 2);
+
+        // Line width: world-proportional so zooming in doesn't make lines
+        // so thick that close parallel bolts become indistinguishable.
+        // Floor of 1px so lines are always visible when zoomed out.
+        const lineWidth = Math.max(1, Math.min(6, wts * 3));
+
+        // Marker radius: slightly bigger than line so it reads as a node.
+        const markerR = Math.max(3, lineWidth * 1.6);
+
+        // Hub cross arm
+        const hubArm = Math.max(12, Math.min(50, wts * 10));
+
+        // Hide markers when zoomed out so they don't clutter
+        const showMarkers = markerR >= 3;
 
         // ── Bolt segments (polyline through waypoints) ────────────────────
         for (const seg of data.segments) {
             if (seg.type === 'diagonal') {
-                ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
                 ctx.setLineDash([]);
             } else if (seg.type === 'vertical') {
-                ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                ctx.strokeStyle = 'rgba(255,255,255,0.45)';
                 ctx.setLineDash([4 * scale, 3 * scale]);
             } else {
                 ctx.strokeStyle = 'rgba(255,255,255,0.9)';
@@ -241,10 +252,11 @@ permalink: /boltmap/
         }
 
         if (showMarkers) {
+            ctx.lineWidth = 1;
+
             // ── Junctions (white circles) ─────────────────────────────────
             ctx.fillStyle   = 'white';
             ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            ctx.lineWidth   = 1;
             for (const j of (data.junctions || [])) {
                 const [px, py] = w2c(j.x, j.z);
                 ctx.beginPath();
@@ -256,7 +268,6 @@ permalink: /boltmap/
             // ── Regular stations (white squares) ──────────────────────────
             ctx.fillStyle   = 'white';
             ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            ctx.lineWidth   = 1;
             for (const s of (data.stations || [])) {
                 if (s.is_hub) continue;
                 const [px, py] = w2c(s.x, s.z);
@@ -264,24 +275,23 @@ permalink: /boltmap/
                 ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
             }
 
-            // ── Hub station (gold square) ──────────────────────────────────
+            // ── Hub station (gold square, drawn before the cross) ─────────
             const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-            const hubR = markerR * 1.6;
+            const hubR = markerR * 1.8;
             ctx.fillStyle   = 'rgba(255,200,50,0.9)';
             ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            ctx.lineWidth   = 1;
             ctx.fillRect  (hx - hubR, hy - hubR, hubR * 2, hubR * 2);
             ctx.strokeRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
         }
 
-        // ── Hub center cross (always visible) ─────────────────────────────
+        // ── Hub center cross (always visible, drawn on top) ───────────────
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        const arm = Math.max(10, Math.min(40, markerR * 3));
         ctx.strokeStyle = 'rgba(255,80,80,0.9)';
         ctx.lineWidth   = Math.max(1.5, lineWidth * 0.8);
+        ctx.setLineDash([]);
         ctx.beginPath();
-        ctx.moveTo(hx - arm, hy); ctx.lineTo(hx + arm, hy);
-        ctx.moveTo(hx, hy - arm); ctx.lineTo(hx, hy + arm);
+        ctx.moveTo(hx - hubArm, hy); ctx.lineTo(hx + hubArm, hy);
+        ctx.moveTo(hx, hy - hubArm); ctx.lineTo(hx, hy + hubArm);
         ctx.stroke();
     }
 
@@ -291,7 +301,7 @@ permalink: /boltmap/
         const dx = bx-ax, dy = by-ay;
         const lenSq = dx*dx + dy*dy;
         if (lenSq === 0) return Math.hypot(px-ax, py-ay);
-        const t  = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / lenSq));
+        const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / lenSq));
         return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
     }
 
@@ -313,7 +323,8 @@ permalink: /boltmap/
 
     function hitTest(mouseX, mouseY) {
         if (!data) return null;
-        const HIT = 8;  // screen-pixel hit radius
+        const HIT = 8;   // screen-pixel hit radius for markers
+        const SEG = 5;   // screen-pixel hit tolerance for bolt lines
 
         // Hub center cross
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
@@ -336,9 +347,9 @@ permalink: /boltmap/
                 return { type: 'station', data: s };
         }
 
-        // Segments (check against actual polyline, not just start-end)
+        // Segments (check the actual polyline, not just the chord)
         for (const seg of (data.segments || [])) {
-            if (segPolylineDist(mouseX, mouseY, seg) < 6)
+            if (segPolylineDist(mouseX, mouseY, seg) < SEG)
                 return { type: 'segment', data: seg };
         }
 
@@ -350,11 +361,8 @@ permalink: /boltmap/
     function segTypeLabel(seg) {
         if (seg.type === 'vertical') return 'VERTICAL SECTION';
         if (seg.type === 'diagonal') return 'DIAGONAL BOLT';
-        // Fallback: if overall displacement is diagonal, show it correctly
-        const dx = Math.abs(seg.end.x - seg.start.x);
-        const dz = Math.abs(seg.end.z - seg.start.z);
-        if (dx > 0 && dz > 0 && Math.min(dx, dz) / Math.max(dx, dz) > 0.4)
-            return 'DIAGONAL BOLT';
+        // Frontend fallback: two-character direction = diagonal movement
+        if (seg.direction && seg.direction.length === 2) return 'DIAGONAL BOLT';
         return 'STRAIGHT BOLT';
     }
 
