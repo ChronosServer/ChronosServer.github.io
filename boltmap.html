@@ -11,13 +11,8 @@ permalink: /boltmap/
     <link rel="stylesheet" href="/css/site.css">
     <title>Bolt Map — Chronos</title>
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-        }
+        html, body { height: 100%; margin: 0; overflow: hidden; }
 
-        /* dark overlay over background */
         body::before {
             content: '';
             position: fixed;
@@ -27,32 +22,19 @@ permalink: /boltmap/
             pointer-events: none;
         }
 
-        nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-        }
+        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
 
         #map-container {
             position: fixed;
             inset: 0;
-            top: 52px; /* below nav */
+            top: 52px;
             z-index: 1;
             cursor: grab;
             overflow: hidden;
         }
+        #map-container:active { cursor: grabbing; }
 
-        #map-container:active {
-            cursor: grabbing;
-        }
-
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
+        canvas { position: absolute; top: 0; left: 0; }
 
         #tooltip {
             position: fixed;
@@ -94,48 +76,13 @@ permalink: /boltmap/
             font-size: 0.72rem;
             line-height: 1.8;
         }
-
-        .legend-row {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .legend-line {
-            width: 24px;
-            height: 2px;
-            background: white;
-            display: inline-block;
-        }
-
-        .legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: white;
-            display: inline-block;
-        }
-
-        .legend-square {
-            width: 10px;
-            height: 10px;
-            background: white;
-            display: inline-block;
-        }
-
-        .legend-diag {
-            width: 24px;
-            height: 2px;
-            background: rgba(255,255,255,0.5);
-            display: inline-block;
-        }
-
-        .legend-vert {
-            width: 2px;
-            height: 14px;
-            background: rgba(255,255,255,0.5);
-            display: inline-block;
-        }
+        .legend-row { display: flex; align-items: center; gap: 0.5rem; }
+        .legend-line { width: 24px; height: 2px; background: white; display: inline-block; }
+        .legend-diag { width: 24px; height: 2px; background: rgba(255,255,255,0.5); display: inline-block; }
+        .legend-vert { width: 2px; height: 14px; background: rgba(255,255,255,0.5); display: inline-block; }
+        .legend-dot  { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
+        .legend-square { width: 8px; height: 8px; background: white; display: inline-block; }
+        .legend-hub  { width: 10px; height: 10px; background: rgba(255,200,50,0.9); display: inline-block; }
 
         #loading {
             position: fixed;
@@ -165,14 +112,6 @@ permalink: /boltmap/
             font-size: 0.7rem;
             white-space: nowrap;
             display: none;
-        }
-
-        .legend-diamond {
-            width: 8px;
-            height: 8px;
-            background: rgba(255, 200, 100, 0.8);
-            transform: rotate(45deg);
-            display: inline-block;
         }
     </style>
 </head>
@@ -207,8 +146,8 @@ permalink: /boltmap/
         <div class="legend-row"><span class="legend-vert"></span> Vertical section</div>
         <div class="legend-row"><span class="legend-dot"></span> Junction</div>
         <div class="legend-row"><span class="legend-square"></span> Station</div>
-        <div class="legend-row"><span class="legend-diamond"></span> Transition</div>
-        <div class="legend-row" style="color:rgba(255,100,100,0.8)">✕ Hub (0,0 relative)</div>
+        <div class="legend-row"><span class="legend-hub"></span> Hub station</div>
+        <div class="legend-row" style="color:rgba(255,100,100,0.8)">✕ Hub center</div>
     </div>
 
     <script>
@@ -216,26 +155,21 @@ permalink: /boltmap/
     const CENTER_Z = -162;
     const SCAN_RADIUS = 7500;
 
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    const canvas  = document.getElementById('canvas');
+    const ctx     = canvas.getContext('2d');
     const tooltip = document.getElementById('tooltip');
-    const coordsEl = document.getElementById('coords');
-    const statsBar = document.getElementById('stats-bar');
-    const loadingEl = document.getElementById('loading');
-    const container = document.getElementById('map-container');
+    const coordsEl  = document.getElementById('coords');
+    const statsBar   = document.getElementById('stats-bar');
+    const loadingEl  = document.getElementById('loading');
+    const container  = document.getElementById('map-container');
 
     let data = null;
-
-    // pan/zoom state
-    let scale = 1;
-    let offsetX = 0;
-    let offsetY = 0;
+    let scale = 1, offsetX = 0, offsetY = 0;
     let dragging = false;
-    let dragStartX = 0, dragStartY = 0;
-    let dragOffsetX = 0, dragOffsetY = 0;
+    let dragStartX = 0, dragStartY = 0, dragOffsetX = 0, dragOffsetY = 0;
 
     function resize() {
-        canvas.width = container.clientWidth;
+        canvas.width  = container.clientWidth;
         canvas.height = container.clientHeight;
         if (data) draw();
     }
@@ -244,7 +178,7 @@ permalink: /boltmap/
     function w2c(wx, wz) {
         const x_min = CENTER_X - SCAN_RADIUS;
         const z_min = CENTER_Z - SCAN_RADIUS;
-        const span = SCAN_RADIUS * 2;
+        const span  = SCAN_RADIUS * 2;
         const px = ((wx - x_min) / span) * canvas.width;
         const py = ((wz - z_min) / span) * canvas.height;
         return [px * scale + offsetX, py * scale + offsetY];
@@ -254,148 +188,183 @@ permalink: /boltmap/
     function c2w(cx, cy) {
         const x_min = CENTER_X - SCAN_RADIUS;
         const z_min = CENTER_Z - SCAN_RADIUS;
-        const span = SCAN_RADIUS * 2;
+        const span  = SCAN_RADIUS * 2;
         const px = (cx - offsetX) / scale;
         const py = (cy - offsetY) / scale;
-        const wx = x_min + (px / canvas.width) * span;
-        const wz = z_min + (py / canvas.height) * span;
-        return [Math.round(wx), Math.round(wz)];
+        return [Math.round(x_min + (px / canvas.width)  * span),
+                Math.round(z_min + (py / canvas.height) * span)];
     }
+
+    // ── Draw ─────────────────────────────────────────────────────────────────
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!data || !data.segments) return;
 
+        // Marker sizes proportional to bolt line width — "a little bigger than the line"
         const lineWidth = Math.max(0.5, 1.5 * scale);
-        const markerR = Math.min(8, Math.max(2, lineWidth * 1.5));
-        const showMarkers = scale > 0.1;
+        const markerR   = lineWidth * 1.4;
+        const showMarkers = markerR >= 1.5;
 
-        // segments
+        // ── Bolt segments (polyline through waypoints) ────────────────────
         for (const seg of data.segments) {
-            const [sx, sy_] = w2c(seg.start.x, seg.start.z);
-            const [ex, ey]  = w2c(seg.end.x,   seg.end.z);
-            ctx.beginPath();
-            ctx.moveTo(sx, sy_);
-            ctx.lineTo(ex, ey);
             if (seg.type === 'diagonal') {
                 ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+                ctx.setLineDash([]);
             } else if (seg.type === 'vertical') {
                 ctx.strokeStyle = 'rgba(255,255,255,0.4)';
                 ctx.setLineDash([4 * scale, 3 * scale]);
             } else {
                 ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                ctx.setLineDash([]);
             }
             ctx.lineWidth = lineWidth;
+
+            const wps = seg.waypoints;
+            if (wps && wps.length >= 2) {
+                ctx.beginPath();
+                const [sx, sy] = w2c(wps[0].x, wps[0].z);
+                ctx.moveTo(sx, sy);
+                for (let i = 1; i < wps.length; i++) {
+                    const [wx, wy] = w2c(wps[i].x, wps[i].z);
+                    ctx.lineTo(wx, wy);
+                }
+            } else {
+                const [sx, sy] = w2c(seg.start.x, seg.start.z);
+                const [ex, ey] = w2c(seg.end.x,   seg.end.z);
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(ex, ey);
+            }
             ctx.stroke();
             ctx.setLineDash([]);
         }
 
-        // hub cross (always visible)
+        if (showMarkers) {
+            // ── Junctions (white circles) ─────────────────────────────────
+            ctx.fillStyle   = 'white';
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth   = 1;
+            for (const j of (data.junctions || [])) {
+                const [px, py] = w2c(j.x, j.z);
+                ctx.beginPath();
+                ctx.arc(px, py, markerR, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // ── Regular stations (white squares) ──────────────────────────
+            ctx.fillStyle   = 'white';
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth   = 1;
+            for (const s of (data.stations || [])) {
+                if (s.is_hub) continue;
+                const [px, py] = w2c(s.x, s.z);
+                ctx.fillRect  (px - markerR, py - markerR, markerR * 2, markerR * 2);
+                ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
+            }
+
+            // ── Hub station (gold square) ──────────────────────────────────
+            const [hx, hy] = w2c(CENTER_X, CENTER_Z);
+            const hubR = markerR * 1.6;
+            ctx.fillStyle   = 'rgba(255,200,50,0.9)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth   = 1;
+            ctx.fillRect  (hx - hubR, hy - hubR, hubR * 2, hubR * 2);
+            ctx.strokeRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
+        }
+
+        // ── Hub center cross (always visible) ─────────────────────────────
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        const arm = Math.max(6, 10 * scale);
+        const arm = Math.max(10, Math.min(40, markerR * 3));
         ctx.strokeStyle = 'rgba(255,80,80,0.9)';
-        ctx.lineWidth = Math.max(1, 2 * scale);
+        ctx.lineWidth   = Math.max(1.5, lineWidth * 0.8);
         ctx.beginPath();
         ctx.moveTo(hx - arm, hy); ctx.lineTo(hx + arm, hy);
         ctx.moveTo(hx, hy - arm); ctx.lineTo(hx, hy + arm);
         ctx.stroke();
-
-        if (!showMarkers) return;
-
-        // junctions
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.lineWidth = 1;
-        for (const j of (data.junctions || [])) {
-            const [px, py] = w2c(j.x, j.z);
-            ctx.beginPath();
-            ctx.arc(px, py, markerR, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-        }
-
-        // stations
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.lineWidth = 1;
-        for (const s of (data.stations || [])) {
-            if (s.is_hub) continue;
-            const [px, py] = w2c(s.x, s.z);
-            ctx.fillRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
-            ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
-        }
-
-        // transitions — yellow diamond
-        ctx.fillStyle = 'rgba(255, 200, 100, 0.85)';
-        for (const t of (data.transitions || [])) {
-            const [px, py] = w2c(t.x, t.z);
-            const r = markerR * 0.85;
-            ctx.beginPath();
-            ctx.moveTo(px,     py - r);
-            ctx.lineTo(px + r, py    );
-            ctx.lineTo(px,     py + r);
-            ctx.lineTo(px - r, py    );
-            ctx.closePath();
-            ctx.fill();
-        }
     }
 
-    // ── Tooltip hit testing ──────────────────────────────────────────────────
+    // ── Hit testing ──────────────────────────────────────────────────────────
+
+    function pointToSegmentDist(px, py, ax, ay, bx, by) {
+        const dx = bx-ax, dy = by-ay;
+        const lenSq = dx*dx + dy*dy;
+        if (lenSq === 0) return Math.hypot(px-ax, py-ay);
+        const t  = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / lenSq));
+        return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
+    }
+
+    function segPolylineDist(mx, my, seg) {
+        const wps = seg.waypoints;
+        if (!wps || wps.length < 2) {
+            const [sx, sy] = w2c(seg.start.x, seg.start.z);
+            const [ex, ey] = w2c(seg.end.x,   seg.end.z);
+            return pointToSegmentDist(mx, my, sx, sy, ex, ey);
+        }
+        let best = Infinity;
+        for (let i = 0; i < wps.length - 1; i++) {
+            const [sx, sy] = w2c(wps[i].x,   wps[i].z);
+            const [ex, ey] = w2c(wps[i+1].x, wps[i+1].z);
+            best = Math.min(best, pointToSegmentDist(mx, my, sx, sy, ex, ey));
+        }
+        return best;
+    }
+
     function hitTest(mouseX, mouseY) {
         if (!data) return null;
-        const HIT_PX = 10;
+        const HIT = 8;  // screen-pixel hit radius
 
-        // hub first
+        // Hub center cross
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        if (Math.sqrt((mouseX-hx)**2 + (mouseY-hy)**2) < HIT_PX) {
+        if (Math.hypot(mouseX - hx, mouseY - hy) < HIT) {
             const hub = (data.stations || []).find(s => s.is_hub);
             if (hub) return { type: 'station', data: hub };
         }
 
+        // Junctions
         for (const j of (data.junctions || [])) {
             const [px, py] = w2c(j.x, j.z);
-            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
+            if (Math.hypot(mouseX - px, mouseY - py) < HIT)
                 return { type: 'junction', data: j };
         }
 
+        // Stations
         for (const s of (data.stations || [])) {
             const [px, py] = w2c(s.x, s.z);
-            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
+            if (Math.hypot(mouseX - px, mouseY - py) < HIT)
                 return { type: 'station', data: s };
         }
 
-        for (const t of (data.transitions || [])) {
-            const [px, py] = w2c(t.x, t.z);
-            if (Math.sqrt((mouseX-px)**2 + (mouseY-py)**2) < HIT_PX)
-                return { type: 'transition', data: t };
-        }
-
+        // Segments (check against actual polyline, not just start-end)
         for (const seg of (data.segments || [])) {
-            const [sx, sy] = w2c(seg.start.x, seg.start.z);
-            const [ex, ey] = w2c(seg.end.x,   seg.end.z);
-            if (pointToSegmentDist(mouseX, mouseY, sx, sy, ex, ey) < 6)
+            if (segPolylineDist(mouseX, mouseY, seg) < 6)
                 return { type: 'segment', data: seg };
         }
 
         return null;
     }
 
-    function pointToSegmentDist(px, py, ax, ay, bx, by) {
-        const dx = bx - ax, dy = by - ay;
-        const lenSq = dx*dx + dy*dy;
-        if (lenSq === 0) return Math.sqrt((px-ax)**2 + (py-ay)**2);
-        let t = ((px-ax)*dx + (py-ay)*dy) / lenSq;
-        t = Math.max(0, Math.min(1, t));
-        const nx = ax + t*dx, ny = ay + t*dy;
-        return Math.sqrt((px-nx)**2 + (py-ny)**2);
+    // ── Tooltip ──────────────────────────────────────────────────────────────
+
+    function segTypeLabel(seg) {
+        if (seg.type === 'vertical') return 'VERTICAL SECTION';
+        if (seg.type === 'diagonal') return 'DIAGONAL BOLT';
+        // Fallback: if overall displacement is diagonal, show it correctly
+        const dx = Math.abs(seg.end.x - seg.start.x);
+        const dz = Math.abs(seg.end.z - seg.start.z);
+        if (dx > 0 && dz > 0 && Math.min(dx, dz) / Math.max(dx, dz) > 0.4)
+            return 'DIAGONAL BOLT';
+        return 'STRAIGHT BOLT';
     }
 
     function showTooltip(e, hit) {
         if (!hit) { tooltip.style.display = 'none'; return; }
+
         let html = '';
         if (hit.type === 'segment') {
             const s = hit.data;
-            html = `<strong>${s.type.toUpperCase()} BOLT</strong><br>
+            html = `<strong>${segTypeLabel(s)}</strong><br>
                     Direction: ${s.direction}<br>
                     Length: ${s.length} blocks<br>
                     Start: ${s.start.x}, ${s.start.y}, ${s.start.z}<br>
@@ -409,26 +378,23 @@ permalink: /boltmap/
             const s = hit.data;
             html = `<strong>${s.is_hub ? 'HUB STATION' : 'STATION'}</strong><br>
                     X: ${s.x} &nbsp; Y: ${s.y} &nbsp; Z: ${s.z}`;
-        } else if (hit.type === 'transition') {
-            const t = hit.data;
-            html = `<strong>TRANSITION</strong><br>
-                    Straight ↔ Diagonal<br>
-                    X: ${t.x} &nbsp; Y: ${t.y} &nbsp; Z: ${t.z}`;
         }
+
         tooltip.innerHTML = html;
         tooltip.style.display = 'block';
         let tx = e.clientX + 14, ty = e.clientY + 14;
-        if (tx + 260 > window.innerWidth) tx = e.clientX - 260 - 14;
+        if (tx + 260 > window.innerWidth)  tx = e.clientX - 260 - 14;
         if (ty + 120 > window.innerHeight) ty = e.clientY - 120;
         tooltip.style.left = tx + 'px';
         tooltip.style.top  = ty + 'px';
     }
 
     // ── Events ───────────────────────────────────────────────────────────────
+
     container.addEventListener('mousedown', e => {
-        dragging = true;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
+        dragging    = true;
+        dragStartX  = e.clientX;
+        dragStartY  = e.clientY;
         dragOffsetX = offsetX;
         dragOffsetY = offsetY;
     });
@@ -449,7 +415,7 @@ permalink: /boltmap/
             coordsEl.textContent = `X: ${wx}  Z: ${wz}`;
             const hit = hitTest(mx, my);
             showTooltip(e, hit);
-            container.style.cursor = hit ? 'pointer' : (dragging ? 'grabbing' : 'grab');
+            container.style.cursor = hit ? 'pointer' : 'grab';
         }
     });
 
@@ -458,31 +424,27 @@ permalink: /boltmap/
         const rect = canvas.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-
-        const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-        const newScale = Math.max(0.1, Math.min(50, scale * zoomFactor));
-
-        // zoom toward mouse position
-        offsetX = mx - (mx - offsetX) * (newScale / scale);
-        offsetY = my - (my - offsetY) * (newScale / scale);
-        scale = newScale;
+        const zf = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        const ns = Math.max(0.1, Math.min(50, scale * zf));
+        offsetX = mx - (mx - offsetX) * (ns / scale);
+        offsetY = my - (my - offsetY) * (ns / scale);
+        scale   = ns;
         draw();
     }, { passive: false });
 
-    // touch support
     let lastTouchDist = 0;
     container.addEventListener('touchstart', e => {
         if (e.touches.length === 1) {
-            dragging = true;
-            dragStartX = e.touches[0].clientX;
-            dragStartY = e.touches[0].clientY;
+            dragging    = true;
+            dragStartX  = e.touches[0].clientX;
+            dragStartY  = e.touches[0].clientY;
             dragOffsetX = offsetX;
             dragOffsetY = offsetY;
         } else if (e.touches.length === 2) {
             dragging = false;
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastTouchDist = Math.sqrt(dx*dx + dy*dy);
+            lastTouchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY);
         }
     });
 
@@ -493,27 +455,26 @@ permalink: /boltmap/
             offsetY = dragOffsetY + (e.touches[0].clientY - dragStartY);
             draw();
         } else if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            const zf = dist / lastTouchDist;
-            scale = Math.max(0.1, Math.min(50, scale * zf));
-            lastTouchDist = dist;
+            const d = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY);
+            scale = Math.max(0.1, Math.min(50, scale * (d / lastTouchDist)));
+            lastTouchDist = d;
             draw();
         }
     }, { passive: false });
 
     container.addEventListener('touchend', () => { dragging = false; });
 
-    // ── Load data ─────────────────────────────────────────────────────────────
+    // ── Data loading ──────────────────────────────────────────────────────────
+
     function updateStats(d) {
-        if (!d.stats && !d.segments) return;
-        const segs  = d.segments    ? d.segments.length    : 0;
-        const juns  = d.junctions   ? d.junctions.length   : 0;
-        const trans = d.transitions ? d.transitions.length : 0;
-        const stas  = d.stations    ? d.stations.length    : 0;
-        const len   = d.total_length || 0;
-        statsBar.textContent = `Segments: ${segs}  |  Junctions: ${juns}  |  Transitions: ${trans}  |  Stations: ${stas}  |  Total length: ${len} blocks`;
+        if (!d.segments) return;
+        statsBar.textContent =
+            `Segments: ${d.segments.length}  |  ` +
+            `Junctions: ${(d.junctions||[]).length}  |  ` +
+            `Stations: ${(d.stations||[]).length}  |  ` +
+            `Total length: ${d.total_length || 0} blocks`;
         statsBar.style.display = 'block';
     }
 
@@ -522,22 +483,18 @@ permalink: /boltmap/
             .then(r => r.json())
             .then(d => {
                 data = d;
-                loadingEl.style.display = 'none';
                 updateStats(d);
-
                 if (!d.progress || !d.progress.complete) {
-                    // still scanning — reload in 5s
                     loadingEl.style.display = 'flex';
-                    loadingEl.textContent = `Scanning... (${d.progress ? d.progress.scanned : 0} regions done, ${d.rail_blocks_found || 0} rail blocks found)`;
+                    loadingEl.textContent = `Scanning... (${d.progress?.blocks_found || 0} blocks found)`;
                     setTimeout(loadData, 5000);
                 } else {
                     loadingEl.style.display = 'none';
                 }
-
                 draw();
             })
             .catch(() => {
-                loadingEl.textContent = 'No bolt map data found. Run scan.py to generate.';
+                loadingEl.textContent = 'No bolt map data. Run scan.py to generate.';
             });
     }
 
