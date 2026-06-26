@@ -78,8 +78,8 @@ permalink: /boltmap/
         }
         .legend-row   { display: flex; align-items: center; gap: 0.5rem; }
         .legend-line  { width: 24px; height: 2px; background: white; display: inline-block; }
-        .legend-vert  { width: 2px; height: 14px; background: rgba(255,255,255,0.7);
-                        border-left: 2px dashed rgba(255,255,255,0.7); display: inline-block; }
+        .legend-diag  { width: 24px; height: 2px; background: rgba(255,255,255,0.5); display: inline-block; }
+        .legend-vert  { width: 2px; height: 14px; background: rgba(255,255,255,0.5); display: inline-block; }
         .legend-dot   { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
         .legend-square{ width: 8px; height: 8px; background: white; display: inline-block; }
         .legend-hub   { width: 10px; height: 10px; background: rgba(255,200,50,0.9); display: inline-block; }
@@ -141,7 +141,8 @@ permalink: /boltmap/
     </div>
 
     <div id="legend">
-        <div class="legend-row"><span class="legend-line"></span> Piston Bolt</div>
+        <div class="legend-row"><span class="legend-line"></span> Straight bolt</div>
+        <div class="legend-row"><span class="legend-diag"></span> Diagonal bolt</div>
         <div class="legend-row"><span class="legend-vert"></span> Vertical section</div>
         <div class="legend-row"><span class="legend-dot"></span> Junction</div>
         <div class="legend-row"><span class="legend-square"></span> Station</div>
@@ -198,22 +199,37 @@ permalink: /boltmap/
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!data || !data.segments) return;
 
-        // pixels per world block at current zoom
+        // World-to-screen: how many pixels is one world block at current zoom?
+        // canvas covers SCAN_RADIUS*2 world blocks across its width at scale=1.
         const wts = (scale * canvas.width) / (SCAN_RADIUS * 2);
 
-        // World-proportional line width: thin when zoomed out, proportional when in.
-        // Capped so closely-spaced parallel bolts stay distinguishable.
+        // Line width: world-proportional so zooming in doesn't make lines
+        // so thick that close parallel bolts become indistinguishable.
+        // Floor of 1px so lines are always visible when zoomed out.
         const lineWidth = Math.max(1, Math.min(6, wts * 3));
-        const markerR   = Math.max(3, lineWidth * 1.6);
-        const hubArm    = Math.max(12, Math.min(50, wts * 10));
+
+        // Marker radius: slightly bigger than line so it reads as a node.
+        const markerR = Math.max(3, lineWidth * 1.6);
+
+        // Hub cross arm
+        const hubArm = Math.max(12, Math.min(50, wts * 10));
+
+        // Hide markers when zoomed out so they don't clutter
         const showMarkers = markerR >= 3;
 
-        // ── Bolt segments ─────────────────────────────────────────────────
-        // All bolts: same white colour. Vertical sections are dashed.
+        // ── Bolt segments (polyline through waypoints) ────────────────────
         for (const seg of data.segments) {
-            ctx.lineWidth   = lineWidth;
-            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-            ctx.setLineDash(seg.type === 'vertical' ? [4 * scale, 3 * scale] : []);
+            if (seg.type === 'diagonal') {
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                ctx.setLineDash([]);
+            } else if (seg.type === 'vertical') {
+                ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+                ctx.setLineDash([4 * scale, 3 * scale]);
+            } else {
+                ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+                ctx.setLineDash([]);
+            }
+            ctx.lineWidth = lineWidth;
 
             const wps = seg.waypoints;
             if (wps && wps.length >= 2) {
@@ -259,7 +275,7 @@ permalink: /boltmap/
                 ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
             }
 
-            // ── Hub station (gold square) ──────────────────────────────────
+            // ── Hub station (gold square, drawn before the cross) ─────────
             const [hx, hy] = w2c(CENTER_X, CENTER_Z);
             const hubR = markerR * 1.8;
             ctx.fillStyle   = 'rgba(255,200,50,0.9)';
@@ -268,7 +284,7 @@ permalink: /boltmap/
             ctx.strokeRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
         }
 
-        // ── Hub center cross (always visible) ─────────────────────────────
+        // ── Hub center cross (always visible, drawn on top) ───────────────
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
         ctx.strokeStyle = 'rgba(255,80,80,0.9)';
         ctx.lineWidth   = Math.max(1.5, lineWidth * 0.8);
@@ -307,8 +323,8 @@ permalink: /boltmap/
 
     function hitTest(mouseX, mouseY) {
         if (!data) return null;
-        const HIT = 8;
-        const SEG = 5;
+        const HIT = 8;   // screen-pixel hit radius for markers
+        const SEG = 5;   // screen-pixel hit tolerance for bolt lines
 
         // Hub center cross
         const [hx, hy] = w2c(CENTER_X, CENTER_Z);
@@ -317,18 +333,21 @@ permalink: /boltmap/
             if (hub) return { type: 'station', data: hub };
         }
 
+        // Junctions
         for (const j of (data.junctions || [])) {
             const [px, py] = w2c(j.x, j.z);
             if (Math.hypot(mouseX - px, mouseY - py) < HIT)
                 return { type: 'junction', data: j };
         }
 
+        // Stations
         for (const s of (data.stations || [])) {
             const [px, py] = w2c(s.x, s.z);
             if (Math.hypot(mouseX - px, mouseY - py) < HIT)
                 return { type: 'station', data: s };
         }
 
+        // Segments (check the actual polyline, not just the chord)
         for (const seg of (data.segments || [])) {
             if (segPolylineDist(mouseX, mouseY, seg) < SEG)
                 return { type: 'segment', data: seg };
@@ -339,14 +358,21 @@ permalink: /boltmap/
 
     // ── Tooltip ──────────────────────────────────────────────────────────────
 
+    function segTypeLabel(seg) {
+        if (seg.type === 'vertical') return 'VERTICAL SECTION';
+        if (seg.type === 'diagonal') return 'DIAGONAL BOLT';
+        // Frontend fallback: two-character direction = diagonal movement
+        if (seg.direction && seg.direction.length === 2) return 'DIAGONAL BOLT';
+        return 'STRAIGHT BOLT';
+    }
+
     function showTooltip(e, hit) {
         if (!hit) { tooltip.style.display = 'none'; return; }
 
         let html = '';
         if (hit.type === 'segment') {
             const s = hit.data;
-            const label = s.type === 'vertical' ? 'PISTON BOLT (vertical)' : 'PISTON BOLT';
-            html = `<strong>${label}</strong><br>
+            html = `<strong>${segTypeLabel(s)}</strong><br>
                     Direction: ${s.direction}<br>
                     Length: ${s.length} blocks<br>
                     Start: ${s.start.x}, ${s.start.y}, ${s.start.z}<br>
