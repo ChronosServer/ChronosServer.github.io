@@ -5,22 +5,23 @@ kind: home
 bg: chronos_spawn
 ---
 <header class="hero">
-  <span id="live" class="pill" hidden></span>
   <h1>Chronos</h1>
-  <p class="tag">Technical Minecraft, where creativity meets innovation.</p>
-  <div class="btns">
-    <a class="btn main" href="https://discord.gg/VvPucVAjUS" target="_blank" rel="noopener">Join the Discord</a>
-    <a class="btn" href="https://github.com/ChronosServer" target="_blank" rel="noopener">GitHub</a>
-    <a class="btn" href="https://www.patreon.com/cw/Chronos_SMP" target="_blank" rel="noopener">Support on Patreon</a>
-  </div>
-  <nav class="index" aria-label="Sections">{% for l in site.data.nav %}{% unless l.url == "/" %}<a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><b>{{ l.title }}</b><span>{{ l.desc }}</span></a>{% endunless %}{% endfor %}</nav>
+  <div class="sub">Technical Minecraft SMP</div>
+  <p class="tag">Where creativity meets innovation.</p>
+  <div id="live" class="live" hidden></div>
+  <ul class="ls">
+    {% for l in site.data.nav %}{% unless l.url == "/" %}<li><a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><b>{{ l.title }}</b><span>{{ l.desc }}</span></a></li>{% endunless %}{% endfor %}
+    <li class="gap"><a href="https://discord.gg/VvPucVAjUS" target="_blank" rel="noopener"><b>Discord</b><span>Join the community</span></a></li>
+    <li><a href="https://github.com/ChronosServer" target="_blank" rel="noopener"><b>GitHub</b><span>Source code and tools</span></a></li>
+    <li><a href="https://www.patreon.com/cw/Chronos_SMP" target="_blank" rel="noopener"><b>Patreon</b><span>Support the server</span></a></li>
+  </ul>
 </header>
 <script>
-C.json('/data/server_status.json').then(({data}) => {
+C.json('/data/server_status.json').then(({data, at}) => {
   const s = Object.values(data.servers || data).filter(v => typeof v === 'string');
   if (!s.length) return;
   const p = document.getElementById('live');
-  p.textContent = s.filter(v => v === 'Online').length + ' of ' + s.length + ' servers online';
+  p.textContent = s.filter(v => v === 'Online').length + ' / ' + s.length + ' servers online, synced ' + C.ago(at);
   p.hidden = false;
 }).catch(() => {});
 </script>
