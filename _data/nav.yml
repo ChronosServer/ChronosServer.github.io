@@ -1,0 +1,8 @@
+- {title: Home, url: /, desc: ""}
+- {title: Members, url: /members/, desc: "Who plays on Chronos"}
+- {title: Gallery, url: /gallery/, desc: "Screenshots of our builds"}
+- {title: Storage, url: /storage/, desc: "What is in the vaults"}
+- {title: Archive, url: /archive/, desc: "Public forum posts"}
+- {title: Status, url: /status/, desc: "Host health and server uptime"}
+- {title: Bolt map, url: /boltmap/, desc: "The bolt network, mapped"}
+- {title: World map, url: /map, desc: "Interactive world map", blank: true}

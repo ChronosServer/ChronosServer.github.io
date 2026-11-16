@@ -1,82 +1,26 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css" integrity="sha256-gsmEoJAws/Kd3CjuOQzLie5Q3yshhvmo7YNtBG7aaEY=" crossorigin="anonymous">
-    <link rel="stylesheet" href="css/animate.min.css">
-    <link rel="stylesheet" href="css/site.css">
-
-    <title>Chronos</title>
-    <meta property="og:title" content="Chronos Technical Minecraft" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://www.chronosmc.com" />
-    <meta property="og:image" content="/assets/background2.png" />
-    <meta property="og:description" content="" />
-    <meta name="theme-color" content="#3f9d98">
-    <meta name="twitter:card" content="summary_large_image">
-
-    <style>
-      nav {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        padding: 1rem 2rem;
-        display: flex;
-        gap: 2rem;
-        z-index: 100;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        background: rgba(0,0,0,0.25);
-      }
-      nav a {
-        color: rgba(255,255,255,0.75);
-        text-decoration: none;
-        font-size: 1rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        transition: color 0.2s;
-      }
-      nav a:hover {
-        color: white;
-      }
-      .subtext {
-        font-size: 2.2rem;
-        color: rgba(255,255,255,0.65);
-        margin-bottom: 1.5rem;
-      }
-      #contents {
-        padding-top: 5px;
-      }
-    </style>
-  </head>
-  
-  <body>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/members">Members</a>
-      <a href="/gallery">Gallery</a>
-      <a href="/storage">Storage</a>
-      <a href="/archive">Public Archive</a>
-      <a href="/status">Status</a>
-      <a href="/map" target="_blank">Map</a>
-    </nav>
-
-    <div id="contents">
-      <h1 class="font-weight-light animate__animated animate__fadeInUp" style="animation-delay: 0.2s; font-size: 3.5rem;">Chronos Technical Minecraft</h1>
-      <p class="subtext animate__animated animate__fadeInUp" style="animation-delay: 0.3s;">Where creativity meets innovation</p>
-      <p class="lead">
-        <a target="_blank" href="https://github.com/ChronosServer" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-github"></a>
-        <a target="_blank" href="https://discord.gg/VvPucVAjUS" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-discord"></a>
-        <a target="_blank" href="https://www.patreon.com/cw/Chronos_SMP" style="animation-delay: 0.5s" class="btn btn-lg btn-outline-light animate__animated animate__fadeInUp fa fa-patreon"></a>
-      </p>
-    </div>
-
-    <script src="js/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" 
-      integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
-  </body>
-</html>
+---
+layout: default
+permalink: /
+kind: home
+bg: chronos_spawn
+---
+<header class="hero">
+  <span id="live" class="pill" hidden></span>
+  <h1>Chronos</h1>
+  <p class="tag">Technical Minecraft, where creativity meets innovation.</p>
+  <div class="btns">
+    <a class="btn main" href="https://discord.gg/VvPucVAjUS" target="_blank" rel="noopener">Join the Discord</a>
+    <a class="btn" href="https://github.com/ChronosServer" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn" href="https://www.patreon.com/cw/Chronos_SMP" target="_blank" rel="noopener">Support on Patreon</a>
+  </div>
+  <nav class="index" aria-label="Sections">{% for l in site.data.nav %}{% unless l.url == "/" %}<a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><b>{{ l.title }}</b><span>{{ l.desc }}</span></a>{% endunless %}{% endfor %}</nav>
+</header>
+<script>
+C.json('/data/server_status.json').then(({data}) => {
+  const s = Object.values(data.servers || data).filter(v => typeof v === 'string');
+  if (!s.length) return;
+  const p = document.getElementById('live');
+  p.textContent = s.filter(v => v === 'Online').length + ' of ' + s.length + ' servers online';
+  p.hidden = false;
+}).catch(() => {});
+</script>

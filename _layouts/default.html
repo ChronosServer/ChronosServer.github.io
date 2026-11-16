@@ -1,0 +1,31 @@
+{% assign bgk = page.bg | default: "chronos_spawn" %}{% assign bg = site.data.backgrounds[bgk] %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if page.title %}{{ page.title }} | {% endif %}Chronos</title>
+<meta name="description" content="Chronos is a private technical Minecraft server.">
+<meta name="theme-color" content="#0b1820">
+<meta property="og:title" content="Chronos Technical Minecraft">
+<meta property="og:image" content="https://www.chronosmc.com{{ bg.src }}-1280.webp">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Serif&display=swap">
+<link rel="stylesheet" href="/assets/css/chronos.css">
+<style>:root{--bg-pos:{{ bg.pos }};--scrim:{{ bg.scrim }};--accent:{{ bg.accent }}}</style>
+</head>
+<body class="kind-{{ page.kind | default: 'inner' }}">
+<picture class="bg" aria-hidden="true">
+  <source media="(min-width:1281px)" srcset="{{ bg.src }}-1920.webp">
+  <source media="(min-width:641px)" srcset="{{ bg.src }}-1280.webp">
+  <img src="{{ bg.src }}-640.webp" alt="" decoding="async" fetchpriority="high">
+</picture>
+<nav class="nav">
+  <a class="brand" href="/">Chronos</a>
+  <div class="links">{% for l in site.data.nav %}<a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}{% if page.url == l.url %} aria-current="page"{% endif %}>{{ l.title }}</a>{% endfor %}</div>
+</nav>
+<script src="/assets/js/chronos.js"></script>
+{{ content }}
+</body>
+</html>

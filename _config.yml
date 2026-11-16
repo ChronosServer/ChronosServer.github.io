@@ -1,0 +1,3 @@
+title: Chronos
+# keeps repo-only files out of the public site (deploy.sh etc. were being copied to /var/www/html)
+exclude: [Gemfile, Gemfile.lock, vendor, node_modules, gemfiles, .sass-cache, .jekyll-cache, tools, deploy.sh, README.md, LICENSE]

@@ -1,0 +1,11 @@
+# One entry per background. Add an image with: python3 tools/make-bg.py <image> <name>
+# Then set `bg: <name>` in a page's front matter. Default is `chronos_spawn`.
+# src   = path prefix (files are <src>-640/1280/1920.webp)
+# pos   = object-position, the part of the image to keep when cropping
+# scrim = how dark the overlay is on inner pages (0 to 1)
+# accent = accent colour for that page
+chronos_spawn:
+  src: /assets/bg/chronos_spawn
+  pos: "50% 55%"
+  scrim: 0.6
+  accent: "#3f9d98"
