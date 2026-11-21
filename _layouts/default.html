@@ -27,7 +27,7 @@
 {{ content }}
 <footer class="foot">
   <span>Chronos Technical Minecraft SMP</span>
-  <div><a href="https://discord.gg/VvPucVAjUS" target="_blank" rel="noopener">Discord</a><a href="https://github.com/ChronosServer" target="_blank" rel="noopener">GitHub</a><a href="https://www.patreon.com/cw/Chronos_SMP" target="_blank" rel="noopener">Patreon</a></div>
+  <div class="soc">{% for s in site.data.social %}<a href="{{ s.url }}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ s.path }}"/></svg>{{ s.name }}</a>{% endfor %}</div>
 </footer>
 </body>
 </html>

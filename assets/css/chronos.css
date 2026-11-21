@@ -56,13 +56,13 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 
 /* home: hero choreography. Lead = wordmark; support = mark, eyebrow, tagline; all start within the first second */
 .hero{min-height:100vh;max-width:1100px;margin:0 auto;padding:0 1.4rem 4rem;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start}
-.mark{width:clamp(78px,10vw,120px);height:auto;margin-bottom:1.5rem;animation:shutter 1.1s var(--ease) both}
+.lockup{display:flex;align-items:center;gap:.2em;font-size:clamp(2.1rem,9vw,6.4rem)}
+.mark{height:1.1em;width:auto;flex:none;animation:shutter 1.1s var(--ease) both}
 @keyframes shutter{from{opacity:0;transform:rotate(-60deg) scale(.9)}}
-.wordmark{display:flex;margin:0;overflow:hidden;padding:.06em .04em .1em 0;font:700 clamp(2.1rem,9vw,6.4rem)/1 var(--display);color:#fff;letter-spacing:.01em}
+.wordmark{display:flex;margin:0;overflow:hidden;padding:.06em .04em .1em 0;font:700 1em/1 var(--display);color:#fff;letter-spacing:.01em}
 .wordmark span{display:inline-block;animation:rise .85s var(--ease) both;animation-delay:calc(.25s + var(--d) * 1ms)}
 @keyframes rise{from{transform:translateY(110%)}}
-.eyebrow{margin:1rem 0 .5rem;font:500 clamp(.72rem,1.4vw,.9rem) var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--teal);animation:up .8s var(--ease) .75s both}
-.tag{margin:0;max-width:30rem;font:400 clamp(1rem,2vw,1.25rem)/1.5 var(--sans);color:#d6dcdc;animation:up .8s var(--ease) .85s both}
+.tag{margin:1rem 0 0;max-width:34rem;font:400 clamp(1.05rem,2.2vw,1.35rem)/1.5 var(--sans);color:#e6ecec;text-shadow:0 1px 14px rgba(0,0,0,.65);animation:up .8s var(--ease) .75s both}
 
 /* home: sections below the hero */
 .sec{max-width:1100px;margin:0 auto;padding:5.5rem 1.4rem 0}
@@ -86,15 +86,16 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 .js .reveal.in{opacity:1;transform:none;transition:opacity .7s var(--ease) var(--d,0s),transform .7s var(--ease) var(--d,0s)}
 
 .foot{max-width:1100px;margin:5.5rem auto 0;padding:1.5rem 1.4rem 2.4rem;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;font:500 .7rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
-.foot div{display:flex;gap:1.6rem}
-.foot a{text-decoration:none;transition:color .15s}
+.foot .soc{display:flex;gap:1.6rem}
+.foot a{display:inline-flex;align-items:center;gap:.55rem;text-decoration:none;transition:color .15s}
+.foot svg{width:15px;height:15px;fill:currentColor;flex:none}
 .foot a:hover{color:#fff}
 
 @media (max-width:760px){.about{grid-template-columns:1fr;gap:2rem}.gal{grid-template-columns:repeat(2,1fr)}.gal a:first-child{grid-column:span 2;grid-row:auto;aspect-ratio:16/10}}
 @media (max-width:560px){.nav{gap:1rem;padding:0 1rem}.row{grid-template-columns:5rem 1fr 9rem;padding:.8rem 1rem}}
 /* reduced motion: no movement or delays, just a short fade */
 @media (prefers-reduced-motion:reduce){
-  .mark,.wordmark span,.eyebrow,.tag,.page{animation:fade .3s linear both!important;animation-delay:0s!important}
+  .mark,.wordmark span,.tag,.page{animation:fade .3s linear both!important;animation-delay:0s!important}
   .kind-home .bg img{animation:none}
   .js .reveal,.js .reveal.in{opacity:1!important;transform:none!important;transition:none!important}
   .links a::after,.meter b{transition:none}
