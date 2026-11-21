@@ -4,23 +4,57 @@ permalink: /
 kind: home
 bg: chronos_spawn
 ---
+<div class="dim" aria-hidden="true"></div>
+{% assign letters = "C,H,R,O,N,O,S" | split: "," %}{% assign delays = "0,70,130,180,220,255,285" | split: "," %}
 <header class="hero">
-  <span id="live" class="pill" hidden></span>
-  <h1>Chronos</h1>
-  <p class="tag">Technical Minecraft, where creativity meets innovation.</p>
-  <div class="btns">
-    <a class="btn main" href="https://discord.gg/VvPucVAjUS" target="_blank" rel="noopener">Join the Discord</a>
-    <a class="btn" href="https://github.com/ChronosServer" target="_blank" rel="noopener">GitHub</a>
-    <a class="btn" href="https://www.patreon.com/cw/Chronos_SMP" target="_blank" rel="noopener">Support on Patreon</a>
-  </div>
-  <nav class="index" aria-label="Sections">{% for l in site.data.nav %}{% unless l.url == "/" %}<a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><b>{{ l.title }}</b><span>{{ l.desc }}</span></a>{% endunless %}{% endfor %}</nav>
+  <img class="mark" src="/assets/img/logo.png" alt="" width="120" height="120">
+  <h1 class="wordmark" aria-label="Chronos">{% for c in letters %}<span aria-hidden="true" style="--d:{{ delays[forloop.index0] }}">{{ c }}</span>{% endfor %}</h1>
+  <div class="eyebrow">Technical Minecraft SMP</div>
+  <p class="tag">Dedicated to making the best tech possible.</p>
 </header>
+
+<section class="sec reveal" id="about">
+  <h2>What is Chronos</h2>
+  <div class="about">
+    <div>
+      <p>Chronos is a technical Minecraft server, dedicated to making the best tech possible.</p>
+      <p>We run a network of worlds on our own high-performance hardware: a main survival SMP, creative worlds for building and testing, and snapshot servers for what comes next.</p>
+    </div>
+    <div class="spec" aria-label="Live server numbers">
+      <div><span>Servers online</span><b id="s-srv">-</b></div>
+      <div><span>Processor</span><b id="s-cpu">-</b></div>
+      <div><span>Memory</span><b id="s-ram">-</b></div>
+      <div><span>Host uptime</span><b id="s-up">-</b></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="gallery">
+  <div class="sh reveal"><h2>Gallery</h2><a class="more" href="/gallery/">View all</a></div>
+  <div class="gal" id="gal"></div>
+</section>
+
 <script>
+const put = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+C.json('/api/status').then(({data: d}) => {
+  put('s-cpu', d.cpu.cores + ' cores / ' + d.cpu.threads + ' threads');
+  put('s-ram', Math.round(d.ram.total) + ' GB');
+  const u = /^(\d+)\s*day/.exec(d.cpu.uptime);
+  put('s-up', u ? u[1] + ' days' : String(d.cpu.uptime));
+}).catch(() => {});
 C.json('/data/server_status.json').then(({data}) => {
   const s = Object.values(data.servers || data).filter(v => typeof v === 'string');
-  if (!s.length) return;
-  const p = document.getElementById('live');
-  p.textContent = s.filter(v => v === 'Online').length + ' of ' + s.length + ' servers online';
-  p.hidden = false;
+  if (s.length) put('s-srv', s.filter(v => v === 'Online').length + ' / ' + s.length);
 }).catch(() => {});
+fetch('/gallery/index.json', {cache: 'no-cache'}).then(r => r.json()).then(list => {
+  if (!list.length) throw 0;
+  const D = [0, 80, 140, 190, 230, 260];
+  const pick = list.slice().sort(() => Math.random() - 0.5).slice(0, 6);
+  const g = document.getElementById('gal');
+  g.innerHTML = pick.map((p, i) => {
+    const full = C.esc(p), thumb = C.esc(p.replace('/gallery/', '/gallery/thumbs/'));
+    return `<a class="reveal" style="--d:${D[i]}ms" href="/gallery/"><img loading="lazy" decoding="async" alt="" src="${i ? thumb : full}" onerror="this.onerror=null;this.src='${full}'"></a>`;
+  }).join('');
+  g.querySelectorAll('.reveal').forEach(C.reveal);
+}).catch(() => { document.getElementById('gallery').hidden = true; });
 </script>
