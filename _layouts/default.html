@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Syncopate:wght@700&display=swap">
-<link rel="stylesheet" href="/assets/css/chronos.css">
+<link rel="stylesheet" href="/assets/css/chronos.css?v={{ site.time | date: '%s' }}">
 <style>:root{--bg-pos:{{ bg.pos }};--scrim:{{ bg.scrim }};--accent:{{ bg.accent }}}</style>
 </head>
 <body class="kind-{{ page.kind | default: 'inner' }}">
@@ -23,7 +23,7 @@
   <a class="brand" href="/"><img src="/assets/img/logo.png" alt="" width="24" height="24"><span>Chronos</span></a>
   <div class="links">{% for l in site.data.nav %}<a href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}{% if page.url == l.url %} aria-current="page"{% endif %}>{{ l.title }}</a>{% endfor %}</div>
 </nav>
-<script src="/assets/js/chronos.js"></script>
+<script src="/assets/js/chronos.js?v={{ site.time | date: '%s' }}"></script>
 {{ content }}
 <footer class="foot">
   <span>Chronos Technical Minecraft SMP</span>
