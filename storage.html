@@ -1,158 +1,48 @@
 ---
-layout: null
+layout: default
 permalink: /storage/
+title: Storage
 ---
-<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
-    <link rel="stylesheet" href="/css/animate.min.css">
-    <link rel="stylesheet" href="/css/site.css">
-    <title>Storage — Chronos</title>
-    <style>
-        .tab-bar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        .tab-btn {
-            background: none;
-            border: 1px solid rgba(255,255,255,0.2);
-            color: rgba(255,255,255,0.5);
-            padding: 0.4rem 1.2rem;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 0.85rem;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            transition: all 0.15s;
-        }
-        .tab-btn.active, .tab-btn:hover {
-            border-color: white;
-            color: white;
-        }
-        .item-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 0.5rem;
-        }
-        .item-row {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 0.75rem;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-        .item-row img {
-            width: 28px;
-            height: 28px;
-            image-rendering: pixelated;
-        }
-        .item-name {
-            flex: 1;
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.8);
-        }
-        .item-count {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.45);
-            white-space: nowrap;
-        }
-        .no-icon {
-            width: 28px;
-            height: 28px;
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.1);
-            flex-shrink: 0;
-        }
-    </style>
-</head>
-<body>
-    <nav>
-        <a href="/">Home</a>
-        <a href="/members">Members</a>
-        <a href="/gallery">Gallery</a>
-        <a href="/storage">Storage</a>
-        <a href="/archive">Public Archive</a>
-        <a href="/status">Status</a>
-        <a href="/map" target="_blank">Map</a>
-    </nav>
-
-    <div class="page-wrapper">
-        <div class="page-title">Storage</div>
-        <div class="tab-bar">
-            <button class="tab-btn active" id="btn-ms" onclick="switchTab('ms')">Main Storage</button>
-            <button class="tab-btn" id="btn-dig" onclick="switchTab('dig')">Dig Storage</button>
-        </div>
-        <input class="search-bar" id="search" placeholder="Search items..." oninput="filterItems()">
-        <div class="item-list" id="item-list"></div>
-    </div>
-
-    <script>
-        let currentData = {};
-        let currentTab = 'ms';
-
-        function renderItemImg(name) {
-            const id = name.toLowerCase().replace(/ /g, '_');
-            const cached = `/cache/items/${id}.png`;
-            const img = document.createElement('img');
-            img.src = cached;
-            img.onerror = function() {
-                // fallback to no-icon div if cache miss
-                this.replaceWith(Object.assign(document.createElement('div'), {className: 'no-icon'}));
-            };
-            return img;
-        }
-
-        function formatCount(n) {
-            if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-            if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-            return n.toLocaleString();
-        }
-
-        function renderItems(data) {
-            const list = document.getElementById('item-list');
-            const q = document.getElementById('search').value.toLowerCase();
-            list.innerHTML = '';
-            Object.entries(data).forEach(([name, count]) => {
-                if (q && !name.toLowerCase().includes(q)) return;
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                const img = renderItemImg(name);
-                const nameEl = document.createElement('span');
-                nameEl.className = 'item-name';
-                nameEl.textContent = name;
-                const countEl = document.createElement('span');
-                countEl.className = 'item-count';
-                countEl.textContent = formatCount(count);
-                row.append(img, nameEl, countEl);
-                list.appendChild(row);
-            });
-        }
-
-        function filterItems() {
-            renderItems(currentData[currentTab] || {});
-        }
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.getElementById('btn-ms').classList.toggle('active', tab === 'ms');
-            document.getElementById('btn-dig').classList.toggle('active', tab === 'dig');
-            document.getElementById('search').value = '';
-            renderItems(currentData[tab] || {});
-        }
-
-        Promise.all([
-            fetch('/data/ms_storage.json').then(r => r.json()),
-            fetch('/data/dig_storage.json').then(r => r.json()),
-        ]).then(([ms, dig]) => {
-            currentData = { ms, dig };
-            renderItems(currentData.ms);
-        });
-    </script>
-</body>
-</html>
+<main class="page">
+  <h1>Storage</h1>
+  <p class="lede">Everything in the main and dig storage systems, counted from the world files. <span id="st" class="pill">Loading</span></p>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-t="ms">Main storage</button>
+    <button role="tab" aria-selected="false" data-t="dig">Dig storage</button>
+  </div>
+  <div class="controls">
+    <input class="search" id="q" type="search" placeholder="Search items" aria-label="Search items">
+    <select class="search" id="s" aria-label="Sort"><option value="n">Most items</option><option value="a">A to Z</option></select>
+  </div>
+  <p class="sum" id="sum"></p>
+  <div class="items" id="out"></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const S = {ms: null, dig: null};
+let tab = 'ms';
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : n.toLocaleString();
+function render() {
+  const cur = S[tab];
+  if (!cur) return;
+  if (cur.error) { $('sum').textContent = ''; C.fail($('out'), cur.error); $('st').textContent = 'Unavailable'; return; }
+  const q = $('q').value.trim().toLowerCase();
+  const e = Object.entries(cur.data).filter(([n]) => !q || n.toLowerCase().includes(q));
+  e.sort($('s').value === 'a' ? (a, b) => a[0].localeCompare(b[0]) : (a, b) => b[1] - a[1]);
+  const total = Object.values(cur.data).reduce((a, b) => a + b, 0);
+  $('sum').textContent = Object.keys(cur.data).length.toLocaleString() + ' item types, ' + total.toLocaleString() + ' items in total';
+  $('out').innerHTML = e.map(([n, c]) => `<div class="item"><img src="/cache/items/${C.esc(n.toLowerCase().replace(/ /g, '_'))}.png" alt="" width="28" height="28" loading="lazy" onerror="this.style.visibility='hidden'"><span class="nm">${C.esc(n)}</span><span class="ct" title="${c.toLocaleString()}">${fmt(c)}</span></div>`).join('') || '<p class="lede">No items match.</p>';
+  C.stamp($('st'), cur.at);
+}
+['ms', 'dig'].forEach(k => C.json('/data/' + k + '_storage.json')
+  .then(r => { S[k] = r; if (k === tab) render(); })
+  .catch(error => { S[k] = {error}; if (k === tab) render(); }));
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  tab = b.dataset.t;
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  $('q').value = '';
+  render();
+}));
+$('q').addEventListener('input', render);
+$('s').addEventListener('change', render);
+</script>

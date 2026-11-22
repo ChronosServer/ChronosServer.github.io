@@ -20,6 +20,12 @@ bg: chronos_spawn
     <div>
       <p>Chronos is a technical Minecraft server, dedicated to making the best tech possible.</p>
       <p>We run a network of worlds on our own high-performance hardware: a main survival SMP, creative worlds for building and testing, and snapshot servers for what comes next.</p>
+      <div class="more-wrap" id="more"><div class="more-body"><div>
+        <p>The hardware is an AMD Ryzen 9 7950X3D with 128 GB of DDR5 ECC memory, running every world in the network.</p>
+        <p>Besides the main SMP there are several creative worlds, a mirror world, snapshot servers for upcoming versions, and building, tour and public worlds.</p>
+        <p>Patrons also get the Chronos Season SMP, which resets every six months with a new gameplay style chosen by vote.</p>
+      </div></div></div>
+      <button class="toggle" type="button" aria-expanded="false" aria-controls="more"><span>Learn more</span></button>
     </div>
     <div class="spec" aria-label="Live server numbers">
       <div><span>Servers online</span><b id="s-srv">-</b></div>
@@ -35,18 +41,50 @@ bg: chronos_spawn
   <div class="gal" id="gal"></div>
 </section>
 
+<section class="sec" id="explore">
+  <h2 class="reveal">Explore</h2>
+  {% assign td = "0,60,110,150,185,215" | split: "," %}{% assign n = 0 %}
+  <div class="tiles">
+    {% for l in site.data.nav %}{% unless l.url == "/" or l.url == "/gallery/" %}<a class="tile reveal" style="--d:{{ td[n] }}ms" href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><span class="k">{{ l.title }}</span><span class="n" id="t-{{ l.title | slugify }}">{{ l.hint | default: "-" }}</span><span class="d">{{ l.desc }}</span></a>{% assign n = n | plus: 1 %}{% endunless %}{% endfor %}
+  </div>
+</section>
+
+<section class="sec" id="join">
+  <h2 class="reveal">Join the community</h2>
+  <div class="join">
+    {% for s in site.data.social %}<a class="card{% if forloop.first %} big{% endif %} reveal" style="--d:{{ forloop.index0 | times: 70 }}ms" href="{{ s.url }}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="{{ s.path }}"/></svg><h3>{{ s.name }}</h3><p>{{ s.desc }}</p><span class="go">{{ s.cta }}</span></a>{% endfor %}
+  </div>
+</section>
+
 <script>
 const put = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+const srv = C.json('/data/server_status.json');
+const servers = r => Object.values(r.data.servers || r.data).filter(v => typeof v === 'string');
+
+document.querySelector('.toggle').addEventListener('click', e => {
+  const open = document.getElementById('more').classList.toggle('open');
+  e.currentTarget.setAttribute('aria-expanded', open);
+  e.currentTarget.querySelector('span').textContent = open ? 'Show less' : 'Learn more';
+});
+
 C.json('/api/status').then(({data: d}) => {
   put('s-cpu', d.cpu.cores + ' cores / ' + d.cpu.threads + ' threads');
   put('s-ram', Math.round(d.ram.total) + ' GB');
   const u = /^(\d+)\s*day/.exec(d.cpu.uptime);
   put('s-up', u ? u[1] + ' days' : String(d.cpu.uptime));
 }).catch(() => {});
-C.json('/data/server_status.json').then(({data}) => {
-  const s = Object.values(data.servers || data).filter(v => typeof v === 'string');
-  if (s.length) put('s-srv', s.filter(v => v === 'Online').length + ' / ' + s.length);
-}).catch(() => {});
+srv.then(r => { const s = servers(r); if (s.length) put('s-srv', s.filter(v => v === 'Online').length + ' / ' + s.length); }).catch(() => {});
+
+// explore tiles: live numbers, fetched when the section comes into view
+new IntersectionObserver((es, o) => {
+  if (!es[0].isIntersecting) return;
+  o.disconnect();
+  srv.then(r => { const s = servers(r); if (s.length) put('t-status', s.filter(v => v === 'Online').length + ' / ' + s.length + ' online'); }).catch(() => {});
+  C.json('/data/members.json').then(({data}) => put('t-members', data.members.length + ' members')).catch(() => {});
+  C.json('/data/ms_storage.json').then(({data}) => put('t-storage', Object.keys(data).length + ' item types')).catch(() => {});
+  C.json('/data/archive.json').then(({data}) => put('t-archive', data.length + ' posts')).catch(() => {});
+}, {rootMargin: '200px'}).observe(document.getElementById('explore'));
+
 fetch('/gallery/index.json', {cache: 'no-cache'}).then(r => r.json()).then(list => {
   if (!list.length) throw 0;
   const D = [0, 80, 140, 190, 230, 260];

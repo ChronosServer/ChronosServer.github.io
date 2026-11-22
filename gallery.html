@@ -1,156 +1,41 @@
 ---
-layout: null
+layout: default
 permalink: /gallery/
+title: Gallery
 ---
-<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.1.7/css/fork-awesome.min.css">
-    <link rel="stylesheet" href="/css/animate.min.css">
-    <link rel="stylesheet" href="/css/site.css">
-    <title>Gallery — Chronos</title>
-    <style>
-        .gallery-grid {
-            columns: 3 300px;
-            column-gap: 1rem;
-        }
-        .gallery-item {
-            break-inside: avoid;
-            margin-bottom: 1rem;
-            cursor: pointer;
-            overflow: hidden;
-            background: rgba(0,0,0,0.3);
-        }
-        .gallery-item img {
-            width: 100%;
-            display: block;
-            transition: transform 0.2s, filter 0.2s, opacity 0.2s;
-            filter: brightness(0.85);
-        }
-        .gallery-item img.loading {
-            filter: blur(4px) brightness(0.85);
-            transform: scale(1.05);
-        }
-        .gallery-item:hover img {
-            transform: scale(1.02);
-            filter: brightness(1);
-        }
-        .gallery-item:hover img.loading {
-            transform: scale(1.07);
-        }
-        .lightbox {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.92);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .lightbox.active { display: flex; }
-        .lightbox img {
-            max-width: 90vw;
-            max-height: 90vh;
-            object-fit: contain;
-        }
-        .lightbox-close {
-            position: fixed;
-            top: 1.5rem;
-            right: 2rem;
-            color: white;
-            font-size: 2rem;
-            cursor: pointer;
-            opacity: 0.7;
-            background: none;
-            border: none;
-        }
-        .lightbox-close:hover { opacity: 1; }
-    </style>
-</head>
-<body>
-    <nav>
-        <a href="/">Home</a>
-        <a href="/members">Members</a>
-        <a href="/gallery">Gallery</a>
-        <a href="/storage">Storage</a>
-        <a href="/archive">Public Archive</a>
-        <a href="/status">Status</a>
-        <a href="/map" target="_blank">Map</a>
-    </nav>
-
-    <div class="page-wrapper">
-        <div class="page-title">Gallery</div>
-        <div class="gallery-grid" id="gallery-grid"></div>
-    </div>
-
-    <div class="lightbox" id="lightbox">
-        <button class="lightbox-close" id="lightbox-close">&times;</button>
-        <img id="lightbox-img" src="" alt="">
-    </div>
-
-    <script>
-        const lightbox = document.getElementById('lightbox');
-        const lightboxImg = document.getElementById('lightbox-img');
-
-        function openLightbox(src) {
-            lightboxImg.src = src;
-            lightbox.classList.add('active');
-        }
-
-        document.getElementById('lightbox-close').onclick = () => lightbox.classList.remove('active');
-        lightbox.onclick = (e) => { if (e.target === lightbox) lightbox.classList.remove('active'); };
-        document.onkeydown = (e) => { if (e.key === 'Escape') lightbox.classList.remove('active'); };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (!entry.isIntersecting) return;
-                const img = entry.target;
-                const full = img.dataset.full;
-                if (!full) return;
-                observer.unobserve(img);
-
-                const loader = new Image();
-                loader.onload = () => {
-                    img.src = full;
-                    img.classList.remove('loading');
-                    delete img.dataset.full;
-                };
-                loader.src = full;
-            });
-        }, { rootMargin: '400px' });
-
-        fetch('/gallery/index.json')
-            .then(r => r.json())
-            .then(images => {
-                const grid = document.getElementById('gallery-grid');
-                images.forEach(src => {
-                    const thumbSrc = src.replace('/gallery/', '/gallery/thumbs/');
-
-                    const item = document.createElement('div');
-                    item.className = 'gallery-item';
-
-                    const img = document.createElement('img');
-                    img.className = 'loading';
-                    img.src = thumbSrc;
-                    img.dataset.full = src;
-                    img.loading = 'lazy';
-                    img.onerror = function() {
-                        // no thumb — load full res directly without blur
-                        this.src = src;
-                        this.classList.remove('loading');
-                        delete this.dataset.full;
-                        observer.unobserve(this);
-                    };
-                    img.onclick = () => openLightbox(src);
-
-                    item.appendChild(img);
-                    grid.appendChild(item);
-                    observer.observe(img);
-                });
-            });
-    </script>
-</body>
-</html>
+<main class="page">
+  <h1>Gallery</h1>
+  <p class="lede">Screenshots of what we build. <span id="n" class="pill">Loading</span></p>
+  <div class="masonry" id="g"></div>
+</main>
+<dialog class="lb" id="lb">
+  <button class="x" id="lx" type="button" aria-label="Close">&times;</button>
+  <button class="nb prev" id="lp" type="button" aria-label="Previous image">&lsaquo;</button>
+  <img id="li" alt="">
+  <button class="nb next" id="ln" type="button" aria-label="Next image">&rsaquo;</button>
+  <div class="cap" id="lc"></div>
+</dialog>
+<script>
+const $ = id => document.getElementById(id);
+let list = [], cur = 0;
+const nameOf = p => { try { return decodeURIComponent(p.split('/').pop()); } catch (e) { return p; } };
+function show(i) {
+  cur = (i + list.length) % list.length;
+  $('li').src = list[cur];
+  $('lc').textContent = (cur + 1) + ' / ' + list.length + '   ' + nameOf(list[cur]);
+}
+fetch('/gallery/index.json', {cache: 'no-cache'}).then(r => { if (!r.ok) throw new Error('gallery/index.json returned HTTP ' + r.status); return r.json(); }).then(l => {
+  list = l;
+  $('n').textContent = list.length + ' images';
+  $('g').innerHTML = list.map((p, i) => `<button class="g reveal" type="button" data-i="${i}" aria-label="Open image ${i + 1}"><img loading="lazy" decoding="async" alt="" src="${C.esc(p.replace('/gallery/', '/gallery/thumbs/'))}" data-full="${C.esc(p)}"></button>`).join('');
+  $('g').querySelectorAll('.reveal').forEach(C.reveal);
+}).catch(e => { $('n').textContent = 'Unavailable'; C.fail($('g'), e); });
+// a missing thumbnail falls back to the full image
+$('g').addEventListener('error', e => { const i = e.target; if (i.tagName === 'IMG' && i.src.includes('/thumbs/')) i.src = i.dataset.full; }, true);
+$('g').addEventListener('click', e => { const b = e.target.closest('.g'); if (b) { show(+b.dataset.i); $('lb').showModal(); } });
+$('lx').addEventListener('click', () => $('lb').close());
+$('lp').addEventListener('click', () => show(cur - 1));
+$('ln').addEventListener('click', () => show(cur + 1));
+$('lb').addEventListener('click', e => { if (e.target === $('lb')) $('lb').close(); });
+$('lb').addEventListener('keydown', e => { if (e.key === 'ArrowLeft') show(cur - 1); if (e.key === 'ArrowRight') show(cur + 1); });
+</script>
