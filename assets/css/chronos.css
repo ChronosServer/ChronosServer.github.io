@@ -191,3 +191,14 @@ dialog.lb[open]{display:flex;align-items:center;justify-content:center}
 .nf{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
 .nf img{width:84px;height:auto;margin-bottom:1rem}
 .nf h1{font-size:clamp(3rem,12vw,6rem)}
+
+/* world map: fills the viewport below the nav, no footer on this page */
+.mapwrap{position:fixed;inset:54px 0 0;background:#0a0d0f}
+.mapwrap iframe{width:100%;height:100%;border:0;display:block}
+.maphead{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:.6rem 1rem;background:linear-gradient(rgba(5,8,10,.75),rgba(5,8,10,0));pointer-events:none}
+.maphead *{pointer-events:auto}
+.maphead h1{margin:0;font:700 .85rem var(--display);letter-spacing:.12em;text-transform:uppercase;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.maphead a{font:500 .72rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-decoration:none;padding:.4rem .7rem;border:1px solid var(--line);border-radius:3px;background:rgba(10,13,15,.6);backdrop-filter:blur(6px)}
+.maphead a:hover{color:#fff;border-color:var(--teal)}
+body.kind-map .foot{display:none}
+@media (max-width:560px){.mapwrap{inset:46px 0 0}}
