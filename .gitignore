@@ -2,3 +2,7 @@ _site/
 .sass-cache/
 .jekyll-cache/
 .jekyll-metadata
+
+# scratch notes for the owner (commands to copy); never committed, never deployed
+TEMP_*.md
+.superpowers/
