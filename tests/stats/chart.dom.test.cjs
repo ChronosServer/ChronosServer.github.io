@@ -130,3 +130,18 @@ test('update re-renders and destroy cleans up', async () => {
   await page.evaluate(() => chartInst.destroy());
   assert.equal(await page.innerHTML('#c'), '');
 });
+
+test('viewBox width follows the container so axis text keeps its size on phones', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},1],[${T0 + 3 * DAY},2],[${T0 + 6 * DAY},5]]}]`));
+  const vbWidth = () => page.$eval('#c svg', s => +s.getAttribute('viewBox').split(' ')[2]);
+  assert.equal(await vbWidth(), 800);
+  await page.$eval('#c', el => { el.style.width = '390px'; });
+  await page.waitForFunction(() => document.querySelector('#c svg').getAttribute('viewBox').split(' ')[2] === '390');
+  const box = await page.locator('#c svg').boundingBox();
+  assert.ok(Math.abs(box.width - 390) < 1, String(box.width));
+  // one viewBox unit is one CSS px: the label renders at its CSS font size, not scaled down
+  const h = await page.$eval('#c text.st-axis', t => t.getBoundingClientRect().height);
+  assert.ok(h > 8, 'axis text height ' + h);
+  const ds = await page.$$eval('#c path', ps => ps.map(p => p.getAttribute('d')));
+  for (const d of ds) assert.ok(!d.includes('NaN'), d);
+});

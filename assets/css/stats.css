@@ -13,6 +13,8 @@
  *   badges    st-badges st-badge (.t3) st-art st-badge-n st-badge-s
  *   #1 cards  st-pods st-pod st-pod-st st-pod-v
  *   filter    st-filt
+ *   overview  st-ov-chart st-who-t st-pulse st-pulse-head st-pulse-text st-pulse-week st-dim
+ *             st-one (on .st-two when one card is hidden) st-feed-head
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
  */
 :root{--cmp:#c9b37e;--st-tint:color-mix(in srgb,var(--teal) 22%,transparent);--st-pop:rgba(8,11,13,.97)}
@@ -132,6 +134,27 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-feed-d{font:400 .74rem var(--mono);color:var(--mute);white-space:nowrap}
 .st-feed-d.by{color:var(--amber)}
 
+/* ---- overview page */
+.st-ov-chart .st-note{margin:0;padding:0 1.2rem .9rem}
+.st-two.st-one{grid-template-columns:1fr}
+.st-spot[hidden]{display:none}
+.st-spot p a,.st-who a{color:inherit;text-decoration:none}
+.st-who a{color:var(--ink)}
+.st-who-t{display:flex;flex-direction:column;min-width:0;line-height:1.35}
+.st-who-t span{font-size:.74rem}
+.st-who a:hover{color:#fff;text-decoration:underline}
+.st-again:disabled{opacity:.5;cursor:default}
+.st-pulse{display:flex;flex-direction:column;gap:1rem;padding:1.1rem 1.2rem}
+.st-pulse-head{display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-start;justify-content:space-between}
+.st-pulse-head .st-h2{margin:.4rem 0 0}
+.st-pulse .st-clockpanel,.st-pulse .st-heat{padding:0}
+.st-pulse-week{display:grid;gap:.9rem}
+.st-dim{opacity:.4}
+.st-feed-head{margin:0 0 1rem}
+.st-feed-head .st-h2{margin:0}
+.st-feed-t .st-icon,.st-feed-t .st-letter{width:20px;height:20px;margin:0 .15rem;vertical-align:-4px}
+.st-feed > .st-tabs{padding:0 .3rem}
+
 /* ---- heads, item icons, fallback squares (S.ui) */
 .st-head,.st-icon{flex:none;display:inline-block;vertical-align:middle;image-rendering:pixelated}
 .st-letter{flex:none;display:inline-grid;place-items:center;vertical-align:middle;overflow:hidden;background:color-mix(in srgb,var(--teal) 12%,transparent);border:1px solid color-mix(in srgb,var(--teal) 35%,transparent);font:700 .62rem/1 var(--display);color:var(--teal);text-transform:uppercase}
@@ -216,6 +239,7 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
   .st-tiles,.st-pods{grid-template-columns:repeat(2,1fr)}
   .st-two{grid-template-columns:1fr}
   .st-clockpanel{grid-template-columns:1fr;justify-items:start}
+  .st-pulse .st-clockpanel .st-viz{width:min(220px,100%)}
 }
 @media (max-width:560px){
   .st-v,.st-vc-val{font-size:1.4rem}

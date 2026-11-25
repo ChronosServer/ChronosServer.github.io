@@ -13,11 +13,13 @@
  *   .st-empty        empty state (no svg)
  *   .st-valuecard    single-point fallback; .st-vc-row, .st-vc-label, .st-vc-val, .st-vc-date
  * Series colors go in as presentation attributes so CSS can still restyle.
+ * The viewBox width follows the wrapper's content width (ResizeObserver, debounced), so one
+ * unit is one CSS pixel and axis text stays readable on phones; 1000 when it can't be measured.
  */
 (function (root) {
   const S = root.S = root.S || {};
   const NS = 'http://www.w3.org/2000/svg';
-  const W = 1000, PAD_L = 58, PAD_B = 26, PAD_T = 14;
+  const W_DEFAULT = 1000, W_MIN = 240, PAD_L = 58, PAD_B = 26, PAD_T = 14;
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const DAY = 86400, YEAR = 365.25 * DAY;
 
@@ -75,14 +77,25 @@
 
   S.chart = function (el, initial) {
     const cm = S.cm;
-    let opts = null, first = true, model = null, idx = -1;
+    let opts = null, first = true, model = null, idx = -1, W = W_DEFAULT, ro = null, roTimer = null;
 
     const wrap = document.createElement('div');
     wrap.className = 'st-chart';
     wrap.style.position = 'relative';
     el.appendChild(wrap);
 
+    // Content-box width of the wrapper in CSS px, or null when not laid out (hidden, detached).
+    function measure() {
+      const cw = wrap.clientWidth;
+      if (!cw) return null;
+      const cs = root.getComputedStyle ? root.getComputedStyle(wrap) : null;
+      const padX = cs ? (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) : 0;
+      const w = Math.round(cw - padX);
+      return w > 0 ? Math.max(W_MIN, w) : null;
+    }
+
     function render() {
+      W = measure() || W_DEFAULT;
       const height = opts.height || 300;
       const from = +opts.from, to = +opts.to > +opts.from ? +opts.to : +opts.from + 1;
       const format = opts.format || (v => String(v));
@@ -236,6 +249,16 @@
     wrap.addEventListener('mouseleave', hide);
     wrap.addEventListener('keydown', onKey);
     wrap.addEventListener('focusout', onBlur);
+    if (root.ResizeObserver) {
+      ro = new root.ResizeObserver(() => {
+        clearTimeout(roTimer);
+        roTimer = setTimeout(() => {
+          const w = measure();
+          if (opts && w && w !== W) render();
+        }, 150);
+      });
+      ro.observe(wrap);
+    }
 
     opts = Object.assign({}, initial);
     render();
@@ -247,6 +270,8 @@
         wrap.removeEventListener('mouseleave', hide);
         wrap.removeEventListener('keydown', onKey);
         wrap.removeEventListener('focusout', onBlur);
+        if (ro) ro.disconnect();
+        clearTimeout(roTimer);
         wrap.remove();
         model = null;
       }
