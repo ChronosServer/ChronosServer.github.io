@@ -35,3 +35,17 @@ test('default tz works and maps Monday to 0', () => {
   const d = new Date(MON10 * 1000);
   assert.equal(r.grid[(d.getDay() + 6) % 7][d.getHours()], 3);
 });
+
+test('days counts only dates with a present bucket', () => {
+  const r = act.bin([[MON10, 1]], 900, MON10 + 30 * 86400, utc);
+  assert.equal(r.days, 1);
+  assert.equal(r.filled, false);
+});
+
+test('slot loop is capped at 60 days', () => {
+  const to = MON10 + 365 * 86400;
+  const r = act.bin([[MON10, 100], [to - 900, 2]], 900, to, utc);
+  assert.equal(r.days, 1); // the old bucket fell outside the capped window
+  const total = r.hours.reduce((a, b) => a + b, 0);
+  assert.ok(total > 0 && total <= 2 + 1e-9, String(total));
+});

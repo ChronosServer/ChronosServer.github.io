@@ -61,7 +61,7 @@
         }, pad2(h)));
       }
     }
-    s.appendChild(mk('text', { class: 'st-clock-now', x: c, y: c - 2, 'text-anchor': 'middle' }, `${now.getHours()}:00`));
+    s.appendChild(mk('text', { class: 'st-clock-now', x: c, y: c - 2, 'text-anchor': 'middle' }, `${pad2(now.getHours())}:00`));
     s.appendChild(mk('text', { class: 'st-axis st-clock-sub', x: c, y: c + 14, 'text-anchor': 'middle' }, 'your time'));
     return s;
   }
