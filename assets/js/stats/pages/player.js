@@ -173,7 +173,7 @@
     if (!cards.length) body = '<p class="st-pl-empty">No badges ' + esc(scopeText()) + ' yet. They come with firsts, #1 spots, big numbers and long play time.</p>';
     else {
       body = '<div class="st-badges">' + cards.map(b =>
-        '<div class="st-badge' + (b.tier >= 3 ? ' t3' : '') + '"' + (b.desc ? ' title="' + esc(b.desc) + '"' : '') + '>' +
+        '<div class="st-badge' + (b.tier >= 3 ? ' t3' : '') + '"' + (b.desc ? ' data-tip="' + esc(b.desc) + '" tabindex="0"' : '') + '>' +
         '<div class="st-art" aria-hidden="true">' + (b.art ? S.ui.iconHtml(b.art, 22, b.name.charAt(0)) : esc(b.name.charAt(0))) + '</div>' +
         '<div><div class="st-badge-n">' + esc(b.name) + '</div><div class="st-badge-s">' + esc(b.sv.map(serverLabel).join(' · ')) +
         (b.desc ? '<span class="sr-only">. ' + esc(b.desc) + '</span>' : '') + '</div></div></div>').join('') + '</div>';
@@ -544,6 +544,7 @@
       return;
     }
     el.body.innerHTML = headerHtml() + tilesHtml() + badgesHtml() + onesHtml() + graphHtml() + tabsHtml();
+    S.ui.tip(el.body);
     S.ui.hydrate(el.body);
     paintSkin();
     const big = el.body.querySelector('.st-bigcount[data-count]');

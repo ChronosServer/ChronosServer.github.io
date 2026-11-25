@@ -576,6 +576,61 @@
     };
   }
 
+  // ---- tip: styled tooltip for every [data-tip] inside `root`. Hover or keyboard focus shows it,
+  // a tap toggles it (touch), a tap elsewhere / Escape / leaving hides it. One shared bubble.
+  let bubble = null, tipFor = null, lastPointer = '', tapWasOpen = false;
+  function tipHide() {
+    if (!bubble || !tipFor) return;
+    tipFor.removeAttribute('aria-describedby');
+    tipFor = null;
+    bubble.classList.remove('on');
+    bubble.hidden = true;
+  }
+  function tipShow(t) {
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'st-bubble';
+      bubble.id = 'st-bubble';
+      bubble.setAttribute('role', 'tooltip');
+      bubble.hidden = true;
+      document.body.appendChild(bubble);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') tipHide(); });
+      document.addEventListener('pointerdown', e => { if (!e.target.closest || !e.target.closest('[data-tip]')) tipHide(); });
+      window.addEventListener('scroll', tipHide, { passive: true });
+    }
+    if (tipFor && tipFor !== t) tipFor.removeAttribute('aria-describedby');
+    tipFor = t;
+    bubble.textContent = t.dataset.tip;
+    t.setAttribute('aria-describedby', bubble.id);
+    bubble.hidden = false;
+    const r = t.getBoundingClientRect(), b = bubble.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    let top = r.top - b.height - 8;
+    if (top < 8) top = r.bottom + 8;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - b.width / 2), vw - b.width - 8);
+    bubble.style.top = Math.round(top) + 'px';
+    bubble.style.left = Math.round(Math.max(8, left)) + 'px';
+    requestAnimationFrame(() => { if (tipFor === t) bubble.classList.add('on'); });
+  }
+  function tip(root) {
+    if (!root || root.dataset.stTip) return;
+    root.dataset.stTip = '1';
+    const at = e => e.target.closest && e.target.closest('[data-tip]');
+    root.addEventListener('pointerover', e => { const t = at(e); if (t && e.pointerType === 'mouse') tipShow(t); });
+    root.addEventListener('pointerout', e => {
+      const t = at(e);
+      if (t && e.pointerType === 'mouse' && t === tipFor && !t.contains(e.relatedTarget) && document.activeElement !== t) tipHide();
+    });
+    root.addEventListener('focusin', e => { const t = at(e); if (t) tipShow(t); });
+    root.addEventListener('focusout', e => { const t = at(e); if (t && t === tipFor) tipHide(); });
+    root.addEventListener('pointerdown', e => { lastPointer = e.pointerType; const t = at(e); tapWasOpen = !!t && t === tipFor; });
+    root.addEventListener('click', e => {
+      const t = at(e);
+      if (!t || lastPointer !== 'touch') return;
+      if (tapWasOpen) tipHide(); else tipShow(t);
+    });
+  }
+
   function table(el, o) {
     const columns = o.columns || [];
     const pageSize = o.pageSize || 50;
@@ -682,7 +737,7 @@
     el.innerHTML = '<div class="panel err" role="alert">' + esc(msg) + '</div>';
   }
 
-  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, empty, error,
+  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, tip, empty, error,
            splitScopes, dayStart, dayEnd };
   if (typeof module !== 'undefined') module.exports = S.ui;
 })(typeof window !== 'undefined' ? window : globalThis);

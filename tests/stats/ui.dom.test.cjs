@@ -317,3 +317,41 @@ test('scope split follows meta.scope_groups when present', async () => {
   assert.equal(await page.locator('.st-seg[data-kind=scope] button[aria-pressed=true]').count(), 0);
   assert.ok(!(await page.locator('.st-controls input[type=checkbox]').isVisible()));
 });
+
+test('tip shows on hover and focus, one at a time', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const c = document.getElementById('c');
+    c.innerHTML = '<p style="margin:80px"><span id=t1 data-tip="First &lt;b&gt;tip" tabindex=0>A</span> <span id=t2 data-tip="Second tip" tabindex=0>B</span></p>';
+    S.ui.tip(c);
+  });
+  await page.hover('#t1');
+  const bubble = page.locator('.st-bubble');
+  await bubble.waitFor({ state: 'visible' });
+  assert.equal(await bubble.textContent(), 'First <b>tip');
+  assert.equal(await page.getAttribute('#t1', 'aria-describedby'), await bubble.getAttribute('id'));
+  await page.focus('#t2');
+  assert.equal(await bubble.textContent(), 'Second tip');
+  assert.equal(await page.locator('.st-bubble').count(), 1);
+  await page.keyboard.press('Escape');
+  assert.equal(await bubble.isVisible(), false);
+});
+
+test('tip toggles on tap', async () => {
+  const ctx = await browser.newContext({ hasTouch: true });
+  const tp = await ctx.newPage();
+  await tp.route('**/*', r => r.request().url().startsWith(ORIGIN)
+    ? r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><body><div id=c></div></body>' }) : r.abort());
+  await tp.goto(ORIGIN + '/stats/');
+  for (const f of ['chronos.js', 'stats/format.js', 'stats/core.js', 'stats/ui.js']) await tp.addScriptTag({ path: path.join(ROOT, f) });
+  await tp.evaluate(() => {
+    const c = document.getElementById('c');
+    c.innerHTML = '<p style="margin:80px"><span id=t1 data-tip="Tap tip" tabindex=0>A</span></p><p id=away style="height:300px">x</p>';
+    S.ui.tip(c);
+  });
+  await tp.tap('#t1');
+  assert.equal(await tp.locator('.st-bubble').isVisible(), true);
+  await tp.tap('#away');
+  assert.equal(await tp.locator('.st-bubble').isVisible(), false);
+  await ctx.close();
+});
