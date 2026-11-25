@@ -28,6 +28,9 @@
  *             st-cmp-x st-cmp-tag st-cmp-add st-cmp-boxnote st-cmp-quick st-cmp-qbtn st-cmp-min
  *             st-cmp-busy st-cmp-graph st-cmp-gh st-cmp-board st-cmp-table st-cmp-ph st-cmp-stat
  *             st-cmp-v st-cmp-lead st-cmp-bar st-cmp-none
+ *   milestones st-ms st-ms-box st-ms-panel st-ms-quiet st-ms-early st-ms-foot st-ms-err st-ms-tbl st-ms-filt
+ *             st-ms-note st-ms-pl st-ms-on st-ms-ek st-ms-by st-ms-retry st-ms-none st-rvs st-rv st-rv-who
+ *             st-rv-vs st-rv-stat st-rv-bars st-rv-bar st-rv-was st-rv-l st-rv-track st-rv-v st-rv-eta (.on)
  *   lines     --st-c3..--st-c6: series colours 3-6 after teal and --cmp (blue, copper, orchid,
  *             bone; 6.6:1 or more on the panel, apart under deuteranopia/protanopia simulation)
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
@@ -387,6 +390,51 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 .st-pod-v{font:600 1.05rem var(--mono);color:#fff}
 .st-pod-v small{margin-left:.3rem;font-size:.72rem;font-weight:400;color:var(--mute)}
 
+/* ---- milestones page (feed, firsts, rivalries) */
+.st-ms .st-controls .st-check{display:none}  /* the milestone endpoints take no include_bots */
+.st-ms-box{margin-top:.2rem}
+.st-ms-box > div:first-child .st-tabs{padding:0 .3rem}
+.st-ms-panel:focus{outline:none}
+.st-ms-panel > .st-empty{padding:2.2rem 1.1rem}
+.st-ms-quiet{margin:0;padding:1.4rem 1.1rem .6rem;border-top:1px solid var(--line);font:500 .68rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.st-ms-panel > .st-ms-quiet:first-child{border-top:0}
+.st-ms-early{opacity:.72}
+.st-ms-foot .st-more[aria-disabled=true]{opacity:.6;cursor:progress}
+.st-ms-err{flex:1 1 220px;color:#ffb9a8}
+.st-ms-retry{padding:0 1.1rem 1.1rem}
+.st-ms-retry .panel.err{margin:1.1rem 0 .8rem}
+.st-ms-panel > div:first-child > .panel.err{margin:1.1rem 1.1rem .8rem}
+.st-ms-filt .st-select select{padding-top:.45rem;padding-bottom:.45rem}
+.st-ms-note{margin:0;padding:.55rem 1.1rem;border-bottom:1px solid var(--line);font:400 .74rem/1.5 var(--mono);color:var(--amber)}
+.st-ms-note[hidden]{display:none}
+.st-ms-pl{display:inline-flex;align-items:center;gap:.55rem;min-width:0;color:var(--ink);text-decoration:none}
+.st-ms-pl:hover{color:#fff;text-decoration:underline}
+.st-table td .st-ms-pl .st-head{margin-right:0}
+.st-ms-on{color:var(--mute);font-size:.8rem;white-space:nowrap}
+.st-ms-tbl td > span:not([class]){color:var(--mute)}
+.st-ms-ek{color:var(--mute);font-family:var(--sans);font-size:.82rem}
+.st-ms-by{color:var(--amber)}
+.st-ms-none{max-width:40rem}
+.st-rv{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) 11rem;gap:.6rem 1.6rem;align-items:center;padding:1rem 1.1rem;border-top:1px solid var(--line)}
+.st-rv:first-child{border-top:0}
+.st-rv-who{min-width:0;font-size:.9rem;line-height:1.9}
+.st-rv-who b{font-weight:600;color:#fff}
+.st-rv-vs{margin:0 .2rem;color:var(--mute);font-size:.82rem;vertical-align:middle}
+.st-rv-who .st-ms-pl{vertical-align:middle}
+.st-rv-stat{font-size:.84rem;line-height:1.4;color:var(--ink)}
+.st-rv-stat span{color:var(--mute)}
+.st-rv-stat .st-icon,.st-rv-stat .st-letter{width:20px;height:20px;margin-right:.45rem;vertical-align:-4px}
+.st-rv-bars{display:grid;gap:.45rem}
+.st-rv-bar{display:grid;grid-template-columns:5.6rem minmax(0,1fr) 4.2rem;gap:.7rem;align-items:center}
+.st-rv-l{font:500 .64rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.st-rv-track{display:block;height:6px;background:rgba(235,232,230,.07)}
+.st-rv-track i{display:block;height:100%;background:var(--teal)}
+.st-rv-was .st-rv-track i{background:rgba(235,232,230,.3)}
+.st-rv-v{font:500 .78rem var(--mono);font-variant-numeric:tabular-nums;color:#fff;text-align:right;white-space:nowrap}
+.st-rv-was .st-rv-v{color:var(--mute)}
+.st-rv-eta{font:500 .74rem/1.4 var(--mono);color:var(--mute);text-align:right}
+.st-rv-eta.on{color:var(--teal)}
+
 /* ---- tabs (S.ui.tabs) */
 .st-tabs{display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line)}
 .st-tab{position:relative;flex:none;margin:0;padding:.7rem 1.1rem;background:none;border:0;color:var(--mute);font:500 .72rem var(--sans);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer;transition:color .15s}
@@ -434,6 +482,8 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 
 /* ---- breakpoints */
 @media (max-width:820px){
+  .st-rv{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .st-rv-eta{grid-column:1 / -1;text-align:left}
   .st-tiles,.st-pods{grid-template-columns:repeat(2,1fr)}
   .st-two{grid-template-columns:1fr}
   .st-clockpanel{grid-template-columns:1fr;justify-items:start}
@@ -462,6 +512,16 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
   .st-pl-skin{width:72px}
   .st-pod{padding:.8rem .9rem}
   .st-cmp-table .st-cmp-stat{max-width:9.5rem}
+  .st-rv{grid-template-columns:minmax(0,1fr);padding:.9rem .9rem}
+  .st-rv-eta{text-align:left}
+  .st-ms-filt .st-select{flex:1 1 40%}
+  .st-ms-filt .st-select select{width:100%}
+  .st-ms-quiet,.st-ms-note{padding-left:.9rem;padding-right:.9rem}
+  .st-ms-tbl .st-table thead{display:none}
+  .st-ms-tbl .st-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-top:1px solid var(--line)}
+  .st-ms-tbl .st-table tbody tr:first-child{border-top:0}
+  .st-ms-tbl .st-table td{border-top:0;padding:.55rem .9rem 0}
+  .st-ms-tbl .st-table td:nth-child(2){grid-column:1 / -1;grid-row:2;padding-top:.3rem;padding-bottom:.6rem}
   .st-cmp-v{min-width:5.5rem}
 }
 
