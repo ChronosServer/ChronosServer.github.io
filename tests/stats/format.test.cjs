@@ -133,3 +133,23 @@ test('tick labels carry the precision of the step', () => {
   assert.equal(F.tick(250000, 50000, ''), '250K');
   assert.equal(F.tick(-300, 100, ''), '−300');
 });
+
+// ---- Task 12b review fixes
+test('tick: one unit and decimal count per axis, distinct labels', () => {
+  const axis = (ticks, step) => { const m = Math.max(...ticks.map(Math.abs)); return ticks.map(t => F.tick(t, step, '', m)); };
+  assert.deepEqual(axis([0, 50000, 100000, 150000], 50000), ['0', '50K', '100K', '150K']);
+  assert.deepEqual(axis([99980, 99990, 100000], 10), ['99,980', '99,990', '100,000']);
+  assert.deepEqual(axis([416341, 416342], 1), ['416,341', '416,342']);
+  assert.deepEqual(axis([0, 2.5e6, 5e6, 7.5e6, 1e7], 2.5e6), ['0', '2.5M', '5.0M', '7.5M', '10.0M']);
+  assert.deepEqual(axis([0, 250000, 500000], 250000), ['0', '250K', '500K']);
+  const b = axis([1e9, 1.001e9, 1.002e9], 1e6);
+  assert.deepEqual(b, ['1.000B', '1.001B', '1.002B']);
+  const fine = axis([1e9, 1e9 + 2e3, 1e9 + 4e3], 2e3);
+  assert.equal(new Set(fine).size, 3, fine.join(' | '));
+  assert.deepEqual(axis([41800, 42000], 200), ['41,800', '42,000']);
+});
+test('signed drops the sign when the value shows as 0', () => {
+  assert.equal(F.signed('minecraft:custom', 'minecraft:play_time', 100).text, '0 min');
+  assert.equal(F.signed('scoreboard', 'digs', 0.2).text, '0');
+  assert.equal(F.signed('scoreboard', 'digs', -0.2).text, '0');
+});

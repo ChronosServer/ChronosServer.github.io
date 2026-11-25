@@ -233,16 +233,13 @@
         (on ? ' aria-current="true"' : '') + ' aria-controls="cmp-graph"><td class="st-cmp-stat">' + artHtml(k, 20) + '<span>' + keyHtml(k) + '</span></td>';
       const off = offText(k);
       if (off) return start + '<td class="st-cmp-off" colspan="' + players.length + '">' + esc(off) + '</td></tr>';
-      // the leader: the highest value, when the row's values (a missing one counts as 0) differ
-      const cmp = vs.map(v => (v == null ? 0 : v));
-      const top = Math.max.apply(null, cmp);
-      const differ = cmp.some(v => v !== cmp[0]);
+      const top = S.kit.leader(vs);   // highest present value, null when they are all equal
       const big = vs.reduce((m, v) => (v != null && Math.abs(v) > m ? Math.abs(v) : m), 0);
       return start +
         vs.map(v => {
           if (v == null) return '<td class="st-num st-cmp-v"><span class="st-cmp-none">–</span></td>';
           const d = delta ? F.signed(k.kind === 'scoreboard' ? 'scoreboard' : k.cat, k.key, v) : disp(k, v);
-          const lead = differ && v === top;
+          const lead = top != null && v === top;
           const w = big > 0 && v !== 0 ? Math.max(2, Math.round(Math.abs(v) / big * 100)) : 0;
           return '<td class="st-num st-cmp-v' + (lead ? ' st-cmp-lead' : '') + '">' +
             '<span title="' + esc(d.exact) + '">' + esc(d.text) + '</span>' +
@@ -341,24 +338,29 @@
 
   // /compare answers once per real player: an alt asked for next to its main has no row of
   // its own. Ask /player who it is; when that is a player already here, drop the alt's chip.
-  async function foldMerged(my, merged) {
+  async function foldMerged(my, merged, focusI) {
     const todo = players.filter(p => !p.uuid && !p.unknown);
     if (!todo.length) { mergeNote(merged); return; }
     const main = new Map();
     await Promise.all(todo.map(p => get('player/' + encodeURIComponent(p.tok), { scope: st.scope })
       .then(r => { main.set(p, r); }, () => { /* leave it unresolved */ })));
     if (my !== gen) return;
+    let folded = false;
     todo.forEach(p => {
       const r = main.get(p);
       const into = r && players.find(q => q !== p && q.uuid && norm(q.uuid) === norm(r.uuid));
       if (!into) return;
       players.splice(players.indexOf(p), 1);
+      folded = true;
       merged.push(p.tok + ' is counted as ' + pName(into) + ', so it is shown once');
     });
     mergeNote(merged);
+    if (!folded) return;
     writeState();
-    paintChips(); paintMsg();
-    paintTable();
+    paintChips();
+    if (!ready()) { res = null; clearView(); paintMsg(); return; }   // too few players left
+    paintMsg();
+    paintTable(focusI);
     drawChart();
   }
 
@@ -392,7 +394,8 @@
       res = null; resErr = err;
       clearView();
       paintMsg();
-      if (err && err.status === 404) findUnknown(my);
+      // 404: a name doesn't exist; 400: e.g. an alt and its main make fewer distinct players
+      if (err && (err.status === 404 || err.status === 400)) findUnknown(my);
       return;
     }
     if (my !== gen) return;
@@ -404,11 +407,12 @@
     paintChips(); paintMsg();
     paintTable(focusI);
     drawChart();
-    foldMerged(my, merged);
+    foldMerged(my, merged, focusI);
     checkBots();
   }
 
-  // A 404 means one of the names doesn't exist: look up the ones we haven't resolved.
+  // After a 404 (or 400) look up the names we haven't resolved: unknown ones are marked, and
+  // an alt that turns out to be a player already here (merged accounts) loses its chip.
   async function findUnknown(my) {
     const todo = players.filter(p => !p.uuid);
     const out = await Promise.all(todo.map(p => get('player/' + encodeURIComponent(p.tok), { scope: st.scope })
@@ -420,6 +424,21 @@
     if (bad.length) {
       const n = bad.map(p => '"' + p.tok + '"');
       unknownMsg = 'No player called ' + andList(n) + '. Check the spelling, or remove ' + (bad.length === 1 ? 'it' : 'them') + ' with × and search for the player above.';
+    }
+    const merged = [];
+    players.slice().forEach(p => {
+      const into = p.uuid && players.find(q => q !== p && q.uuid && norm(q.uuid) === norm(p.uuid));
+      if (!into || players.indexOf(into) > players.indexOf(p)) return;   // keep the first of a pair
+      players.splice(players.indexOf(p), 1);
+      merged.push(p.tok + ' is counted as ' + pName(into) + ', so it is shown once');
+    });
+    mergeNote(merged);
+    if (merged.length) {
+      writeState();
+      paintChips();
+      if (!ready()) { resErr = null; paintMsg(); return; }   // too few players left: "Add at least…"
+      load();
+      return;
     }
     paintChips(); paintMsg();
   }

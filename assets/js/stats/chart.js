@@ -145,7 +145,7 @@
       const unit = (opts.axis && opts.axis(Math.max(Math.abs(lo), Math.abs(hi)))) || { div: 1, suffix: null, minStep: 0 };
       const dom = cm.yDomain(lo / unit.div, hi / unit.div, { zero, minStep: unit.minStep });
       const y = v => bot - (v / unit.div - dom.min) / ((dom.max - dom.min) || 1) * (bot - top);
-      const tickLabel = t => (opts.axis && S.fmt && S.fmt.tick ? S.fmt.tick(t, dom.step, unit.suffix) : format(t * unit.div));
+      const tickLabel = t => (opts.axis && S.fmt && S.fmt.tick ? S.fmt.tick(t, dom.step, unit.suffix, Math.max(Math.abs(dom.min), Math.abs(dom.max))) : format(t * unit.div));
 
       let g = '';
       if (tx.split != null) {

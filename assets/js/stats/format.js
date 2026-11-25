@@ -70,7 +70,7 @@
   // A change with an explicit sign: "+3 h", "−3", "0".
   function signed(category, key, raw) {
     const d = display(category, key, raw);
-    return raw > 0 ? { text: '+' + d.text, exact: '+' + d.exact } : d;
+    return raw > 0 && !/^0( |$)/.test(d.text) ? { text: '+' + d.text, exact: '+' + d.exact } : d;
   }
 
   // The display unit for a chart axis whose values reach `maxAbs` (raw): divide raw values by
@@ -85,18 +85,20 @@
     return { div: 1, suffix: '', minStep: 1 };
   }
 
-  // Axis tick label in display units, precise enough that neighbouring ticks `step` apart
-  // never read the same: 41,800 h; 55.05M; 2.5 km.
-  function tick(v, step, suffix) {
+  // Axis tick label in display units. The unit (none / K / M / B) and the decimals come from
+  // the axis as a whole: `maxAbs` (the largest |tick|) and `step`, so every label on one axis
+  // shares them and neighbouring ticks never read the same: 41,800 h; 55.05M; 1.001B.
+  function tick(v, step, suffix, maxAbs) {
     if (v === 0) return '0';
-    if (v < 0) return MINUS + tick(-v, step, suffix);
-    const dec = x => Math.max(0, Math.min(3, Math.ceil(-Math.log10(x) - 1e-9)));
-    if (v < 1e5) {
-      const d = step < 1 ? dec(step) : 0;
-      return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (suffix || '');
-    }
-    const u = v < 1e6 ? [1e3, 'K'] : v < 1e9 ? [1e6, 'M'] : [1e9, 'B'];
-    const d = step / u[0] < 1 ? dec(step / u[0]) : 0;
+    if (v < 0) return MINUS + tick(-v, step, suffix, maxAbs);
+    const m = Math.max(Math.abs(maxAbs || 0), v);
+    // decimals that show a multiple of x exactly (2.5 -> 1, 0.05 -> 2)
+    const dec = x => { let d = 0; while (d < 9 && Math.abs(x * Math.pow(10, d) - Math.round(x * Math.pow(10, d))) > 1e-6) d++; return d; };
+    const plain = () => { const d = dec(step); return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (suffix || ''); };
+    if (m < 1e5) return plain();
+    const u = m < 1e6 ? [1e3, 'K'] : m < 1e9 ? [1e6, 'M'] : [1e9, 'B'];
+    const d = dec(step / u[0]);
+    if (u[1] === 'K' && d > 0) return plain();   // "416,341" reads better than "416.341K"
     return (v / u[0]).toFixed(d) + u[1] + (suffix || '');
   }
 

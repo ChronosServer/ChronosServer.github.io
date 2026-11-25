@@ -49,7 +49,7 @@
 
   // Chart note line for the shaded imported span, when the live start falls inside the window.
   function liveNote(la, res) {
-    if (la == null || !res || !(res.effective_from < la && la < res.to)) return '';
+    if (la == null || !res || res.effective_from == null || !(res.effective_from < la && la < res.to)) return '';
     return '<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' +
       S.fmt.esc(S.fmt.date(la)) + ' gets its own stretch of the axis.';
   }
@@ -67,9 +67,17 @@
     return (kind === 'scoreboard' ? 'Scoreboards' : 'Stats') + " aren't tracked on " + where + '.';
   }
 
+  // Compare's row leader: the highest of the present values (null = missing, left out), or
+  // null when they are all equal (or fewer than two are present).
+  function leader(values) {
+    const v = values.filter(x => x != null);
+    if (v.length < 2 || v.every(x => x === v[0])) return null;
+    return Math.max.apply(null, v);
+  }
+
   // Chart axis option for a stat: ticks in its display unit.
   const axis = (category, key) => maxAbs => S.fmt.axisUnit(category, key, maxAbs);
 
-  S.kit = { ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, axis };
+  S.kit = { ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);

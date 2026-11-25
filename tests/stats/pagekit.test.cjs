@@ -54,3 +54,16 @@ test('untracked copy names the server or "these servers"', () => {
   assert.equal(kit.untracked(meta, 'all', 'scoreboard'), '');
   assert.equal(kit.untracked(meta, 'cmp', 'stat'), '');
 });
+
+test('leader: highest present value when present values differ', () => {
+  assert.equal(kit.leader([-3, -5, null]), -3);
+  assert.equal(kit.leader([5, 5, null]), null);
+  assert.equal(kit.leader([5, null]), null);
+  assert.equal(kit.leader([0, 0]), null);
+  assert.equal(kit.leader([2, 7, 7]), 7);
+  assert.equal(kit.leader([null, null]), null);
+});
+test('liveNote needs an effective_from', () => {
+  assert.equal(kit.liveNote(5, { effective_from: null, to: 10 }), '');
+  assert.equal(kit.liveNote(5, { to: 10 }), '');
+});

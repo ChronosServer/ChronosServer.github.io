@@ -385,6 +385,7 @@
 
   // ---- tabs
   function showTab(id) {
+    clearTimeout(fTimer);   // a filter typed on the old tab must not repaint this one
     cur = id;
     st.tab = id;
     S.state.write(st);
