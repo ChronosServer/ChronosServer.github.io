@@ -40,6 +40,36 @@ test('single point renders value card', async () => {
   const card = await page.textContent('#c .st-valuecard');
   assert.ok(card.includes('1234 u'), card);
   assert.equal(await page.locator('#c path.st-line').count(), 0);
+  assert.equal(await page.locator('#c .st-vc-date').count(), 0);
+  assert.equal(await page.locator('#c .st-vc-asof').count(), 1);
+  assert.equal(await page.textContent('#c .st-vc-asof'), 'As of ' + await page.evaluate(t => S.fmt.date(t), T0 + DAY));
+  assert.equal(await page.evaluate(() => window.chartInst.valueCard), true);
+});
+
+test('value card keeps per-row dates when they differ', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0 + DAY},1]]},{id:'b',label:'CMP',color:'red',points:[[${T0 + 3 * DAY},2]]}]`));
+  assert.equal(await page.locator('#c .st-vc-asof').count(), 0);
+  assert.equal(await page.locator('#c .st-vc-date').count(), 2);
+});
+
+test('valueCard flag clears when lines draw', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0 + DAY},1]]}]`));
+  assert.equal(await page.evaluate(() => window.chartInst.valueCard), true);
+  await page.evaluate(T0 => window.chartInst.update({ series: [{ id: 'a', label: 'SMP', color: 'teal', points: [[T0 + 86400, 1], [T0 + 3 * 86400, 5]] }] }), T0);
+  assert.equal(await page.evaluate(() => window.chartInst.valueCard), false);
+  assert.ok(await page.locator('#c path.st-line').count() > 0);
+});
+
+test('zone labels sit above the plotted lines', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},3],[${T0 + 2 * DAY},5],[${T0 + 9 * DAY},100]]}]`, `, liveAt:${T0 + 8 * DAY}`));
+  const labelYs = await page.$$eval('#c .st-zonel', ts => ts.map(t => +t.getAttribute('y')));
+  const d = await page.getAttribute('#c path.st-line', 'd');
+  const ys = [];
+  d.replace(/M\s*[-\d.]+[ ,]([-\d.]+)/g, (_, y) => { ys.push(+y); return ''; });
+  d.replace(/V\s*([-\d.]+)/g, (_, y) => { ys.push(+y); return ''; });
+  const lineTop = Math.min(...ys);
+  assert.equal(labelYs.length, 2);
+  for (const y of labelYs) assert.ok(y < lineTop, 'label y ' + y + ' vs line top ' + lineTop + ' d=' + d);
 });
 
 test('split axis draws backups zone', async () => {

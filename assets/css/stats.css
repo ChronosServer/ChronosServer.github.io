@@ -120,6 +120,7 @@ button.st-tile:hover,a.st-tile:hover{background:rgba(14,20,23,.85)}
 .st-vc-label{min-width:5rem;font:500 .7rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .st-vc-val{font:600 1.75rem/1.1 var(--mono);color:#fff;font-variant-numeric:tabular-nums}
 .st-vc-date{font:400 .74rem var(--mono);color:var(--mute)}
+.st-vc-asof{font:400 .74rem var(--mono);color:var(--mute)}
 
 /* ---- pulse clock and heatmap (S.viz) */
 .st-viz{display:block;width:100%;height:auto;overflow:visible}
