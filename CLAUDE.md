@@ -67,7 +67,7 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | Stat explorer | `/stats/explorer/` | `meta`, `keys`, `search`, `leaderboard`, `series`, `totals` |
 | Scoreboards | `/stats/scoreboards/` | `meta`, `keys?kind=scoreboard`, `leaderboard`, `series`, `totals` |
 | Player | `/stats/player/?p=<name or uuid>` | `search`, `player/{id}`, `series` |
-| Compare | `/stats/compare/` (URL-encoded state) | `search`, `keys`, `compare`, `player/{id}` (bot flag) |
+| Compare | `/stats/compare/` (URL-encoded state) | `search`, `keys`, `compare`, `player/{id}` (unknown names only) |
 | Milestones | `/stats/milestones/` (feed / firsts / rivalries) | `milestones`, `firsts`, `rivalries` |
 | 404 | `404.html` | — |
 

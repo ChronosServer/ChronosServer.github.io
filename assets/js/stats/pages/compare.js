@@ -9,11 +9,11 @@
  * Enter/Space on it) graphs that stat; arrows move between rows.
  *
  * Requests: first paint is /meta + /compare. /compare returns every key's series, so picking
- * a row costs nothing. Bot check: when the scope includes SMP, each player's /player is
- * fetched once per player, whatever the scope (unless /compare already says is_bot_on_smp); a newly found bot turns the
- * bot toggle on (once per bot, so the viewer can turn it off again). After a 404, /player
+ * a row costs nothing. Bot check: when the scope includes SMP, a player /compare reports
+ * with is_bot_on_smp turns the bot toggle on (once per bot, so the viewer can turn it off
+ * again); no separate /player request. After a 404, /player
  * on each player typed into the URL finds the unknown name. Responses are kept per
- * parameter set; `gen` drops stale compares, `bgen` stale bot checks.
+ * parameter set; `gen` drops stale compares.
  * URL state: players (names, or uuids for unnamed players), keys, stat (graphed row), plus
  * scope/bots/range/from/to. Every API string goes through S.fmt.esc before the DOM.
  * Page-only classes (stats.css): st-cmp st-cmp-pick st-cmp-box st-cmp-bh st-cmp-n st-cmp-chips
@@ -34,12 +34,11 @@
     hint: $('cmp-hint'), table: $('cmp-table'),
   };
 
-  let meta = null, st = null, info = null, gen = 0, bgen = 0, chart = null;
+  let meta = null, st = null, info = null, gen = 0, chart = null;
   let players = [];     // {tok, uuid, name, bot: true|false|null, unknown}
   let keys = [];        // {id, kind, cat, key}
   let res = null, resErr = null, unknownMsg = '';
   const botAuto = new Set();   // bots that already switched the toggle on once
-  const botLookup = new Map(); // uuid -> /player promise (is_bot_on_smp doesn't depend on scope)
   const get = S.memo();
 
   // ---- small helpers
@@ -442,28 +441,10 @@
     paintChips(); paintMsg();
   }
 
-  // Look up bot status once per player while SMP is in scope. A newly found bot turns
-  // the toggle on (STATS_API: compare with bots included when a player is an SMP bot).
-  async function checkBots() {
-    if (!info.hasSmp) return;
-    const todo = players.filter(p => p.uuid && p.bot === null);
-    if (!todo.length) { applyBots(); return; }
-    const my = ++bgen;
-    await Promise.all(todo.map(p => botOf(p.uuid)
-      .then(r => { p.bot = !!r.is_bot_on_smp; }, () => { /* unknown: leave the toggle alone */ })));
-    if (my !== bgen) return;
-    applyBots();
-  }
-
-  // One /player per uuid for the bot flag, whatever scope it was first asked with.
-  function botOf(uuid) {
-    const k = norm(uuid);
-    if (!botLookup.has(k)) {
-      const pr = get('player/' + encodeURIComponent(uuid), { scope: st.scope });
-      botLookup.set(k, pr);
-      pr.catch(() => { if (botLookup.get(k) === pr) botLookup.delete(k); });
-    }
-    return botLookup.get(k);
+  // The bot flag comes with each /compare player (is_bot_on_smp, read in resolve). A newly
+  // found bot turns the toggle on once (STATS_API: compare with bots included).
+  function checkBots() {
+    if (info.hasSmp) applyBots();
   }
 
   function applyBots() {
