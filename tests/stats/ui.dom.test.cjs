@@ -212,3 +212,64 @@ test('tabs, empty and error', async () => {
   await page.evaluate(() => S.ui.error(document.getElementById('c'), new S.ApiError('HTTP 502', 502, 'http')));
   assert.match(await page.textContent('#c .panel.err'), /HTTP 502/);
 });
+
+test('autocomplete pick cancels a pending search', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<input id=q>';
+    window.picked = [];
+    S.ui.autocomplete(document.getElementById('q'), { onPick: it => window.picked.push(it) });
+  });
+  await page.focus('#q');
+  await page.keyboard.type('sto');
+  await page.waitForSelector('[role=listbox] [role=option]');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.type('n');          // starts a new 120 ms debounce
+  await page.keyboard.press('Enter');     // pick before it fires
+  assert.equal((await page.evaluate(() => window.picked)).length, 1);
+  await page.waitForTimeout(400);
+  assert.ok(!(await page.locator('[role=listbox]').isVisible()));
+  assert.equal(await page.getAttribute('#q', 'aria-expanded'), 'false');
+  assert.equal(requests.filter(u => u.includes('/api/stats/search')).length, 1);
+});
+
+test('controls clear bots when leaving SMP data', async () => {
+  await mount();
+  await page.evaluate(meta => {
+    window.changes = [];
+    S.ui.controls(document.getElementById('c'), meta, { scope: 'smp', bots: true, range: null, from: null, to: null },
+      s => window.changes.push(JSON.parse(JSON.stringify(s))), { range: true });
+  }, META);
+  assert.equal(await page.isChecked('.st-controls input[type=checkbox]'), true);
+  await page.click('.st-seg[data-kind=scope] button[data-value=cmps]');
+  const last = (await page.evaluate(() => window.changes)).pop();
+  assert.equal(last.scope, 'cmps');
+  assert.equal(last.bots, false);
+  assert.ok(!(await page.evaluate(() => location.search)).includes('bots='));
+  await page.selectOption('.st-controls select', 'cmp2');
+  assert.equal((await page.evaluate(() => window.changes)).pop().bots, false);
+});
+
+test('scope split follows meta.scope_groups when present', async () => {
+  await mount();
+  const meta = {
+    last_run_at: null,
+    servers: [
+      { key: 'smp', label: 'SMP', group: 'smp', filters_bots: true },
+      { key: 'creative', label: 'Creative', group: 'cmp', filters_bots: false },
+      { key: 'cmp', label: 'CMP', group: 'cmp', filters_bots: false },
+      { key: 'cmp2', label: 'CMP 2', group: 'cmp', filters_bots: false },
+    ],
+    scope_groups: { cmps: ['cmp', 'cmp2'] },
+    scopes: ['all', 'smp', 'creative', 'cmps', 'cmp', 'cmp2'],
+    settings: { range_presets: {} },
+  };
+  const split = await page.evaluate(m => { const r = S.ui.splitScopes(m); return { seg: r.seg, sel: r.sel }; }, meta);
+  assert.deepEqual(split, { seg: ['all', 'smp', 'creative', 'cmps'], sel: ['cmp', 'cmp2'] });
+  await page.evaluate(m => S.ui.controls(document.getElementById('c'), m,
+    { scope: 'cmp', bots: false, range: null, from: null, to: null }, () => {}, {}), meta);
+  assert.deepEqual(await page.locator('.st-seg[data-kind=scope] button').allTextContents(), ['ALL', 'SMP', 'CREATIVE', 'CMPS']);
+  assert.equal(await page.inputValue('.st-controls select'), 'cmp');
+  assert.equal(await page.locator('.st-seg[data-kind=scope] button[aria-pressed=true]').count(), 0);
+  assert.ok(!(await page.locator('.st-controls input[type=checkbox]').isVisible()));
+});

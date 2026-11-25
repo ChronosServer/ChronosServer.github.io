@@ -238,6 +238,8 @@
       }
     }
     function commit() {
+      // bots only means something where SMP data is in view; don't carry it into the URL elsewhere
+      if (st.bots && S.scopeInfo && !S.scopeInfo(meta, st.scope).hasSmp) st.bots = false;
       if (S.state) S.state.write(st);
       paint();
       onChange(st);
@@ -337,6 +339,7 @@
     function pick(i) {
       const it = items[i];
       if (!it) return;
+      clearTimeout(timer); seq++;   // a pending or in-flight search must not reopen the list
       close();
       if (opts.onPick) opts.onPick(it);
     }
