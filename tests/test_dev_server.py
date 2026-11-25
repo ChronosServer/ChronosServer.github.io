@@ -27,6 +27,23 @@ class Upstream(BaseHTTPRequestHandler):
             return
         if self.path.startswith("/api/stats/player/nobody"):
             body, status = b'{"error":"not_found"}', 404
+        elif self.path == "/cache/items/stone.png":
+            body = b"PNG fake"
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Cache-Control", "public, max-age=86400")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        elif self.path.startswith("/cache/items/"):
+            body = b"not found"
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         else:
             body, status = b'{"ok":1}', 200
         self.send_response(status)
@@ -101,6 +118,26 @@ class DevServerTest(unittest.TestCase):
         r, body = self.get("/api/stats/player/nobody")
         self.assertEqual(r.status, 404)
         self.assertEqual(body, b'{"error":"not_found"}')
+
+    def test_item_icons_proxied(self):
+        r, body = self.get("/cache/items/stone.png")
+        self.assertEqual(r.status, 200)
+        self.assertEqual(body, b"PNG fake")
+        self.assertEqual(r.getheader("Content-Type"), "image/png")
+        self.assertEqual(r.getheader("Cache-Control"), "public, max-age=86400")
+        path, headers = Upstream.seen[-1]
+        self.assertEqual(path, "/cache/items/stone.png")
+        self.assertIn("Mozilla/5.0", headers["User-Agent"])
+
+    def test_missing_item_icon_404_passed(self):
+        r, _ = self.get("/cache/items/nope.png")
+        self.assertEqual(r.status, 404)
+        self.assertEqual(Upstream.seen[-1][0], "/cache/items/nope.png")
+
+    def test_other_cache_paths_not_proxied(self):
+        r, _ = self.get("/cache/other/x.png")
+        self.assertEqual(r.status, 404)
+        self.assertEqual(Upstream.seen, [])
 
     def test_non_stats_api_not_proxied(self):
         r, _ = self.get("/api/status")

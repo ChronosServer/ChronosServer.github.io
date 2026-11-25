@@ -1,4 +1,5 @@
-"""Local dev server: serves _site/ and forwards /api/stats/* to the live API."""
+"""Local dev server: serves _site/ and forwards /api/stats/* and /cache/items/* (item icons,
+built on the server only) to the live site."""
 import argparse
 import functools
 import os
@@ -8,7 +9,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 DEFAULT_ORIGIN = "https://www.chronosmc.com"
-PREFIX = "/api/stats/"
+PREFIXES = ("/api/stats/", "/cache/items/")
 # Cloudflare rejects Python's default User-Agent.
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")
@@ -18,14 +19,17 @@ COPY_BACK = ("Content-Type", "ETag", "Cache-Control")
 class Handler(SimpleHTTPRequestHandler):
     origin = DEFAULT_ORIGIN
 
+    def forwarded(self):
+        return self.path.startswith(PREFIXES)
+
     def do_GET(self):
-        if self.path.startswith(PREFIX):
+        if self.forwarded():
             self.proxy()
         else:
             super().do_GET()
 
     def do_HEAD(self):
-        if self.path.startswith(PREFIX):
+        if self.forwarded():
             self.send_error(405)
         else:
             super().do_HEAD()
