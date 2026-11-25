@@ -87,6 +87,7 @@
     const h = F.HEADLINES.find(x => x[0] === s.cat && x[1] === s.key);
     return h ? h[2] : F.statLabel(s.cat, s.key).full;
   }
+  const boardLink = (kind, cat, key) => '<a class="st-board-link" href="' + esc(S.kit.boardHref(kind, cat, key, st)) + '">Leaderboard →</a>';
   const disp = (s, v) => F.display(s.kind === 'scoreboard' ? 'scoreboard' : s.cat, s.key, v);
 
   // ---- header
@@ -184,9 +185,11 @@
   // ---- "Number one in" (or "Best ranks")
   function podHtml(s, i) {
     const d = F.display(s.category, s.key, s.value);
-    return '<button type="button" class="st-pod" style="--i:' + i + '" data-kind="stat" data-cat="' + esc(s.category) + '" data-key="' + esc(s.key) + '" aria-controls="pl-graph">' +
+    // the pod selects the stat into the graph; the corner link opens its full leaderboard
+    return '<div class="st-podcell"><button type="button" class="st-pod" style="--i:' + i + '" data-kind="stat" data-cat="' + esc(s.category) + '" data-key="' + esc(s.key) + '" aria-controls="pl-graph">' +
       artHtml(s.category, s.key, 40) + '<span class="st-pod-st">' + statHtml(s.category, s.key) + '</span>' +
-      '<span class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></span></button>';
+      '<span class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></span></button>' +
+      boardLink('stat', s.category, s.key) + '</div>';
   }
 
   function onesHtml() {
@@ -211,7 +214,7 @@
     const presets = Object.keys((meta.settings && meta.settings.range_presets) || {});
     const btns = presets.concat(['all', 'custom']).map(k =>
       '<button type="button" class="st-seg-btn" data-value="' + esc(k) + '" aria-pressed="false">' + esc(k.toUpperCase()) + '</button>').join('');
-    return '<section class="st-sec st-pl-graph" id="pl-graph" tabindex="-1"><div class="st-pl-sh"><h2 id="pl-ctitle"></h2>' +
+    return '<section class="st-sec st-pl-graph" id="pl-graph" tabindex="-1"><div class="st-pl-sh"><h2 id="pl-ctitle"></h2><a class="st-board-link" id="pl-board" href="#">Leaderboard →</a>' +
       '<div class="st-pl-range"><div class="st-seg" role="group" aria-label="Graph range" id="pl-range">' + btns + '</div>' +
       '<span class="st-custom" id="pl-custom"><label>From <input type="date" name="from"></label> <label>To <input type="date" name="to"></label></span></div></div>' +
       '<div class="panel st-pl-chart"><div id="pl-chart"></div><div class="st-note" id="pl-note"></div></div></section>';
@@ -264,6 +267,7 @@
     if (!box) return;
     const s = sel();
     $('pl-ctitle').textContent = selTitle(s);
+    $('pl-board').href = S.kit.boardHref(s.kind, s.cat, s.key, st);
     paintRange();
     const off = offText(s.kind);
     if (off) { chartMessage(off); return; }
@@ -394,12 +398,14 @@
         { id: 'stat', label: 'Stat', sort: r => r.lab.toLowerCase() },
         { id: 'value', label: 'Value', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
+        { id: 'board', label: '', sort: null },
       ],
       rows: hits, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {
         const d = F.display(r.category, r.key, r.value);
         return '<td>' + artHtml(r.category, r.key, 20) + statHtml(r.category, r.key) + '</td>' +
-          '<td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
+          '<td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>' +
+          '<td class="st-board-cell">' + boardLink('stat', r.category, r.key) + '</td>';
       },
       onRow: r => selectStat('stat', r.category, r.key, true, true),
     });
@@ -416,11 +422,13 @@
         { id: 'objective', label: 'Objective', sort: r => String(r.objective).toLowerCase() },
         { id: 'value', label: 'Score', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
+        { id: 'board', label: '', sort: null },
       ],
       rows: list, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {
         const d = F.display('scoreboard', r.objective, r.value);
-        return '<td>' + esc(r.objective) + '</td><td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
+        return '<td>' + esc(r.objective) + '</td><td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>' +
+          '<td class="st-board-cell">' + boardLink('scoreboard', null, r.objective) + '</td>';
       },
       onRow: r => selectStat('scoreboard', '', r.objective, true, true),
     });

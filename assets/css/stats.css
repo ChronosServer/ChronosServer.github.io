@@ -393,6 +393,13 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 .st-pod-st{min-width:0;font-size:.86rem;line-height:1.25}
 .st-pod-st span{color:var(--mute)}
 .st-pod-v{font:600 1.05rem var(--mono);color:#fff}
+.st-podcell{position:relative;display:grid}
+.st-board-link{font:500 .64rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);text-decoration:none;white-space:nowrap}
+.st-board-link:hover,.st-board-link:focus-visible{color:var(--teal)}
+.st-podcell > button.st-pod{padding-bottom:2.1rem}
+.st-podcell > .st-board-link{position:absolute;right:1.1rem;bottom:.75rem}
+.st-pl-sh > .st-board-link{margin-right:auto}
+.st-board-cell{text-align:right;width:1%}
 .st-pod-v small{margin-left:.3rem;font-size:.72rem;font-weight:400;color:var(--mute)}
 
 /* ---- milestones page (feed, firsts, rivalries) */

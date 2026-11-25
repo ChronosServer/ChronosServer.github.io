@@ -86,6 +86,17 @@
       (st && st.scope ? '&scope=' + encodeURIComponent(st.scope) : '') + (st && st.bots ? '&bots=true' : '');
   }
 
-  S.kit = { playerHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
+  // Full leaderboard for one stat or objective (Explorer / Scoreboards), keeping scope and bots.
+  function boardHref(kind, category, key, st) {
+    const q = [];
+    const add = (k, v) => q.push(k + '=' + encodeURIComponent(v));
+    if (st && st.scope) add('scope', st.scope);
+    if (st && st.bots) add('bots', 'true');
+    if (kind === 'scoreboard') { add('key', key); return '/stats/scoreboards/?' + q.join('&'); }
+    add('cat', category); add('key', key);
+    return '/stats/explorer/?' + q.join('&');
+  }
+
+  S.kit = { playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);

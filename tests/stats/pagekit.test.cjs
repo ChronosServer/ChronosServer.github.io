@@ -70,3 +70,12 @@ test('liveNote needs an effective_from', () => {
   assert.equal(kit.liveNote(5, { effective_from: null, to: 10 }), '');
   assert.equal(kit.liveNote(5, { to: 10 }), '');
 });
+
+test('boardHref carries the stat, scope and bots', () => {
+  assert.equal(kit.boardHref('stat', 'minecraft:mined', 'minecraft:stone', st({ scope: 'smp', bots: true })),
+    '/stats/explorer/?scope=smp&bots=true&cat=minecraft%3Amined&key=minecraft%3Astone');
+  assert.equal(kit.boardHref('stat', 'minecraft:custom', 'minecraft:play_time', st({ scope: 'cmps', bots: false })),
+    '/stats/explorer/?scope=cmps&cat=minecraft%3Acustom&key=minecraft%3Aplay_time');
+  assert.equal(kit.boardHref('scoreboard', null, 'dig pickaxe&x', st({ scope: 'all' })),
+    '/stats/scoreboards/?scope=all&key=dig%20pickaxe%26x');
+});
