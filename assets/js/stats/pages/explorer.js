@@ -62,7 +62,7 @@
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
-  const playerHref = r => '/stats/player/?p=' + encodeURIComponent(r.name || r.uuid);
+  const playerHref = r => S.kit.playerHref(st, r.name, r.uuid);
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
 

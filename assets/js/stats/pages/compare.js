@@ -52,8 +52,7 @@
   const pName = p => (p.name || p.uuid ? F.playerName({ name: p.name, uuid: p.uuid || p.tok }) : p.tok);
   const norm = s => String(s || '').toLowerCase().replace(/-/g, '');
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
-  const playerHref = p => '/stats/player/?p=' + encodeURIComponent(p.name || p.uuid || p.tok) +
-    (st.scope ? '&scope=' + encodeURIComponent(st.scope) : '') + (st.bots ? '&bots=true' : '');
+  const playerHref = p => S.kit.playerHref(st, p.name, p.uuid, p.tok);
   const andList = a => (a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]);
   const ready = () => players.length >= cfg().min_players && keys.length >= 1;
 

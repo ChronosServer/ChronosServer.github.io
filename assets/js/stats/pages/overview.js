@@ -38,7 +38,7 @@
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
   const isDelta = () => S.kit.ranged(st);
-  const playerHref = uuid => '/stats/player/?p=' + encodeURIComponent(uuid);
+  const playerHref = uuid => S.kit.playerHref(st, uuid);
 
   function partColor(part) {
     const all = S.scopeInfo(meta, 'all').parts;

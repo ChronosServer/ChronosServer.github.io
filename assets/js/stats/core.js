@@ -85,7 +85,7 @@
       let scope = p.get('scope');
       if (!scopes.includes(scope)) {
         scope = lsGet('stats.scope');
-        if (!scopes.includes(scope)) scope = 'smp';
+        if (!scopes.includes(scope)) scope = scopes.includes('smp') ? 'smp' : (scopes[0] || 'smp');
       }
       const presets = Object.keys((m && m.settings && m.settings.range_presets) || {});
       const r = p.get('range');

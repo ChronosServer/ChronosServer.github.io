@@ -139,7 +139,8 @@
         // points before `from` would sit below a raised axis: start each line at its carried value
         for (const s of series) {
           const c = cm.valueAt(s.points, from), rest = s.points.filter(p => p[0] > from);
-          s.points = c == null ? rest : [[from, c]].concat(rest);
+          s.synth = c == null ? null : [from, c];   // carried, not a real backup: no dot, no keyboard stop
+          s.points = s.synth ? [s.synth].concat(rest) : rest;
         }
       }
       const unit = (opts.axis && opts.axis(Math.max(Math.abs(lo), Math.abs(hi)))) || { div: 1, suffix: null, minStep: 0 };
@@ -177,7 +178,7 @@
       }
       if (tx.split != null) {
         for (const s of series) for (const p of s.points) {
-          if (p[0] < +opts.liveAt && p[0] >= from && p[0] <= to) {
+          if (p !== s.synth && p[0] < +opts.liveAt && p[0] >= from && p[0] <= to) {
             g += '<circle class="st-dot" cx="' + n1(x(p[0])) + '" cy="' + n1(y(p[1])) + '" r="3" fill="' + esc(s.color) + '"/>';
           }
         }
@@ -190,7 +191,7 @@
         esc('Chart: ' + label + '. Use arrow keys to step through changes.') + '">' + g + '</svg>' +
         '<div class="st-tip" role="status" aria-live="polite" hidden style="position:absolute;top:0;left:0;pointer-events:none;display:none"></div>';
 
-      const cps = cm.changePoints(series.map(s => s.points)).filter(t => t >= from && t <= to);
+      const cps = cm.changePoints(series.map(s => s.points.filter(p => p !== s.synth))).filter(t => t >= from && t <= to);
       model = { series, x, tx, y, from, to, format, cps, short: to - from < 2 * DAY,
         svg: wrap.querySelector('svg'), tip: wrap.querySelector('.st-tip'),
         cross: wrap.querySelector('.st-cross'), marks: wrap.querySelectorAll('.st-mark') };

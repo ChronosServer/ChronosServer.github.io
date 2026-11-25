@@ -66,6 +66,12 @@ test('meta memoizes and clears on failure', async () => {
   assert.equal(n, 2);
   assert.equal(lastFetch.url, '/api/stats/meta');
 });
+test('state.read falls back to the first scope when smp is missing', () => {
+  setQ(''); store['stats.scope'] = 'junk';
+  assert.equal(state.read({ scopes: ['all', 'cmps'] }).scope, 'all');
+  assert.equal(state.read({ scopes: [] }).scope, 'smp');
+  delete store['stats.scope'];
+});
 test('state.read defaults to smp', () => {
   setQ('');
   const s = state.read({ scopes: ['all', 'smp', 'cmps', 'cmp'] });

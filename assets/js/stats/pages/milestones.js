@@ -44,7 +44,7 @@
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
   const scopeText = () => (st.scope === 'all' ? 'on any server' : 'on ' + serverLabel(st.scope));
-  const playerHref = r => '/stats/player/?p=' + encodeURIComponent(r.name || r.uuid) + '&scope=' + encodeURIComponent(st.scope);
+  const playerHref = r => S.kit.playerHref(st, r.name, r.uuid);
   const catLabel = c => (c === 'scoreboard' ? 'Scoreboards' : F.itemId(c) === 'custom' ? 'General' : F.statLabel(c, 'x').cat);
   const plural = (n, w) => fmtCount(n) + ' ' + w + (n === 1 ? '' : 's');
 

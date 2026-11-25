@@ -78,6 +78,13 @@
   // Chart axis option for a stat: ticks in its display unit.
   const axis = (category, key) => maxAbs => S.fmt.axisUnit(category, key, maxAbs);
 
-  S.kit = { ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
+  // Player page link that carries the reader's scope and bots choice. `who` is the first
+  // non-empty of name, uuid, token.
+  function playerHref(st, ...who) {
+    return '/stats/player/?p=' + encodeURIComponent(who.find(Boolean)) +
+      (st && st.scope ? '&scope=' + encodeURIComponent(st.scope) : '') + (st && st.bots ? '&bots=true' : '');
+  }
+
+  S.kit = { playerHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);

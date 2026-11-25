@@ -165,3 +165,17 @@ test('ranged chart raises the y axis to nice display-unit ticks; all-time keeps 
   assert.equal(ys[0], '0');
   assert.ok(ys.every(l => l === '0' || / h$/.test(l)), ys.join(' | '));
 });
+
+test('zero:false carried start point gets no dot and no keyboard stop', async () => {
+  // real points: before the window, then T0+2d and T0+4d (all imported, before liveAt)
+  const series = `[{id:'a',label:'SMP',color:'teal',points:[[${T0 - 3 * DAY},5],[${T0 + 2 * DAY},7],[${T0 + 4 * DAY},9]]}]`;
+  await mount(base(series, `, zero:false, liveAt:${T0 + 8 * DAY}`).replace('liveAt:null, ', ''));
+  assert.equal(await page.locator('#c circle.st-dot').count(), 2);
+  await page.focus('#c svg');
+  await page.keyboard.press('ArrowRight');
+  const first = await page.evaluate(t => S.fmt.date(t), T0 + 2 * DAY);
+  assert.ok((await page.textContent('#c .st-tip')).includes(first));
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  assert.ok((await page.textContent('#c .st-tip')).includes(first), 'Home stop is the first real point');
+});

@@ -52,8 +52,7 @@
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
   const scopeText = () => (st.scope === 'all' ? 'across all servers' : 'on ' + serverLabel(st.scope));
   // moving between players keeps the session's scope (and bots when on)
-  const playerHref = (name, uuid) => '/stats/player/?p=' + encodeURIComponent(name || uuid) +
-    (st && st.scope ? '&scope=' + encodeURIComponent(st.scope) : '') + (st && st.bots ? '&bots=true' : '');
+  const playerHref = (name, uuid) => S.kit.playerHref(st, name, uuid);
   const name = () => F.playerName(prof);
   const catLabel = c => (F.itemId(c) === 'custom' ? 'General' : F.statLabel(c, 'x').cat);
   const plural = (n, w) => fmtCount(n) + ' ' + w + (n === 1 ? '' : 's');

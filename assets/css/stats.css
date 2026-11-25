@@ -497,6 +497,9 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 }
 @media (max-width:560px){
   .st-v,.st-vc-val{font-size:1.4rem}
+  /* phones: the stat picker comes before the 50-row board, in a short scroller */
+  .st-ex-browse{order:0}
+  .st-ex-keys{max-height:200px}
   .st-tile{padding:.85rem .9rem .95rem}
   .st-pods{grid-template-columns:1fr}
   .st-chart{padding:.9rem .7rem .7rem}
