@@ -17,7 +17,9 @@ const $ = id => document.getElementById(id);
 const PAGE = 18;
 let ALL = [], tag = null, shown = PAGE;
 const isImg = u => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u);
-const url = u => /^https?:\/\//i.test(u || '') ? C.esc(u) : '#';
+// archive.json links bot-hosted copies as same-site paths (/cache/archive/...) and keeps
+// https:// links for files it couldn't copy; anything else (javascript:, //host) becomes #
+const url = u => /^(https?:\/\/|\/(?!\/))/i.test(u || '') ? C.esc(u) : '#';
 const when = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
 const fname = u => { try { return decodeURIComponent(u.split('/').pop().split('?')[0]); } catch (e) { return 'Download'; } };
 const thumb = p => (p.attachments || []).find(isImg) || (p.embeds || []).map(e => e.thumbnail || e.image).find(Boolean) || '';
