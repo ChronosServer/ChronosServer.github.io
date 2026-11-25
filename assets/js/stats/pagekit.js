@@ -50,8 +50,9 @@
   // Chart note line for the shaded imported span, when the live start falls inside the window.
   function liveNote(la, res) {
     if (la == null || !res || res.effective_from == null || !(res.effective_from < la && la < res.to)) return '';
-    return '<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' +
-      S.fmt.esc(S.fmt.date(la)) + ' gets its own stretch of the axis.';
+    // a block of its own under the legend line; callers append it after the joined bits
+    return '<span class="st-note-live"><em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' +
+      S.fmt.esc(S.fmt.date(la)) + ' gets its own stretch of the axis.</span>';
   }
 
   function serverLabel(m, k) {

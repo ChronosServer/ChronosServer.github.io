@@ -119,12 +119,10 @@
   function paintNote(res) {
     if (!res) { el.note.innerHTML = ''; return; }
     const keys = info.parts.map(p => '<span class="st-k" style="background:' + partColor(p) + '"></span>' + esc(partLabel(p))).join(' &nbsp; ');
-    const bits = [keys];
+    const bits = chart && chart.valueCard ? [] : [keys];
     const since = S.kit.sinceText(meta, st, res, scopeServers(), 'always');
     if (since) bits.push(esc(S.kit.cap(since)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
-    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   function chartOpts(h, res) {

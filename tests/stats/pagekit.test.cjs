@@ -47,6 +47,9 @@ test('liveNote only when the live start is inside the window', () => {
   assert.equal(kit.liveNote(20, { effective_from: 0, to: 10 }), '');
   assert.match(kit.liveNote(5, { effective_from: 0, to: 10 }), /Shaded/);
 });
+test('liveNote is its own block', () => {
+  assert.match(kit.liveNote(5, { effective_from: 0, to: 10 }), /^<span class="st-note-live">.*<\/span>$/);
+});
 test('untracked copy names the server or "these servers"', () => {
   assert.equal(kit.untracked(meta, 'cmp', 'scoreboard'), "Scoreboards aren't tracked on CMP.");
   assert.equal(kit.untracked(meta, 'cmps', 'scoreboard'), "Scoreboards aren't tracked on these servers.");

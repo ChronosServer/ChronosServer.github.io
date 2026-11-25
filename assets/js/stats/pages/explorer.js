@@ -313,13 +313,11 @@
 
   function paintNote(series, res, servers, extra) {
     const keysHtml = series.map(s => '<span class="st-k" style="background:' + s.color + '"></span>' + esc(s.label)).join(' &nbsp; ');
-    const bits = [keysHtml];
+    const bits = chart && chart.valueCard ? [] : [keysHtml];
     const since = sinceText(res, servers);
     if (since) bits.push(esc(since.charAt(0).toUpperCase() + since.slice(1)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
     if (extra) bits.push('<em>' + esc(extra) + '</em>');
-    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   let noteExtra = '';

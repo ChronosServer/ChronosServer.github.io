@@ -245,9 +245,7 @@
     const bits = ['Click any stat on this page to graph it here.'];
     const since = S.kit.sinceText(meta, st, res, scopeServers(), 'clamped');
     if (since) bits.push(esc(S.kit.cap(since)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
-    note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   // `err`: an API error, or a string for a plain empty state
