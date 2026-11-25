@@ -15,6 +15,9 @@
  *   filter    st-filt
  *   overview  st-ov-chart st-who-t st-pulse st-pulse-head st-pulse-text st-pulse-week st-dim
  *             st-one (on .st-two when one card is hidden) st-feed-head
+ *   explorer  st-ex st-ex-search st-ex-q st-ex-grid st-ex-browse st-ex-cats st-ex-cat st-ex-keys
+ *             st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head st-ex-title
+ *             st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
  */
 :root{--cmp:#c9b37e;--st-tint:color-mix(in srgb,var(--teal) 22%,transparent);--st-pop:rgba(8,11,13,.97)}
@@ -155,6 +158,52 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-feed-t .st-icon,.st-feed-t .st-letter{width:20px;height:20px;margin:0 .15rem;vertical-align:-4px}
 .st-feed > .st-tabs{padding:0 .3rem}
 
+/* ---- explorer and scoreboards */
+.st-ex-search{position:relative;margin:.4rem 0 0}
+input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans)}
+.st-ex-grid{display:grid;grid-template-columns:272px minmax(0,1fr);gap:1.2rem;align-items:start}
+.st-ex-browse{position:sticky;top:5.5rem;display:flex;flex-direction:column;max-height:calc(100vh - 7rem);overflow:hidden}
+.st-ex-cats{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+.st-ex-cat{position:relative;display:flex;flex-direction:column;align-items:center;gap:.3rem;margin:0;padding:.65rem .3rem .55rem;background:none;border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--mute);font:500 .64rem var(--mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:color .15s,background-color .15s}
+.st-ex-cat:nth-child(3n){border-right:0}
+.st-ex-cat:nth-last-child(-n+3):nth-child(3n+1),.st-ex-cat:nth-last-child(-n+3):nth-child(3n+1) ~ .st-ex-cat{border-bottom:0}
+.st-ex-cat small{font:400 .62rem var(--mono);letter-spacing:0;color:var(--mute);opacity:.8}
+.st-ex-cat:hover{color:#fff}
+.st-ex-cat.on{color:#fff;background:var(--st-tint)}
+.st-ex-cat.on::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--teal)}
+.st-ex-cat:focus-visible{outline-offset:-2px}
+.st-ex-browse .st-filt{padding:.7rem .8rem}
+.st-ex-browse .st-filt .st-sel{min-width:0}
+.st-ex-keys{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.st-ex-keys ul{margin:0;padding:.3rem 0;list-style:none}
+.st-ex-keys .st-empty{padding:1.6rem 1rem;font-size:.84rem}
+.st-ex-key{display:flex;align-items:center;gap:.6rem;width:100%;margin:0;padding:.38rem .9rem;background:none;border:0;color:var(--ink);font:400 .86rem/1.3 var(--sans);text-align:left;cursor:pointer}
+.st-ex-key > span:first-of-type{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-ex-key:hover{background:rgba(235,232,230,.05)}
+.st-ex-key.on{color:#fff;background:var(--st-tint);box-shadow:inset 2px 0 var(--teal)}
+.st-ex-key:focus-visible{outline-offset:-2px}
+.st-ex-tag{flex:none;margin-left:auto;padding:.05rem .4rem;border:1px solid rgba(229,169,60,.5);border-radius:2px;color:var(--amber);font:500 .6rem var(--mono);letter-spacing:.1em;text-transform:uppercase}
+.st-ex-meta .st-ex-tag{margin-left:0}
+.st-ex-cap{margin:0;padding:.6rem .9rem .8rem;border-top:1px solid var(--line);font:400 .7rem/1.5 var(--mono);color:var(--mute)}
+.st-ex-stat{scroll-margin-top:5rem}
+.st-ex-top{display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start;justify-content:space-between;padding:1.1rem 1.2rem 0}
+.st-ex-head{min-width:0;flex:1 1 300px}
+.st-ex-title{display:flex;align-items:center;gap:.9rem;min-width:0}
+.st-ex-name{margin:.3rem 0 0;font:700 clamp(1.05rem,2.4vw,1.4rem)/1.2 var(--display);letter-spacing:.05em;text-transform:uppercase;color:#fff;overflow-wrap:anywhere}
+.st-ex-meta{display:flex;flex-wrap:wrap;gap:.45rem .6rem;align-items:center;margin-top:.75rem;font:400 .76rem var(--mono);color:var(--mute)}
+.st-ex-stat .st-note{margin:0;padding:0 1.2rem .9rem}
+.st-ex-board{margin-top:1.2rem}
+.st-ex-bh{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:baseline;justify-content:space-between;padding:1rem 1.1rem .7rem;border-bottom:1px solid var(--line)}
+.st-ex-bh .st-h2{margin:0}
+.st-ex-hint{font:400 .72rem var(--mono);color:var(--mute)}
+.st-ex-board .st-table th:first-child{width:1%}
+.st-ex-rk{color:var(--mute)}
+.st-ex-sw{display:inline-block;width:8px;height:8px;margin-right:.6rem;border:1px solid var(--line);vertical-align:0}
+.st-ex-sw.on{border-color:transparent}
+.st-ex-pl{display:inline-flex;align-items:center;min-width:0;color:var(--ink);text-decoration:none}
+.st-ex-pl:hover{color:#fff;text-decoration:underline}
+.st-ex-board .panel.err{margin:1rem 1.1rem}
+
 /* ---- heads, item icons, fallback squares (S.ui) */
 .st-head,.st-icon{flex:none;display:inline-block;vertical-align:middle;image-rendering:pixelated}
 .st-letter{flex:none;display:inline-grid;place-items:center;vertical-align:middle;overflow:hidden;background:color-mix(in srgb,var(--teal) 12%,transparent);border:1px solid color-mix(in srgb,var(--teal) 35%,transparent);font:700 .62rem/1 var(--display);color:var(--teal);text-transform:uppercase}
@@ -240,6 +289,9 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
   .st-two{grid-template-columns:1fr}
   .st-clockpanel{grid-template-columns:1fr;justify-items:start}
   .st-pulse .st-clockpanel .st-viz{width:min(220px,100%)}
+  .st-ex-grid{grid-template-columns:minmax(0,1fr)}
+  .st-ex-browse{order:2;position:static;max-height:none}
+  .st-ex-keys{max-height:340px}
 }
 @media (max-width:560px){
   .st-v,.st-vc-val{font-size:1.4rem}
@@ -257,5 +309,5 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 
 /* ---- reduced motion: no transitions (chart draw-in is skipped in chart.js) */
 @media (prefers-reduced-motion:reduce){
-  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-again{transition:none}
+  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-again,.st-ex-cat{transition:none}
 }

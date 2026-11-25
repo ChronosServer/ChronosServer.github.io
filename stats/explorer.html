@@ -1,0 +1,35 @@
+---
+layout: stats
+permalink: /stats/explorer/
+title: Stat explorer
+bg: chronos_spawn
+page_js: explorer
+---
+<div class="page st-ex" id="ex-root" data-kind="stat">
+  <h1>Stat explorer</h1>
+  <div class="st-ex-search">
+    <input class="st-sel st-ex-q" id="ex-q" type="search" placeholder="Search a player, stat or objective" aria-label="Search players, stats and objectives">
+  </div>
+  <div id="ex-controls"></div>
+  <div class="st-ex-grid" id="ex-app">
+    <aside class="panel st-ex-browse" aria-label="Browse stats">
+      <div class="st-ex-cats" id="ex-cats" role="group" aria-label="Category"></div>
+      <div class="st-filt"><input class="st-sel" id="ex-filter" type="search" placeholder="Filter this category" aria-label="Filter stats"></div>
+      <div class="st-ex-keys" id="ex-keys"></div>
+    </aside>
+    <div class="st-ex-main">
+      <div class="panel st-ex-stat">
+        <div class="st-ex-top">
+          <div class="st-ex-head" id="ex-head"></div>
+          <div class="st-seg" role="group" aria-label="Chart" id="ex-mode">
+            <button type="button" class="st-seg-btn on" data-value="top" aria-pressed="true">Top players</button>
+            <button type="button" class="st-seg-btn" data-value="servers" aria-pressed="false">Servers</button>
+          </div>
+        </div>
+        <div id="ex-chart"></div>
+        <div class="st-note" id="ex-note"></div>
+      </div>
+      <div class="panel st-ex-board" id="ex-board"></div>
+    </div>
+  </div>
+</div>
