@@ -67,3 +67,69 @@ test('review fixes', () => {
     assert.equal(b.name, 'Miner'); assert.equal(b.tier, 0);
   }
 });
+
+// ---- Task 12b
+const F = require('../../assets/js/stats/format.js');
+test('negatives use a real minus sign', () => {
+  assert.equal(compact(-3), '−3');
+  assert.equal(compact(-21700), '−21.7K');
+  assert.equal(compact(-1552), '−1,552');
+  assert.equal(compact(-0.2), '0');
+  assert.equal(display('scoreboard', 'digs', -3).text, '−3');
+  assert.equal(display('scoreboard', 'digs', -21700).text, '−21.7K');
+  assert.equal(display('scoreboard', 'digs', -21700).exact, '−21,700');
+  assert.equal(display('minecraft:custom', 'minecraft:play_time', -72000 * 5).text, '−5 h');
+  assert.equal(display('minecraft:custom', 'minecraft:walk_one_cm', -45000).text, '−450 m');
+  assert.equal(display('minecraft:custom', 'minecraft:walk_one_cm', -105920516).text, '−1,059 km');
+});
+test('signed shows an explicit + or −', () => {
+  assert.equal(F.signed('scoreboard', 'digs', 5).text, '+5');
+  assert.equal(F.signed('scoreboard', 'digs', -3).text, '−3');
+  assert.equal(F.signed('scoreboard', 'digs', 0).text, '0');
+  assert.equal(F.signed('minecraft:custom', 'minecraft:play_time', 72000 * 3).text, '+3 h');
+  assert.equal(F.signed('scoreboard', 'digs', -21700).exact, '−21,700');
+});
+const plain = s => s.replace(/<[^>]+>/g, '');
+test('spotlight rare: singular and plural', () => {
+  assert.equal(plain(spotlight({ trigger: 'rare', name: 'A', category: 'minecraft:mined', key: 'minecraft:sponge', value: 3, detail: { holders: 1 } }, 'SMP')),
+    'Only 1 player has ever mined sponge. A has 3.');
+  assert.equal(plain(spotlight({ trigger: 'rare', name: 'A', category: 'minecraft:mined', key: 'minecraft:sponge', value: 3, detail: { holders: 4 } }, 'SMP')),
+    'Only 4 players have ever mined sponge. A has 3.');
+  assert.equal(plain(spotlight({ trigger: 'rare', name: 'A', category: 'minecraft:custom', key: 'minecraft:bell_ring', value: 3, detail: { holders: 1 } }, 'SMP')),
+    'Only 1 player has any bell ring. A has 3.');
+});
+test('spotlight recent_first uses the infinitive', () => {
+  const rf = (cat, key) => plain(spotlight({ trigger: 'recent_first', name: 'A', category: cat, key, value: 1, detail: {} }, 'SMP'));
+  assert.equal(rf('minecraft:mined', 'minecraft:sponge'), 'A was the first on SMP to mine sponge');
+  assert.equal(rf('minecraft:picked_up', 'minecraft:egg'), 'A was the first on SMP to pick up egg');
+  assert.equal(rf('minecraft:killed_by', 'minecraft:warden'), 'A was the first on SMP to be killed by warden');
+  assert.equal(rf('minecraft:broken', 'minecraft:shears'), 'A was the first on SMP to break shears');
+  assert.equal(F.INFINITIVE.used, 'use');
+  assert.equal(F.INFINITIVE.crafted, 'craft');
+  assert.equal(F.INFINITIVE.dropped, 'drop');
+  assert.equal(F.INFINITIVE.killed, 'kill');
+});
+test('spotlight mover for a non-custom category', () => {
+  assert.equal(plain(spotlight({ trigger: 'mover', name: 'T', category: 'minecraft:mined', key: 'minecraft:stone', value: 50000, detail: { from: 20000, delta: 30000 } }, 'SMP')),
+    'T went from 20K to 50K stone mined this week');
+});
+test('axisUnit follows the display units', () => {
+  assert.deepEqual(F.axisUnit('minecraft:custom', 'minecraft:play_time', 72000 * 500), { div: 72000, suffix: ' h', minStep: 0 });
+  assert.deepEqual(F.axisUnit('minecraft:custom', 'minecraft:play_time', 1200 * 30), { div: 1200, suffix: ' min', minStep: 1 });
+  assert.deepEqual(F.axisUnit('minecraft:custom', 'minecraft:walk_one_cm', 1e8), { div: 1e5, suffix: ' km', minStep: 0 });
+  assert.deepEqual(F.axisUnit('minecraft:custom', 'minecraft:walk_one_cm', 50000), { div: 100, suffix: ' m', minStep: 1 });
+  assert.deepEqual(F.axisUnit('minecraft:custom', 'minecraft:damage_dealt', 500), { div: 10, suffix: '', minStep: 0 });
+  assert.deepEqual(F.axisUnit('minecraft:mined', 'minecraft:stone', 5), { div: 1, suffix: '', minStep: 1 });
+  assert.deepEqual(F.axisUnit('scoreboard', 'digs', 5), { div: 1, suffix: '', minStep: 1 });
+});
+test('tick labels carry the precision of the step', () => {
+  assert.equal(F.tick(41800, 200, ' h'), '41,800 h');
+  assert.equal(F.tick(42000, 200, ' h'), '42,000 h');
+  assert.equal(F.tick(0, 200, ' h'), '0');
+  assert.equal(F.tick(2.5, 0.5, ' km'), '2.5 km');
+  assert.equal(F.tick(55000000, 1e6, ''), '55M');
+  assert.equal(F.tick(55200000, 2e5, ''), '55.2M');
+  assert.equal(F.tick(55050000, 5e4, ''), '55.05M');
+  assert.equal(F.tick(250000, 50000, ''), '250K');
+  assert.equal(F.tick(-300, 100, ''), '−300');
+});

@@ -145,3 +145,23 @@ test('viewBox width follows the container so axis text keeps its size on phones'
   const ds = await page.$$eval('#c path', ps => ps.map(p => p.getAttribute('d')));
   for (const d of ds) assert.ok(!d.includes('NaN'), d);
 });
+
+test('ranged chart raises the y axis to nice display-unit ticks; all-time keeps 0', async () => {
+  const H = 72000;
+  const series = `[{id:'a',label:'SMP',color:'teal',points:[[${T0 - 5 * DAY},${41700 * H}],[${T0 + DAY},${41750 * H}],[${T0 + 5 * DAY},${41820 * H}]]}]`;
+  const axis = `, axis: m => S.fmt.axisUnit('minecraft:custom','minecraft:play_time', m)`;
+  await mount(base(series, axis + ', zero:false'));
+  const labels = () => page.$$eval('#c text.st-axis[text-anchor=end]', ts => ts.map(t => t.textContent));
+  let ys = await labels();
+  assert.ok(!ys.includes('0'), ys.join(' | '));
+  assert.ok(ys.includes('41,800 h'), ys.join(' | '));
+  const ds = await page.$$eval('#c path', ps => ps.map(p => p.getAttribute('d')));
+  for (const d of ds) assert.ok(!d.includes('NaN'), d);
+  // nothing is drawn below the plot area
+  const maxY = await page.$eval('#c path.st-line', p => Math.max(...p.getAttribute('d').match(/V[\d.]+|,[\d.]+/g).map(s => +s.slice(1))));
+  assert.ok(maxY <= 300 - 26 + 0.5, String(maxY));
+  await mount(base(series, axis));
+  ys = await labels();
+  assert.equal(ys[0], '0');
+  assert.ok(ys.every(l => l === '0' || / h$/.test(l)), ys.join(' | '));
+});

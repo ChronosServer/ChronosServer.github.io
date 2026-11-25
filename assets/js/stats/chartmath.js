@@ -66,6 +66,50 @@
     return [...set].sort((a, b) => a - b);
   }
 
-  S.cm = { timeScale, niceMax, trimLeading, stepPath, valueAt, changePoints };
+  // Smallest 1/2/2.5/5 x 10^k that is >= v (and >= minStep); 2.5 only from 25 up, so
+  // whole-number units keep whole-number steps.
+  function niceStep(v, minStep) {
+    v = Math.max(v, minStep || 0);
+    if (!(v > 0)) return minStep || 1;
+    const base = Math.pow(10, Math.floor(Math.log10(v)));
+    for (const m of base >= 10 ? [1, 2, 2.5, 5, 10] : [1, 2, 5, 10]) {
+      const n = +(m * base).toPrecision(12);
+      if (n >= v - 1e-12 * base) return n;
+    }
+    return +(10 * base).toPrecision(12);
+  }
+
+  // Value axis for data spanning [lo, hi] (in display units). zero: the axis includes 0
+  // (all-time totals); otherwise it starts at a nice step below the smallest visible value,
+  // so a short range shows the actual change. Returns {min, max, step, ticks}, 2..7 ticks.
+  function yDomain(lo, hi, opts) {
+    const o = opts || {};
+    if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 0; }
+    if (lo > hi) { const t = lo; lo = hi; hi = t; }
+    if (o.zero) { lo = Math.min(0, lo); hi = Math.max(0, hi); }
+    if (hi === lo) {
+      if (hi === 0) hi = Math.max(1, o.minStep || 0);
+      else {
+        const pad = Math.abs(hi) * 0.05;
+        if (o.zero && lo === 0) hi += pad; else { lo -= pad; hi += pad; }
+      }
+    }
+    let step = niceStep((hi - lo) / 4, o.minStep);
+    let min, max;
+    for (;;) {
+      min = Math.floor(lo / step + 1e-9) * step;
+      max = Math.ceil(hi / step - 1e-9) * step;
+      if (max === min) max = min + step;
+      if ((max - min) / step <= 6) break;
+      step = niceStep(step * 1.01, o.minStep);
+    }
+    // data close to 0 above it: start at 0 rather than a step just above it
+    if (!o.zero && min > 0 && min <= step) min = 0;
+    const ticks = [];
+    for (let v = min; v <= max + step * 1e-9; v += step) ticks.push(+v.toPrecision(12));
+    return { min: +min.toPrecision(12), max: +max.toPrecision(12), step, ticks };
+  }
+
+  S.cm = { timeScale, niceMax, niceStep, yDomain, trimLeading, stepPath, valueAt, changePoints };
   if (typeof module !== 'undefined') module.exports = S.cm;
 })(typeof window !== 'undefined' ? window : globalThis);

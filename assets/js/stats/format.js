@@ -6,6 +6,9 @@
 
   const CATEGORY = { mined: 'Mined', used: 'Used', crafted: 'Crafted', broken: 'Broken', picked_up: 'Picked up', dropped: 'Dropped', killed: 'Killed', killed_by: 'Killed by', custom: '' };
   const VERB = { mined: 'mined', used: 'used', crafted: 'crafted', broken: 'broken', picked_up: 'picked up', dropped: 'dropped', killed: 'killed', killed_by: 'been killed by' };
+  // "was the first to <infinitive> sponge"
+  const INFINITIVE = { mined: 'mine', used: 'use', crafted: 'craft', broken: 'break', picked_up: 'pick up', dropped: 'drop', killed: 'kill', killed_by: 'be killed by' };
+  const MINUS = '−';
   const NOUN = { mined: 'Miner', used: 'Builder', crafted: 'Crafter', broken: 'Toolbreaker', picked_up: 'Collector', dropped: 'Dropper', killed: 'Hunter', killed_by: 'Victim' };
   const HEADLINES = [
     ['minecraft:custom', 'minecraft:play_time', 'Hours played'],
@@ -28,7 +31,9 @@
   const group = (n) => n.toLocaleString('en-US');
   const trim = (s) => s.indexOf('.') === -1 ? s : s.replace(/\.?0+$/, '');
 
+  // Negatives get a real minus sign (U+2212); a value that rounds to 0 shows as "0".
   function compact(n) {
+    if (n < 0) { const r = compact(-n); return r === '0' ? r : MINUS + r; }
     const a = Math.abs(n);
     if (a < 1e4) return group(Math.round(n));
     const units = [[1e3, 'K', 1], [1e6, 'M', 1], [1e9, 'B', 2]];
@@ -39,6 +44,11 @@
   }
 
   function display(category, key, raw) {
+    if (raw < 0) {
+      const d = display(category, key, -raw);
+      const neg = t => (/^0( |$)/.test(t) ? t : MINUS + t);
+      return { text: neg(d.text), exact: neg(d.exact) };
+    }
     const k = itemId(key);
     const isCustom = itemId(category) === 'custom';
     if (isCustom && /_one_cm$/.test(k)) {
@@ -55,6 +65,39 @@
     }
     if (isCustom && /^damage_/.test(k)) return { text: compact(raw / 10), exact: group(Math.round(raw) / 10) };
     return { text: compact(raw), exact: group(raw) };
+  }
+
+  // A change with an explicit sign: "+3 h", "−3", "0".
+  function signed(category, key, raw) {
+    const d = display(category, key, raw);
+    return raw > 0 ? { text: '+' + d.text, exact: '+' + d.exact } : d;
+  }
+
+  // The display unit for a chart axis whose values reach `maxAbs` (raw): divide raw values by
+  // `div`, append `suffix`. minStep 1 keeps whole-number units on whole-number ticks.
+  function axisUnit(category, key, maxAbs) {
+    const k = itemId(key);
+    const isCustom = itemId(category) === 'custom';
+    const m = Math.abs(maxAbs) || 0;
+    if (isCustom && /_one_cm$/.test(k)) return m / 100 >= 1000 ? { div: 1e5, suffix: ' km', minStep: 0 } : { div: 100, suffix: ' m', minStep: 1 };
+    if (isCustom && TICK_KEYS.indexOf(k) !== -1) return m < 72000 ? { div: 1200, suffix: ' min', minStep: 1 } : { div: 72000, suffix: ' h', minStep: 0 };
+    if (isCustom && /^damage_/.test(k)) return { div: 10, suffix: '', minStep: 0 };
+    return { div: 1, suffix: '', minStep: 1 };
+  }
+
+  // Axis tick label in display units, precise enough that neighbouring ticks `step` apart
+  // never read the same: 41,800 h; 55.05M; 2.5 km.
+  function tick(v, step, suffix) {
+    if (v === 0) return '0';
+    if (v < 0) return MINUS + tick(-v, step, suffix);
+    const dec = x => Math.max(0, Math.min(3, Math.ceil(-Math.log10(x) - 1e-9)));
+    if (v < 1e5) {
+      const d = step < 1 ? dec(step) : 0;
+      return v.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }) + (suffix || '');
+    }
+    const u = v < 1e6 ? [1e3, 'K'] : v < 1e9 ? [1e6, 'M'] : [1e9, 'B'];
+    const d = step / u[0] < 1 ? dec(step / u[0]) : 0;
+    return (v / u[0]).toFixed(d) + u[1] + (suffix || '');
   }
 
   function statLabel(category, key) {
@@ -126,6 +169,8 @@
     const isCustom = itemId(spot.category) === 'custom';
     const thing = esc(statLabel(spot.category, spot.key).name.toLowerCase());
     const vb = isCustom ? '' : esc(VERB[itemId(spot.category)] || '') + ' ';
+    const inf = isCustom ? '' : esc(INFINITIVE[itemId(spot.category)] || 'get') + ' ';
+    const holders = Number(d.holders) === 1 ? '1 player has' : esc(d.holders) + ' players have';
     const v = (n) => esc(display(spot.category, spot.key, n).text);
     const name = '<b>' + esc(spot.name) + '</b>';
     const ratio = '<span class="st-num">' + esc(d.ratio) + '×</span>';
@@ -137,14 +182,14 @@
           : name + ' has ' + vb + ratio + ' more ' + thing + ' than the average player';
       case 'rare':
         return isCustom
-          ? 'Only ' + esc(d.holders) + ' players have any ' + thing + '. ' + name + ' has ' + v(spot.value) + '.'
-          : 'Only ' + esc(d.holders) + ' players have ever ' + vb + thing + '. ' + name + ' has ' + v(spot.value) + '.';
+          ? 'Only ' + holders + ' any ' + thing + '. ' + name + ' has ' + v(spot.value) + '.'
+          : 'Only ' + holders + ' ever ' + vb + thing + '. ' + name + ' has ' + v(spot.value) + '.';
       case 'recent_milestone':
         return name + ' passed ' + v(d.threshold) + ' ' + thing + ' ' + vb + esc(ago(d.at));
       case 'recent_first':
         return isCustom
           ? name + ' was the first on ' + server + ' to get any ' + thing
-          : name + ' was the first on ' + server + ' to ' + vb + thing;
+          : name + ' was the first on ' + server + ' to ' + inf + thing;
       case 'mover':
         return isCustom
           ? name + '\'s ' + thing + ' went from ' + v(d.from) + ' to ' + v(spot.value) + ' this week'
@@ -154,6 +199,6 @@
     }
   }
 
-  S.fmt = { compact, display, statLabel, itemId, playerName, date, when, badge, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
+  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
   if (typeof module !== 'undefined') module.exports = S.fmt;
 })(typeof window !== 'undefined' ? window : globalThis);

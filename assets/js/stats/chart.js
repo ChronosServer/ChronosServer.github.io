@@ -13,6 +13,10 @@
  *   .st-empty        empty state (no svg)
  *   .st-valuecard    single-point fallback; .st-vc-row, .st-vc-label, .st-vc-val, .st-vc-date
  * Series colors go in as presentation attributes so CSS can still restyle.
+ * Value axis (S.cm.yDomain): opts.zero (default true) keeps 0 on the axis, for all-time
+ * totals; zero:false starts at a nice value below the visible data, so a short range shows
+ * the change. opts.axis(maxAbsRaw) -> {div, suffix, minStep} (S.fmt.axisUnit) puts the ticks
+ * on nice numbers in display units ("41,800 h"); without it ticks are raw and use opts.format.
  * The viewBox width follows the wrapper's content width (ResizeObserver, debounced), so one
  * unit is one CSS pixel and axis text stays readable on phones; 1000 when it can't be measured.
  */
@@ -122,10 +126,26 @@
       const bot = height - PAD_B, top = PAD_T;
       const tx = cm.timeScale(from, to, opts.liveAt == null ? null : +opts.liveAt, PAD_L, W);
       const x = t => tx(Math.max(from, Math.min(to, t)));
-      let vmax = 0;
-      for (const s of series) for (const p of s.points) if (p[0] <= to && p[1] > vmax) vmax = p[1];
-      const max = cm.niceMax(vmax);
-      const y = v => bot - v / max * (bot - top);
+      // y range over what is visible: the value carried into `from`, then points up to `to`
+      const zero = opts.zero !== false;
+      let lo = Infinity, hi = -Infinity;
+      for (const s of series) {
+        const c = cm.valueAt(s.points, from);
+        if (c != null) { lo = Math.min(lo, c); hi = Math.max(hi, c); }
+        for (const p of s.points) if (p[0] >= from && p[0] <= to) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }
+      }
+      if (!isFinite(lo)) { lo = 0; hi = 0; }
+      if (!zero) {
+        // points before `from` would sit below a raised axis: start each line at its carried value
+        for (const s of series) {
+          const c = cm.valueAt(s.points, from), rest = s.points.filter(p => p[0] > from);
+          s.points = c == null ? rest : [[from, c]].concat(rest);
+        }
+      }
+      const unit = (opts.axis && opts.axis(Math.max(Math.abs(lo), Math.abs(hi)))) || { div: 1, suffix: null, minStep: 0 };
+      const dom = cm.yDomain(lo / unit.div, hi / unit.div, { zero, minStep: unit.minStep });
+      const y = v => bot - (v / unit.div - dom.min) / ((dom.max - dom.min) || 1) * (bot - top);
+      const tickLabel = t => (opts.axis && S.fmt && S.fmt.tick ? S.fmt.tick(t, dom.step, unit.suffix) : format(t * unit.div));
 
       let g = '';
       if (tx.split != null) {
@@ -133,10 +153,10 @@
           '<text class="st-zonel" x="' + (PAD_L + 8) + '" y="' + (top + 14) + '" fill="var(--amber)">BACKUPS</text>' +
           '<text class="st-zonel st-zonel-live" x="' + n1(tx.split + 8) + '" y="' + (top + 14) + '" fill="var(--teal)">LIVE · EVERY 15 MIN</text>';
       }
-      for (let i = 0; i <= 4; i++) {
-        const v = max * i / 4, yy = n1(y(v));
+      for (const t of dom.ticks) {
+        const yy = n1(y(t * unit.div));
         g += '<line class="st-grid" x1="' + PAD_L + '" x2="' + W + '" y1="' + yy + '" y2="' + yy + '" stroke="currentColor" stroke-opacity=".08"/>' +
-          '<text class="st-axis" x="' + (PAD_L - 8) + '" y="' + n1(y(v) + 4) + '" text-anchor="end" fill="currentColor">' + esc(format(v)) + '</text>';
+          '<text class="st-axis" x="' + (PAD_L - 8) + '" y="' + n1(+yy + 4) + '" text-anchor="end" fill="currentColor">' + esc(tickLabel(t)) + '</text>';
       }
       const segs = tx.split != null ? [[from, +opts.liveAt], [+opts.liveAt, to]] : [[from, to]];
       let lastX = -Infinity;

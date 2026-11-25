@@ -16,3 +16,40 @@ test('trimLeading', () => { assert.deepEqual(trimLeading([[1,0],[2,0],[3,5],[4,0
 test('stepPath', () => { assert.equal(stepPath([[0,0],[10,5]], t=>t, v=>v, 20), 'M0,0H10V5H20'); assert.equal(stepPath([], t=>t, v=>v, 1), ''); });
 test('valueAt', () => { const p = [[10,1],[20,2]]; assert.equal(valueAt(p, 5), null); assert.equal(valueAt(p, 10), 1); assert.equal(valueAt(p, 19), 1); assert.equal(valueAt(p, 99), 2); });
 test('changePoints', () => assert.deepEqual(changePoints([[[3,1],[1,1]],[[2,1],[3,2]]]), [1,2,3]));
+
+// ---- Task 12b: y domain
+const { yDomain } = require('../../assets/js/stats/chartmath.js');
+test('yDomain zero-based keeps 0 at the bottom with nice steps', () => {
+  const d = yDomain(10, 1741, { zero: true });
+  assert.equal(d.min, 0); assert.equal(d.step, 500); assert.equal(d.max, 2000);
+  assert.deepEqual(d.ticks, [0, 500, 1000, 1500, 2000]);
+});
+test('yDomain ranged starts at a nice minimum of the visible values', () => {
+  const d = yDomain(41750, 41820, { zero: false });
+  assert.equal(d.step, 20); assert.equal(d.min, 41740); assert.equal(d.max, 41820);
+  assert.deepEqual(d.ticks, [41740, 41760, 41780, 41800, 41820]);
+});
+test('yDomain ranged data near 0 still reaches 0', () => {
+  assert.equal(yDomain(3, 900, { zero: false }).min, 0);
+});
+test('yDomain flat, empty and negative ranges', () => {
+  const flat = yDomain(500, 500, { zero: false });
+  assert.ok(flat.min <= 500 && flat.max > 500 && flat.ticks.length >= 2, JSON.stringify(flat));
+  const zero = yDomain(0, 0, { zero: true });
+  assert.equal(zero.min, 0); assert.ok(zero.max > 0);
+  const neg = yDomain(-30, 12, { zero: true });
+  assert.ok(neg.min <= -30 && neg.max >= 12 && neg.ticks.includes(0), JSON.stringify(neg));
+  const neg2 = yDomain(-30, -10, { zero: true });
+  assert.ok(neg2.min <= -30 && neg2.max === 0, JSON.stringify(neg2));
+});
+test('yDomain minStep keeps integer counts on whole numbers', () => {
+  const d = yDomain(0, 2, { zero: true, minStep: 1 });
+  assert.ok(d.step >= 1 && d.ticks.every(t => Number.isInteger(t)), JSON.stringify(d));
+});
+test('yDomain stays within 2..7 ticks and covers the data', () => {
+  for (const [a, b] of [[0, 7], [13, 1e9], [41001, 41999], [-5, 5], [0.1, 0.13]]) {
+    const d = yDomain(a, b, { zero: false });
+    assert.ok(d.ticks.length >= 2 && d.ticks.length <= 7, a + '..' + b + ' ' + JSON.stringify(d));
+    assert.ok(d.min <= a && d.max >= b, a + '..' + b + ' ' + JSON.stringify(d));
+  }
+});
