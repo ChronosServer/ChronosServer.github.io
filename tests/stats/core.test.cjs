@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 let lastFetch = null, fetchImpl = null, store = {}, lsThrows = false, replaced = [];
 globalThis.fetch = (url, opts) => { lastFetch = { url, opts }; return fetchImpl(url, opts); };
-globalThis.location = { search: '', pathname: '/stats/' };
+globalThis.location = { search: '', pathname: '/stats/', hash: '' };
 globalThis.history = { replaceState: (s, t, u) => replaced.push(u) };
 globalThis.localStorage = {
   getItem: k => { if (lsThrows) throw new Error('denied'); return k in store ? store[k] : null; },
@@ -90,14 +90,34 @@ test('state extras and write', () => {
   const s = state.read(meta, { kind: 'stat', n: 10, flag: false, q: '' });
   assert.equal(s.kind, 'mined'); assert.equal(s.n, 5); assert.equal(s.flag, true); assert.equal(s.q, '');
   state.write(s);
-  assert.equal(replaced[0], '/stats/?kind=mined&n=5&flag=true');
+  assert.equal(replaced[0], '/stats/?scope=smp&kind=mined&n=5&flag=true');
   assert.equal(store['stats.scope'], 'smp');
   state.write({ scope: 'all', bots: false, range: '1w', from: null, to: null, kind: 'stat', n: 10, flag: false, q: '' });
   assert.equal(replaced[1], '/stats/?scope=all&range=1w');
   assert.equal(store['stats.scope'], 'all');
   state.write({ scope: 'smp', bots: false, range: null, from: null, to: null, kind: 'stat', n: 10, flag: false, q: '' });
-  assert.equal(replaced[2], '/stats/');
+  assert.equal(replaced[2], '/stats/?scope=smp');
   lsThrows = true; assert.doesNotThrow(() => state.write(s)); lsThrows = false;
+});
+test('state.read validates from/to and range precedence', () => {
+  for (const q of ['?from=-5&to=10', '?from=1.5&to=10', '?from=%20&to=10', '?from=0x10&to=20', '?from=30&to=20', '?from=5']) {
+    setQ(q); const s = state.read(meta);
+    assert.equal(s.from, null, q); assert.equal(s.to, null, q);
+  }
+  setQ('?from=0&to=20'); let s = state.read(meta); assert.equal(s.from, 0); assert.equal(s.to, 20);
+  setQ('?range=1w&from=1&to=2'); s = state.read(meta);
+  assert.equal(s.range, '1w'); assert.equal(s.from, null); assert.equal(s.to, null);
+});
+test('state.write: range suppresses from/to, explicit defaults, keeps hash', () => {
+  setQ(''); location.hash = '#top';
+  state.write({ scope: 'smp', bots: false, range: '1w', from: 1, to: 2, k: 'a' }, { k: 'a' });
+  assert.equal(replaced[0], '/stats/?scope=smp&range=1w#top');
+  state.write({ scope: 'smp', bots: false, range: null, from: 1, to: 2 });
+  assert.equal(replaced[1], '/stats/?scope=smp&from=1&to=2#top');
+  location.hash = '';
+});
+test('errorText 5xx', () => {
+  assert.equal(errorText(new ApiError('boom', 502, 'http')), 'The stats server had a problem (HTTP 502). Try again in a minute.');
 });
 test('scopeInfo with scope_groups', () => {
   const m = { scope_groups: { cmps: ['cmp', 'cmp2'] }, servers: meta.servers };

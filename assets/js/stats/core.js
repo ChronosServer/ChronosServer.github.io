@@ -10,6 +10,7 @@
     }
   }
 
+  // Callers must encodeURIComponent any path segment they build into `path`.
   async function api(path, params) {
     const q = [];
     Object.keys(params || {}).forEach(k => {
@@ -47,6 +48,7 @@
       if (err.status === 404 && /player/i.test(err.message)) {
         return 'No player by that name. Check the spelling or search for them.';
       }
+      if (err.status >= 500) return 'The stats server had a problem (HTTP ' + err.status + '). Try again in a minute.';
       return 'The stats server rejected that request (' + err.message + ').';
     }
     return "Couldn't reach the stats server. Check your connection and try again.";
@@ -72,6 +74,9 @@
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
   }
+  function uint(v) {
+    return typeof v === 'string' && /^\d+$/.test(v) ? Number(v) : null;
+  }
 
   const state = {
     read(m, extraDefaults) {
@@ -89,9 +94,10 @@
         scope,
         bots: p.get('bots') === 'true',
         range,
-        from: num(p.get('from')),
-        to: num(p.get('to')),
+        from: uint(p.get('from')),
+        to: uint(p.get('to')),
       };
+      if (st.range || st.from === null || st.to === null || st.from > st.to) { st.from = null; st.to = null; }
       lastDefaults = extraDefaults || {};
       Object.keys(lastDefaults).forEach(k => {
         const d = lastDefaults[k];
@@ -103,22 +109,24 @@
       });
       return st;
     },
-    write(st) {
+    write(st, defaults) {
+      const defs = defaults || lastDefaults;
       const q = [];
       const add = (k, v) => q.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
-      if (st.scope && st.scope !== 'smp') add('scope', st.scope);
+      if (st.scope) add('scope', st.scope);
       if (st.bots) add('bots', 'true');
       if (st.range) add('range', st.range);
-      if (st.from !== null && st.from !== undefined) add('from', st.from);
-      if (st.to !== null && st.to !== undefined) add('to', st.to);
+      if (!st.range && st.from !== null && st.from !== undefined) add('from', st.from);
+      if (!st.range && st.to !== null && st.to !== undefined) add('to', st.to);
       Object.keys(st).forEach(k => {
         if (CORE_KEYS.includes(k)) return;
         const v = st[k];
-        if (v === null || v === undefined || v === '' || v === lastDefaults[k]) return;
+        if (v === null || v === undefined || v === '' || v === defs[k]) return;
         add(k, v);
       });
       const path = (typeof location !== 'undefined' && location.pathname) || '';
-      try { history.replaceState(null, '', path + (q.length ? '?' + q.join('&') : '')); } catch (e) { /* ignore */ }
+      const hash = (typeof location !== 'undefined' && location.hash) || '';
+      try { history.replaceState(null, '', path + (q.length ? '?' + q.join('&') : '') + hash); } catch (e) { /* ignore */ }
       if (st.scope) lsSet('stats.scope', st.scope);
     },
   };
