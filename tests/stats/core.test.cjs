@@ -136,3 +136,59 @@ test('rangeParams', () => {
   assert.deepEqual(rangeParams({ from: 1, to: 2 }), { from: 1, to: 2 });
   assert.deepEqual(rangeParams({ range: null, from: null, to: null }), {});
 });
+
+// ---- Task 12b: shared helpers
+const M12 = {
+  servers: [
+    { key: 'smp', label: 'SMP', filters_bots: true, track_stats: true, track_scoreboards: true },
+    { key: 'cmp', label: 'CMP', filters_bots: false, track_stats: true, track_scoreboards: false },
+    { key: 'cmp2', label: 'CMP2', filters_bots: false, track_stats: false, track_scoreboards: false },
+  ],
+  scope_groups: { cmps: ['cmp', 'cmp2'] },
+  live_started_at: { smp: 100, cmp: 300, cmp2: 200 },
+};
+test('liveAt takes the latest live start of the scope', () => {
+  assert.equal(core.liveAt(M12, 'all'), 300);
+  assert.equal(core.liveAt(M12, 'cmps'), 300);
+  assert.equal(core.liveAt(M12, 'smp'), 100);
+  assert.equal(core.liveAt(M12, 'cmp2'), 200);
+});
+test('liveAt with a missing map or missing servers', () => {
+  assert.equal(core.liveAt(Object.assign({}, M12, { live_started_at: undefined }), 'all'), null);
+  const partial = Object.assign({}, M12, { live_started_at: { smp: 100, cmp2: 200 } });
+  assert.equal(core.liveAt(partial, 'cmps'), 200);     // cmp missing: max of the rest
+  assert.equal(core.liveAt(partial, 'all'), 200);
+  assert.equal(core.liveAt(partial, 'cmp'), null);     // none of the scope's servers have one
+  // no scope_groups: 'all' still covers every server
+  const flat = { servers: M12.servers, live_started_at: { smp: 100, cmp: 300 } };
+  assert.equal(core.liveAt(flat, 'all'), 300);
+  assert.equal(core.liveAt(flat, 'smp'), 100);
+});
+test('tracked: true when any server in the scope tracks the kind', () => {
+  assert.equal(core.tracked(M12, 'all', 'scoreboard'), true);
+  assert.equal(core.tracked(M12, 'smp', 'scoreboard'), true);
+  assert.equal(core.tracked(M12, 'cmps', 'scoreboard'), false);
+  assert.equal(core.tracked(M12, 'cmp', 'scoreboard'), false);
+  assert.equal(core.tracked(M12, 'cmps', 'stat'), true);
+  assert.equal(core.tracked(M12, 'cmp2', 'stat'), false);
+  // flags missing (older backend) or unknown server: treated as tracked
+  assert.equal(core.tracked({ servers: [{ key: 'smp' }] }, 'smp', 'scoreboard'), true);
+  assert.equal(core.tracked(M12, 'nope', 'scoreboard'), true);
+  assert.equal(core.tracked(null, 'smp', 'stat'), true);
+});
+test('memo shares one request per path and params, and forgets failures', async () => {
+  let n = 0, fail = true;
+  fetchImpl = () => { n++; return fail ? Promise.reject(new TypeError('x')) : resp(200, { n }); };
+  const get = core.memo();
+  const a = get('keys', { scope: 'smp' });
+  assert.equal(get('keys', { scope: 'smp' }), a);
+  await assert.rejects(a);
+  fail = false;
+  const b = get('keys', { scope: 'smp' });
+  assert.notEqual(b, a);
+  assert.deepEqual(await b, { n: 2 });
+  assert.equal(get('keys', { scope: 'smp' }), b);
+  await get('keys', { scope: 'all' });
+  assert.equal(n, 3);
+  assert.notEqual(core.memo()('keys', { scope: 'smp' }), b);   // each page cache is separate
+});

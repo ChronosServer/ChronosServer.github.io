@@ -165,9 +165,53 @@
     return {};
   }
 
+  // Server keys a scope covers: `all` = every server, a group = scope_groups, else itself.
+  function scopeServers(m, scope) {
+    const s = scopeInfo(m, scope).servers;
+    return s || ((m && m.servers) || []).map(x => x.key);
+  }
+
+  // Where live 15-minute history starts for a scope: the LATEST of its servers'
+  // live_started_at (STATS_API "Time ranges"). null when none of them has one.
+  function liveAt(m, scope) {
+    const live = m && m.live_started_at;
+    if (!live) return null;
+    const ts = scopeServers(m, scope).map(k => live[k]).filter(t => typeof t === 'number' && isFinite(t));
+    return ts.length ? Math.max.apply(null, ts) : null;
+  }
+
+  // Does any server in the scope track this kind ('stat' | 'scoreboard')? A server the
+  // meta doesn't list, or one without the flag, counts as tracked.
+  function tracked(m, scope, kind) {
+    const flag = kind === 'scoreboard' ? 'track_scoreboards' : 'track_stats';
+    const servers = (m && m.servers) || [];
+    const keys = m ? scopeServers(m, scope) : [];
+    if (!keys.length) return true;
+    return keys.some(k => {
+      const s = servers.find(x => x.key === k);
+      return !s || s[flag] !== false;
+    });
+  }
+
+  // A page's request cache: one promise per path + params; a failed request is forgotten
+  // so a retry asks again.
+  function memo() {
+    const cache = new Map();
+    return function get(path, params) {
+      const k = path + '?' + JSON.stringify(params || {});
+      if (!cache.has(k)) {
+        const p = api(path, params);
+        cache.set(k, p);
+        p.catch(() => { if (cache.get(k) === p) cache.delete(k); });
+      }
+      return cache.get(k);
+    };
+  }
+
   S.ApiError = ApiError; S.api = api; S.errorText = errorText; S.meta = meta;
   S.state = state; S.scopeInfo = scopeInfo; S.rangeParams = rangeParams;
+  S.scopeServers = scopeServers; S.liveAt = liveAt; S.tracked = tracked; S.memo = memo;
   if (typeof module !== 'undefined') {
-    module.exports = { ApiError, api, errorText, meta, state, scopeInfo, rangeParams };
+    module.exports = { ApiError, api, errorText, meta, state, scopeInfo, rangeParams, scopeServers, liveAt, tracked, memo };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,56 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+require('../../assets/js/stats/format.js');
+require('../../assets/js/stats/core.js');
+const kit = require('../../assets/js/stats/pagekit.js');
+
+const D = 86400, NOW = 1795600000;
+const meta = {
+  servers: [
+    { key: 'smp', label: 'SMP', track_stats: true, track_scoreboards: true },
+    { key: 'cmp', label: 'CMP', track_stats: true, track_scoreboards: false },
+    { key: 'cmp2', label: 'CMP2', track_stats: true, track_scoreboards: false },
+  ],
+  scope_groups: { cmps: ['cmp', 'cmp2'] },
+  tracking_started_at: { smp: NOW - 100 * D, cmp: NOW - 3 * D },
+  settings: { range_presets: { '1d': D, '1w': 7 * D } },
+};
+const st = o => Object.assign({ range: null, from: null, to: null }, o);
+
+test('rangeText', () => {
+  assert.equal(kit.rangeText(st({ range: '1w' })), 'in the last week');
+  assert.equal(kit.rangeText(st({ range: '3m' })), 'in the last 3 months');
+  assert.equal(kit.rangeText(st({ range: 'all' })), 'since tracking began');
+  assert.equal(kit.rangeText(st({})), '');
+});
+test('ranged', () => {
+  assert.equal(kit.ranged(st({ range: '1w' })), true);
+  assert.equal(kit.ranged(st({ range: 'all' })), false);
+  assert.equal(kit.ranged(st({ from: 1, to: 2 })), true);
+  assert.equal(kit.ranged(st({})), false);
+});
+test('sinceText modes', () => {
+  const res = { effective_from: NOW - 3 * D, to: NOW };
+  // a week asked, the CMP only has 3 days: clamped to its tracking start
+  assert.match(kit.sinceText(meta, st({ range: '1w' }), res, ['cmp'], 'all'), /^since tracking began \(/);
+  assert.match(kit.sinceText(meta, st({ range: '1w' }), res, ['smp'], 'all'), /^since \d/);
+  // not clamped
+  assert.equal(kit.sinceText(meta, st({ range: '1w' }), { effective_from: NOW - 7 * D, to: NOW }, ['smp'], 'all'), '');
+  // all time
+  assert.equal(kit.sinceText(meta, st({}), res, ['cmp'], 'all'), '');
+  assert.notEqual(kit.sinceText(meta, st({}), res, ['cmp'], 'always'), '');
+  assert.notEqual(kit.sinceText(meta, st({ range: 'all' }), res, ['cmp'], 'all'), '');
+  assert.equal(kit.sinceText(meta, st({ range: 'all' }), res, ['cmp'], 'clamped'), '');
+});
+test('liveNote only when the live start is inside the window', () => {
+  assert.equal(kit.liveNote(null, { effective_from: 0, to: 10 }), '');
+  assert.equal(kit.liveNote(20, { effective_from: 0, to: 10 }), '');
+  assert.match(kit.liveNote(5, { effective_from: 0, to: 10 }), /Shaded/);
+});
+test('untracked copy names the server or "these servers"', () => {
+  assert.equal(kit.untracked(meta, 'cmp', 'scoreboard'), "Scoreboards aren't tracked on CMP.");
+  assert.equal(kit.untracked(meta, 'cmps', 'scoreboard'), "Scoreboards aren't tracked on these servers.");
+  assert.equal(kit.untracked(meta, 'smp', 'scoreboard'), '');
+  assert.equal(kit.untracked(meta, 'all', 'scoreboard'), '');
+  assert.equal(kit.untracked(meta, 'cmp', 'stat'), '');
+});
