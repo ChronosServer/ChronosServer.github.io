@@ -1,516 +1,275 @@
 ---
-layout: null
+layout: default
 permalink: /boltmap/
+title: Bolt map
+kind: map
 ---
-<!doctype html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/css/site.css">
-    <title>Bolt Map — Chronos</title>
-    <style>
-        html, body { height: 100%; margin: 0; overflow: hidden; }
+<div class="mapwrap bolt" id="bolt">
+  <canvas id="canvas" aria-label="Map of the bolt network"></canvas>
+  <div class="bolt-top">
+    <span class="bolt-stats" id="stats"></span>
+    <span id="stamp" class="pill">Loading</span>
+  </div>
+  <div class="bolt-msg" id="msg">Loading the bolt network…</div>
+  <div class="bolt-tip" id="tip" hidden></div>
+  <div class="bolt-hud">
+    <div>Scroll to zoom · drag to pan · hover to inspect</div>
+    <div id="coords">X: – &nbsp; Z: –</div>
+  </div>
+  <div class="panel bolt-legend" aria-label="Legend">
+    <div><i class="lg-line"></i> Straight bolt</div>
+    <div><i class="lg-diag"></i> Diagonal bolt</div>
+    <div><i class="lg-vert"></i> Vertical section</div>
+    <div><i class="lg-dot"></i> Junction</div>
+    <div><i class="lg-sq"></i> Station</div>
+    <div><i class="lg-hub"></i> Hub station</div>
+    <div class="lg-x-row"><b class="lg-x">✕</b> Hub centre</div>
+  </div>
+</div>
+<script>
+const CENTER_X = 264, CENTER_Z = -162, SCAN_RADIUS = 7500;
 
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.82);
-            z-index: 0;
-            pointer-events: none;
-        }
+const $ = id => document.getElementById(id);
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+const tip = $('tip'), coordsEl = $('coords'), msg = $('msg'), container = $('bolt');
 
-        nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+let data = null;
+let scale = 1, offsetX = 0, offsetY = 0;
+let dragging = false, dragStartX = 0, dragStartY = 0, dragOffsetX = 0, dragOffsetY = 0;
 
-        #map-container {
-            position: fixed;
-            inset: 0;
-            top: 52px;
-            z-index: 1;
-            cursor: grab;
-            overflow: hidden;
-        }
-        #map-container:active { cursor: grabbing; }
+function resize() {
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+  if (data) draw();
+}
 
-        canvas { position: absolute; top: 0; left: 0; }
+// The scan area is square: draw it as the largest square that fits, centred, so angles and
+// distances aren't stretched on a wide or tall screen.
+const side = () => Math.min(canvas.width, canvas.height);
+const padX = () => (canvas.width - side()) / 2, padY = () => (canvas.height - side()) / 2;
 
-        #tooltip {
-            position: fixed;
-            background: rgba(0, 0, 0, 0.85);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 0.5rem 0.75rem;
-            font-family: Menlo, Monaco, monospace;
-            font-size: 0.75rem;
-            pointer-events: none;
-            display: none;
-            z-index: 200;
-            max-width: 260px;
-            line-height: 1.5;
-        }
+function w2c(wx, wz) {
+  const span = SCAN_RADIUS * 2;
+  const px = padX() + ((wx - (CENTER_X - SCAN_RADIUS)) / span) * side();
+  const py = padY() + ((wz - (CENTER_Z - SCAN_RADIUS)) / span) * side();
+  return [px * scale + offsetX, py * scale + offsetY];
+}
 
-        #hud {
-            position: fixed;
-            bottom: 1.5rem;
-            left: 1.5rem;
-            z-index: 200;
-            color: rgba(255,255,255,0.6);
-            font-family: Menlo, Monaco, monospace;
-            font-size: 0.75rem;
-            line-height: 1.6;
-            pointer-events: none;
-        }
+function c2w(cx, cy) {
+  const span = SCAN_RADIUS * 2;
+  const px = (cx - offsetX) / scale - padX(), py = (cy - offsetY) / scale - padY();
+  return [Math.round(CENTER_X - SCAN_RADIUS + (px / side()) * span),
+          Math.round(CENTER_Z - SCAN_RADIUS + (py / side()) * span)];
+}
 
-        #legend {
-            position: fixed;
-            bottom: 1.5rem;
-            right: 1.5rem;
-            z-index: 200;
-            background: rgba(0,0,0,0.7);
-            border: 1px solid rgba(255,255,255,0.15);
-            padding: 0.75rem 1rem;
-            color: rgba(255,255,255,0.75);
-            font-family: Menlo, Monaco, monospace;
-            font-size: 0.72rem;
-            line-height: 1.8;
-        }
-        .legend-row   { display: flex; align-items: center; gap: 0.5rem; }
-        .legend-line  { width: 24px; height: 2px; background: white; display: inline-block; }
-        .legend-diag  { width: 24px; height: 2px; background: rgba(255,255,255,0.5); display: inline-block; }
-        .legend-vert  { width: 2px; height: 14px; background: rgba(255,255,255,0.5); display: inline-block; }
-        .legend-dot   { width: 8px; height: 8px; border-radius: 50%; background: white; display: inline-block; }
-        .legend-square{ width: 8px; height: 8px; background: white; display: inline-block; }
-        .legend-hub   { width: 10px; height: 10px; background: rgba(255,200,50,0.9); display: inline-block; }
+// ---- draw
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!data || !data.segments) return;
+  // pixels per world block at this zoom; line width follows the world so close parallel
+  // bolts stay apart when zoomed in, with a 1px floor so they never vanish
+  const wts = (scale * side()) / (SCAN_RADIUS * 2);
+  const lineWidth = Math.max(1, Math.min(6, wts * 3));
+  const markerR = Math.max(3, lineWidth * 1.6);
+  const hubArm = Math.max(12, Math.min(50, wts * 10));
 
-        #loading {
-            position: fixed;
-            inset: 0;
-            top: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
-            color: rgba(255,255,255,0.5);
-            font-family: Menlo, Monaco, monospace;
-            font-size: 0.9rem;
-            letter-spacing: 0.1em;
-        }
-
-        #stats-bar {
-            position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 200;
-            background: rgba(0,0,0,0.7);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 0.3rem 1.2rem;
-            color: rgba(255,255,255,0.55);
-            font-family: Menlo, Monaco, monospace;
-            font-size: 0.7rem;
-            white-space: nowrap;
-            display: none;
-        }
-    </style>
-</head>
-<body>
-    <nav>
-        <a href="/">Home</a>
-        <a href="/members">Members</a>
-        <a href="/gallery">Gallery</a>
-        <a href="/storage">Storage</a>
-        <a href="/archive">Public Archive</a>
-        <a href="/status">Status</a>
-        <a href="/stats/">Stats</a>
-        <a href="/worldmap/">World map</a>
-        <a href="/map" target="_blank">Map</a>
-        <a href="/boltmap">Bolt Map</a>
-    </nav>
-
-    <div id="loading">Loading bolt network data...</div>
-    <div id="stats-bar"></div>
-    <div id="map-container">
-        <canvas id="canvas"></canvas>
-    </div>
-
-    <div id="tooltip"></div>
-
-    <div id="hud">
-        <div>Scroll: zoom &nbsp;|&nbsp; Drag: pan &nbsp;|&nbsp; Hover: inspect</div>
-        <div id="coords">X: — &nbsp; Z: —</div>
-    </div>
-
-    <div id="legend">
-        <div class="legend-row"><span class="legend-line"></span> Straight bolt</div>
-        <div class="legend-row"><span class="legend-diag"></span> Diagonal bolt</div>
-        <div class="legend-row"><span class="legend-vert"></span> Vertical section</div>
-        <div class="legend-row"><span class="legend-dot"></span> Junction</div>
-        <div class="legend-row"><span class="legend-square"></span> Station</div>
-        <div class="legend-row"><span class="legend-hub"></span> Hub station</div>
-        <div class="legend-row" style="color:rgba(255,100,100,0.8)">✕ Hub center</div>
-    </div>
-
-    <script>
-    const CENTER_X    = 264;
-    const CENTER_Z    = -162;
-    const SCAN_RADIUS = 7500;
-
-    const canvas    = document.getElementById('canvas');
-    const ctx       = canvas.getContext('2d');
-    const tooltip   = document.getElementById('tooltip');
-    const coordsEl  = document.getElementById('coords');
-    const statsBar  = document.getElementById('stats-bar');
-    const loadingEl = document.getElementById('loading');
-    const container = document.getElementById('map-container');
-
-    let data = null;
-    let scale = 1, offsetX = 0, offsetY = 0;
-    let dragging = false;
-    let dragStartX = 0, dragStartY = 0, dragOffsetX = 0, dragOffsetY = 0;
-
-    function resize() {
-        canvas.width  = container.clientWidth;
-        canvas.height = container.clientHeight;
-        if (data) draw();
+  for (const seg of data.segments) {
+    if (seg.type === 'diagonal') { ctx.strokeStyle = 'rgba(235,232,230,.6)'; ctx.setLineDash([]); }
+    else if (seg.type === 'vertical') { ctx.strokeStyle = 'rgba(235,232,230,.45)'; ctx.setLineDash([4 * scale, 3 * scale]); }
+    else { ctx.strokeStyle = 'rgba(235,232,230,.92)'; ctx.setLineDash([]); }
+    ctx.lineWidth = lineWidth;
+    const wps = seg.waypoints;
+    ctx.beginPath();
+    if (wps && wps.length >= 2) {
+      const [sx, sy] = w2c(wps[0].x, wps[0].z);
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < wps.length; i++) { const [x, y] = w2c(wps[i].x, wps[i].z); ctx.lineTo(x, y); }
+    } else {
+      const [sx, sy] = w2c(seg.start.x, seg.start.z), [ex, ey] = w2c(seg.end.x, seg.end.z);
+      ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
     }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-    function w2c(wx, wz) {
-        const x_min = CENTER_X - SCAN_RADIUS;
-        const z_min = CENTER_Z - SCAN_RADIUS;
-        const span  = SCAN_RADIUS * 2;
-        const px = ((wx - x_min) / span) * canvas.width;
-        const py = ((wz - z_min) / span) * canvas.height;
-        return [px * scale + offsetX, py * scale + offsetY];
-    }
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#ebe8e6';
+  ctx.strokeStyle = 'rgba(0,0,0,.5)';
+  for (const j of (data.junctions || [])) {
+    const [px, py] = w2c(j.x, j.z);
+    ctx.beginPath(); ctx.arc(px, py, markerR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+  for (const s of (data.stations || [])) {
+    if (s.is_hub) continue;
+    const [px, py] = w2c(s.x, s.z);
+    ctx.fillRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
+    ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
+  }
+  const [hx, hy] = w2c(CENTER_X, CENTER_Z), hubR = markerR * 1.8;
+  ctx.fillStyle = '#e5a93c';
+  ctx.fillRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
+  ctx.strokeRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
+  // hub centre cross, always on top
+  ctx.strokeStyle = '#d4543a';
+  ctx.lineWidth = Math.max(1.5, lineWidth * 0.8);
+  ctx.beginPath();
+  ctx.moveTo(hx - hubArm, hy); ctx.lineTo(hx + hubArm, hy);
+  ctx.moveTo(hx, hy - hubArm); ctx.lineTo(hx, hy + hubArm);
+  ctx.stroke();
+}
 
-    function c2w(cx, cy) {
-        const x_min = CENTER_X - SCAN_RADIUS;
-        const z_min = CENTER_Z - SCAN_RADIUS;
-        const span  = SCAN_RADIUS * 2;
-        const px = (cx - offsetX) / scale;
-        const py = (cy - offsetY) / scale;
-        return [Math.round(x_min + (px / canvas.width)  * span),
-                Math.round(z_min + (py / canvas.height) * span)];
-    }
+// ---- hit testing
+function pointToSegmentDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
 
-    // ── Draw ─────────────────────────────────────────────────────────────────
+function segPolylineDist(mx, my, seg) {
+  const wps = seg.waypoints;
+  if (!wps || wps.length < 2) {
+    const [sx, sy] = w2c(seg.start.x, seg.start.z), [ex, ey] = w2c(seg.end.x, seg.end.z);
+    return pointToSegmentDist(mx, my, sx, sy, ex, ey);
+  }
+  let best = Infinity;
+  for (let i = 0; i < wps.length - 1; i++) {
+    const [sx, sy] = w2c(wps[i].x, wps[i].z), [ex, ey] = w2c(wps[i + 1].x, wps[i + 1].z);
+    best = Math.min(best, pointToSegmentDist(mx, my, sx, sy, ex, ey));
+  }
+  return best;
+}
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if (!data || !data.segments) return;
+function hitTest(mx, my) {
+  if (!data) return null;
+  const HIT = 8, SEG = 5;   // screen-pixel tolerances for markers and lines
+  const [hx, hy] = w2c(CENTER_X, CENTER_Z);
+  if (Math.hypot(mx - hx, my - hy) < HIT) {
+    const hub = (data.stations || []).find(s => s.is_hub);
+    if (hub) return { type: 'station', data: hub };
+  }
+  for (const j of (data.junctions || [])) {
+    const [px, py] = w2c(j.x, j.z);
+    if (Math.hypot(mx - px, my - py) < HIT) return { type: 'junction', data: j };
+  }
+  for (const s of (data.stations || [])) {
+    const [px, py] = w2c(s.x, s.z);
+    if (Math.hypot(mx - px, my - py) < HIT) return { type: 'station', data: s };
+  }
+  for (const seg of (data.segments || [])) if (segPolylineDist(mx, my, seg) < SEG) return { type: 'segment', data: seg };
+  return null;
+}
 
-        // World-to-screen: how many pixels is one world block at current zoom?
-        // canvas covers SCAN_RADIUS*2 world blocks across its width at scale=1.
-        const wts = (scale * canvas.width) / (SCAN_RADIUS * 2);
+// ---- tooltip (every value from the JSON goes through C.esc)
+function segTypeLabel(seg) {
+  if (seg.type === 'vertical') return 'Vertical section';
+  if (seg.type === 'diagonal' || (seg.direction && String(seg.direction).length === 2)) return 'Diagonal bolt';
+  return 'Straight bolt';
+}
+const xyz = p => C.esc(p.x) + ', ' + C.esc(p.y) + ', ' + C.esc(p.z);
 
-        // Line width: world-proportional so zooming in doesn't make lines
-        // so thick that close parallel bolts become indistinguishable.
-        // Floor of 1px so lines are always visible when zoomed out.
-        const lineWidth = Math.max(1, Math.min(6, wts * 3));
+function showTip(e, hit) {
+  if (!hit) { tip.hidden = true; return; }
+  const d = hit.data;
+  if (hit.type === 'segment') {
+    tip.innerHTML = `<b>${segTypeLabel(d)}</b>Direction ${C.esc(d.direction)}<br>Length ${C.esc(d.length)} blocks<br>Start ${xyz(d.start)}<br>End ${xyz(d.end)}`;
+  } else if (hit.type === 'junction') {
+    tip.innerHTML = `<b>Junction</b>${C.esc(d.connections)} connections<br>${xyz(d)}`;
+  } else {
+    tip.innerHTML = `<b>${d.is_hub ? 'Hub station' : 'Station'}</b>${xyz(d)}`;
+  }
+  tip.hidden = false;
+  const r = container.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+  let tx = e.clientX - r.left + 14, ty = e.clientY - r.top + 14;
+  if (tx + w > r.width - 8) tx = e.clientX - r.left - w - 14;
+  if (ty + h > r.height - 8) ty = e.clientY - r.top - h - 14;
+  tip.style.left = tx + 'px';
+  tip.style.top = ty + 'px';
+}
 
-        // Marker radius: slightly bigger than line so it reads as a node.
-        const markerR = Math.max(3, lineWidth * 1.6);
+// ---- pan / zoom
+container.addEventListener('mousedown', e => {
+  if (e.target !== canvas) return;
+  dragging = true; dragStartX = e.clientX; dragStartY = e.clientY; dragOffsetX = offsetX; dragOffsetY = offsetY;
+  container.classList.add('drag');
+});
+window.addEventListener('mouseup', () => { dragging = false; container.classList.remove('drag'); });
+window.addEventListener('mousemove', e => {
+  if (dragging) {
+    offsetX = dragOffsetX + (e.clientX - dragStartX);
+    offsetY = dragOffsetY + (e.clientY - dragStartY);
+    tip.hidden = true;
+    draw();
+    return;
+  }
+  if (e.target !== canvas) { tip.hidden = true; return; }
+  const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const [wx, wz] = c2w(mx, my);
+  coordsEl.textContent = 'X: ' + wx + '   Z: ' + wz;
+  const hit = hitTest(mx, my);
+  showTip(e, hit);
+  canvas.style.cursor = hit ? 'pointer' : '';
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const ns = Math.max(0.1, Math.min(50, scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+  offsetX = mx - (mx - offsetX) * (ns / scale);
+  offsetY = my - (my - offsetY) * (ns / scale);
+  scale = ns;
+  draw();
+}, { passive: false });
 
-        // Hub cross arm
-        const hubArm = Math.max(12, Math.min(50, wts * 10));
+let lastTouchDist = 0;
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    dragging = true; dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY; dragOffsetX = offsetX; dragOffsetY = offsetY;
+  } else if (e.touches.length === 2) {
+    dragging = false;
+    lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  }
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1 && dragging) {
+    offsetX = dragOffsetX + (e.touches[0].clientX - dragStartX);
+    offsetY = dragOffsetY + (e.touches[0].clientY - dragStartY);
+    draw();
+  } else if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    scale = Math.max(0.1, Math.min(50, scale * (d / lastTouchDist)));
+    lastTouchDist = d;
+    draw();
+  }
+}, { passive: false });
+canvas.addEventListener('touchend', () => { dragging = false; });
 
-        // Hide markers when zoomed out so they don't clutter
-        const showMarkers = markerR >= 3;
+// ---- data
+const n = v => Number(v || 0).toLocaleString('en-GB');
+const count = (v, one, many) => n(v) + ' ' + (Number(v) === 1 ? one : many);
+async function load() {
+  try {
+    const { data: d, at } = await C.json('/data/boltmap.json');
+    data = d;
+    $('stats').textContent = count((d.segments || []).length, 'segment', 'segments') + ' · ' +
+      count((d.junctions || []).length, 'junction', 'junctions') + ' · ' + count((d.stations || []).length, 'station', 'stations') +
+      ' · ' + count(d.total_length, 'block', 'blocks') + ' of bolt';
+    C.stamp($('stamp'), at);
+    if (!d.progress || !d.progress.complete) {
+      // the scanner is still running: show progress and check again shortly
+      msg.hidden = false;
+      msg.textContent = 'Scanning… ' + n(d.progress && d.progress.blocks_found) + ' blocks found so far';
+      setTimeout(load, 5000);
+    } else msg.hidden = true;
+    draw();
+  } catch (e) {
+    msg.hidden = false;
+    msg.textContent = 'No bolt map data yet. It appears here once the scanner has run.';
+    $('stamp').className = 'pill stale'; $('stamp').textContent = 'Unavailable';
+  }
+}
 
-        // ── Bolt segments (polyline through waypoints) ────────────────────
-        for (const seg of data.segments) {
-            if (seg.type === 'diagonal') {
-                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-                ctx.setLineDash([]);
-            } else if (seg.type === 'vertical') {
-                ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-                ctx.setLineDash([4 * scale, 3 * scale]);
-            } else {
-                ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-                ctx.setLineDash([]);
-            }
-            ctx.lineWidth = lineWidth;
-
-            const wps = seg.waypoints;
-            if (wps && wps.length >= 2) {
-                ctx.beginPath();
-                const [sx, sy] = w2c(wps[0].x, wps[0].z);
-                ctx.moveTo(sx, sy);
-                for (let i = 1; i < wps.length; i++) {
-                    const [wx, wy] = w2c(wps[i].x, wps[i].z);
-                    ctx.lineTo(wx, wy);
-                }
-            } else {
-                const [sx, sy] = w2c(seg.start.x, seg.start.z);
-                const [ex, ey] = w2c(seg.end.x,   seg.end.z);
-                ctx.beginPath();
-                ctx.moveTo(sx, sy);
-                ctx.lineTo(ex, ey);
-            }
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-
-        if (showMarkers) {
-            ctx.lineWidth = 1;
-
-            // ── Junctions (white circles) ─────────────────────────────────
-            ctx.fillStyle   = 'white';
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            for (const j of (data.junctions || [])) {
-                const [px, py] = w2c(j.x, j.z);
-                ctx.beginPath();
-                ctx.arc(px, py, markerR, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-            }
-
-            // ── Regular stations (white squares) ──────────────────────────
-            ctx.fillStyle   = 'white';
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            for (const s of (data.stations || [])) {
-                if (s.is_hub) continue;
-                const [px, py] = w2c(s.x, s.z);
-                ctx.fillRect  (px - markerR, py - markerR, markerR * 2, markerR * 2);
-                ctx.strokeRect(px - markerR, py - markerR, markerR * 2, markerR * 2);
-            }
-
-            // ── Hub station (gold square, drawn before the cross) ─────────
-            const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-            const hubR = markerR * 1.8;
-            ctx.fillStyle   = 'rgba(255,200,50,0.9)';
-            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect  (hx - hubR, hy - hubR, hubR * 2, hubR * 2);
-            ctx.strokeRect(hx - hubR, hy - hubR, hubR * 2, hubR * 2);
-        }
-
-        // ── Hub center cross (always visible, drawn on top) ───────────────
-        const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        ctx.strokeStyle = 'rgba(255,80,80,0.9)';
-        ctx.lineWidth   = Math.max(1.5, lineWidth * 0.8);
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(hx - hubArm, hy); ctx.lineTo(hx + hubArm, hy);
-        ctx.moveTo(hx, hy - hubArm); ctx.lineTo(hx, hy + hubArm);
-        ctx.stroke();
-    }
-
-    // ── Hit testing ──────────────────────────────────────────────────────────
-
-    function pointToSegmentDist(px, py, ax, ay, bx, by) {
-        const dx = bx-ax, dy = by-ay;
-        const lenSq = dx*dx + dy*dy;
-        if (lenSq === 0) return Math.hypot(px-ax, py-ay);
-        const t = Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / lenSq));
-        return Math.hypot(px - (ax + t*dx), py - (ay + t*dy));
-    }
-
-    function segPolylineDist(mx, my, seg) {
-        const wps = seg.waypoints;
-        if (!wps || wps.length < 2) {
-            const [sx, sy] = w2c(seg.start.x, seg.start.z);
-            const [ex, ey] = w2c(seg.end.x,   seg.end.z);
-            return pointToSegmentDist(mx, my, sx, sy, ex, ey);
-        }
-        let best = Infinity;
-        for (let i = 0; i < wps.length - 1; i++) {
-            const [sx, sy] = w2c(wps[i].x,   wps[i].z);
-            const [ex, ey] = w2c(wps[i+1].x, wps[i+1].z);
-            best = Math.min(best, pointToSegmentDist(mx, my, sx, sy, ex, ey));
-        }
-        return best;
-    }
-
-    function hitTest(mouseX, mouseY) {
-        if (!data) return null;
-        const HIT = 8;   // screen-pixel hit radius for markers
-        const SEG = 5;   // screen-pixel hit tolerance for bolt lines
-
-        // Hub center cross
-        const [hx, hy] = w2c(CENTER_X, CENTER_Z);
-        if (Math.hypot(mouseX - hx, mouseY - hy) < HIT) {
-            const hub = (data.stations || []).find(s => s.is_hub);
-            if (hub) return { type: 'station', data: hub };
-        }
-
-        // Junctions
-        for (const j of (data.junctions || [])) {
-            const [px, py] = w2c(j.x, j.z);
-            if (Math.hypot(mouseX - px, mouseY - py) < HIT)
-                return { type: 'junction', data: j };
-        }
-
-        // Stations
-        for (const s of (data.stations || [])) {
-            const [px, py] = w2c(s.x, s.z);
-            if (Math.hypot(mouseX - px, mouseY - py) < HIT)
-                return { type: 'station', data: s };
-        }
-
-        // Segments (check the actual polyline, not just the chord)
-        for (const seg of (data.segments || [])) {
-            if (segPolylineDist(mouseX, mouseY, seg) < SEG)
-                return { type: 'segment', data: seg };
-        }
-
-        return null;
-    }
-
-    // ── Tooltip ──────────────────────────────────────────────────────────────
-
-    function segTypeLabel(seg) {
-        if (seg.type === 'vertical') return 'VERTICAL SECTION';
-        if (seg.type === 'diagonal') return 'DIAGONAL BOLT';
-        // Frontend fallback: two-character direction = diagonal movement
-        if (seg.direction && seg.direction.length === 2) return 'DIAGONAL BOLT';
-        return 'STRAIGHT BOLT';
-    }
-
-    function showTooltip(e, hit) {
-        if (!hit) { tooltip.style.display = 'none'; return; }
-
-        let html = '';
-        if (hit.type === 'segment') {
-            const s = hit.data;
-            html = `<strong>${segTypeLabel(s)}</strong><br>
-                    Direction: ${s.direction}<br>
-                    Length: ${s.length} blocks<br>
-                    Start: ${s.start.x}, ${s.start.y}, ${s.start.z}<br>
-                    End: ${s.end.x}, ${s.end.y}, ${s.end.z}`;
-        } else if (hit.type === 'junction') {
-            const j = hit.data;
-            html = `<strong>JUNCTION</strong><br>
-                    Connections: ${j.connections}<br>
-                    X: ${j.x} &nbsp; Y: ${j.y} &nbsp; Z: ${j.z}`;
-        } else if (hit.type === 'station') {
-            const s = hit.data;
-            html = `<strong>${s.is_hub ? 'HUB STATION' : 'STATION'}</strong><br>
-                    X: ${s.x} &nbsp; Y: ${s.y} &nbsp; Z: ${s.z}`;
-        }
-
-        tooltip.innerHTML = html;
-        tooltip.style.display = 'block';
-        let tx = e.clientX + 14, ty = e.clientY + 14;
-        if (tx + 260 > window.innerWidth)  tx = e.clientX - 260 - 14;
-        if (ty + 120 > window.innerHeight) ty = e.clientY - 120;
-        tooltip.style.left = tx + 'px';
-        tooltip.style.top  = ty + 'px';
-    }
-
-    // ── Events ───────────────────────────────────────────────────────────────
-
-    container.addEventListener('mousedown', e => {
-        dragging    = true;
-        dragStartX  = e.clientX;
-        dragStartY  = e.clientY;
-        dragOffsetX = offsetX;
-        dragOffsetY = offsetY;
-    });
-
-    window.addEventListener('mouseup', () => { dragging = false; });
-
-    window.addEventListener('mousemove', e => {
-        if (dragging) {
-            offsetX = dragOffsetX + (e.clientX - dragStartX);
-            offsetY = dragOffsetY + (e.clientY - dragStartY);
-            draw();
-            tooltip.style.display = 'none';
-        } else {
-            const rect = canvas.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
-            const [wx, wz] = c2w(mx, my);
-            coordsEl.textContent = `X: ${wx}  Z: ${wz}`;
-            const hit = hitTest(mx, my);
-            showTooltip(e, hit);
-            container.style.cursor = hit ? 'pointer' : 'grab';
-        }
-    });
-
-    container.addEventListener('wheel', e => {
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const mx = e.clientX - rect.left;
-        const my = e.clientY - rect.top;
-        const zf = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-        const ns = Math.max(0.1, Math.min(50, scale * zf));
-        offsetX = mx - (mx - offsetX) * (ns / scale);
-        offsetY = my - (my - offsetY) * (ns / scale);
-        scale   = ns;
-        draw();
-    }, { passive: false });
-
-    let lastTouchDist = 0;
-    container.addEventListener('touchstart', e => {
-        if (e.touches.length === 1) {
-            dragging    = true;
-            dragStartX  = e.touches[0].clientX;
-            dragStartY  = e.touches[0].clientY;
-            dragOffsetX = offsetX;
-            dragOffsetY = offsetY;
-        } else if (e.touches.length === 2) {
-            dragging = false;
-            lastTouchDist = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY);
-        }
-    });
-
-    container.addEventListener('touchmove', e => {
-        e.preventDefault();
-        if (e.touches.length === 1 && dragging) {
-            offsetX = dragOffsetX + (e.touches[0].clientX - dragStartX);
-            offsetY = dragOffsetY + (e.touches[0].clientY - dragStartY);
-            draw();
-        } else if (e.touches.length === 2) {
-            const d = Math.hypot(
-                e.touches[0].clientX - e.touches[1].clientX,
-                e.touches[0].clientY - e.touches[1].clientY);
-            scale = Math.max(0.1, Math.min(50, scale * (d / lastTouchDist)));
-            lastTouchDist = d;
-            draw();
-        }
-    }, { passive: false });
-
-    container.addEventListener('touchend', () => { dragging = false; });
-
-    // ── Data loading ──────────────────────────────────────────────────────────
-
-    function updateStats(d) {
-        if (!d.segments) return;
-        statsBar.textContent =
-            `Segments: ${d.segments.length}  |  ` +
-            `Junctions: ${(d.junctions||[]).length}  |  ` +
-            `Stations: ${(d.stations||[]).length}  |  ` +
-            `Total length: ${d.total_length || 0} blocks`;
-        statsBar.style.display = 'block';
-    }
-
-    function loadData() {
-        fetch('/data/boltmap.json?t=' + Date.now())
-            .then(r => r.json())
-            .then(d => {
-                data = d;
-                updateStats(d);
-                if (!d.progress || !d.progress.complete) {
-                    loadingEl.style.display = 'flex';
-                    loadingEl.textContent = `Scanning... (${d.progress?.blocks_found || 0} blocks found)`;
-                    setTimeout(loadData, 5000);
-                } else {
-                    loadingEl.style.display = 'none';
-                }
-                draw();
-            })
-            .catch(() => {
-                loadingEl.textContent = 'No bolt map data. Run scan.py to generate.';
-            });
-    }
-
-    window.addEventListener('resize', resize);
-    resize();
-    loadData();
-    </script>
-</body>
-</html>
+window.addEventListener('resize', resize);
+resize();
+load();
+</script>
