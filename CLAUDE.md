@@ -63,9 +63,15 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | Status | `status.html` | `/api/status` (live host CPU/RAM/etc.) + `/data/server_status.json` (per-server up/down) |
 | Bolt map | `boltmap.html` | `/data/boltmap.json` |
 | World map | `worldmap.html` (`kind: map`) | Overviewer at `/map/` in an iframe below the nav; `/map` still works standalone (served on the server, not in this repo) |
+| Stats overview | `/stats/` (`stats/index.html`) | `/api/stats/{meta,totals,keys,spotlight,activity,milestones,firsts}` |
+| Stat explorer | `/stats/explorer/` | `meta`, `keys`, `search`, `leaderboard`, `series`, `totals` |
+| Scoreboards | `/stats/scoreboards/` | `meta`, `keys?kind=scoreboard`, `leaderboard`, `series`, `totals` |
+| Player | `/stats/player/?p=<name or uuid>` | `search`, `player/{id}`, `series` |
+| Compare | `/stats/compare/` (URL-encoded state) | `search`, `keys`, `compare`, `player/{id}` (bot flag) |
+| Milestones | `/stats/milestones/` (feed / firsts / rivalries) | `milestones`, `firsts`, `rivalries` |
 | 404 | `404.html` | — |
 
-**Stats section is in progress** — see below.
+The Stats pages sit under one **Stats ▾** nav dropdown; see "Stats section" below.
 
 ### Legacy leftovers (pre-redesign)
 `boltmap.html` was NOT migrated: `layout: null`, its own hardcoded nav, Bootstrap 5 CDN
@@ -89,38 +95,54 @@ A plain `deny all` on `/data/` breaks every page — don't reintroduce that. A n
 Other same-origin endpoints (nginx → Chronos-Bot services): `/api/status` (host health)
 and `/api/stats/*` (Stats API, below).
 
-## Stats section (current work)
-Docs in this repo root (copied from Chronos-Bot, untracked):
-- `STATS_PLAN.md` — agreed scope, feature list, hard rules. Decisions are final.
-- `STATS_API.md` — the exact API contract. Build against it; don't invent fields. If a
-  live response disagrees with it, stop and report (backend gets fixed, not worked around).
-- `STATS_FRONTEND_PROMPT.md` — the kickoff brief for the frontend work.
+## Stats section
+Frontend for the bot's read-only `/api/stats/*` (FastAPI behind nginx). Contract:
+`STATS_API.md` (owner's copy, committed) — build against it, don't invent fields; if a live
+response disagrees, report it (backend gets fixed, not worked around). `STATS_PLAN.md` /
+`STATS_FRONTEND_PROMPT.md` are the scope and kickoff docs. Open backend issues go in
+`TEMP_FOR_BOT.md` (owner scratch note, gitignored, like all `TEMP_*.md`).
 
-Key points:
-- Read-only JSON API at `/api/stats/*` (FastAPI/uvicorn behind nginx, live). Data
-  changes every 15 min; responses carry `ETag` + `Cache-Control: public, max-age=60,
-  stale-while-revalidate=900`. **No cache-buster params, no polling faster than 5 min.**
-  Timestamps are unix seconds UTC; values are raw Minecraft integers.
-- Six pages under one **"Stats ▾"** nav dropdown: Overview / Explorer / Scoreboards /
-  Player / Compare / Milestones. Bolt map and World map stay separate top-level links.
-  (Current nav is a flat list from `nav.yml` — the dropdown is new layout work.)
-- Nothing hardcoded: scopes, servers, stat/objective lists, range presets, limits and
-  badge thresholds all come from `/meta` / `/meta.settings`.
-- Every page: All / CMPs / SMP switch + single-server picker; "include bots" toggle only
-  where SMP is in view; "updated N min ago" from `/meta.last_run_at`.
-- History: SMP from 2021-10-28 (imported backups, coarse), CMPs/`building` from
-  2026-11-24 (dense). Honour `effective_from`; `earliest_known: 1` = "earliest known
-  holder/before tracking", `approximate: 1` = "by <date>". Graphs are step lines and
-  must handle single-point series and empty states.
-- Unnamed players (`name: null`, ~1.6k): first 8 chars of uuid + Crafatar head
-  (`https://crafatar.com/avatars/<uuid>?size=32&overlay`).
-- **Local dev:** the API sends no CORS headers (deliberately), so local work needs a
-  dependency-free dev server (planned: `tools/dev_server.py`, Python stdlib) that serves
-  the built site and forwards `/api/stats/*` to `https://www.chronosmc.com` (override
-  via `STATS_API_ORIGIN`, e.g. `http://localhost:8765` for a locally run API). Must pass
-  `If-None-Match`, return 304/ETag/Cache-Control unchanged, send a browser User-Agent
-  (Cloudflare 403s Python's default), and treat HTML-instead-of-JSON as a Cloudflare
-  block. `tools/` is already in `_config.yml` `exclude`, so it never deploys.
+**Structure**
+- `_layouts/stats.html` chains on `default`, loads the `assets/js/stats/` scripts in order
+  plus `pages/<page_js>.js` (front matter `page_js`). `default.html` loads
+  `assets/css/stats.css` when the URL contains `/stats/`. All Stats CSS uses the `st-`
+  prefix (home already owns `.tile`, `.row`).
+- JS modules (plain scripts, no bundler; pure ones also `require`-able in Node for tests),
+  all hang off `window.S`:
+  - `format.js` `S.fmt`: numbers, units, stat labels, dates, badges, spotlight text,
+    `HEADLINES` (the only curated list), `esc`.
+  - `chartmath.js` `S.cm`: scales, step paths, `valueAt`. `activity.js` `S.act.bin`.
+  - `core.js`: `S.api`, `S.ApiError`, `S.errorText`, `S.meta`, `S.state` (URL state with
+    fallbacks), `S.scopeInfo`, `S.rangeParams`, `S.scopeServers`, `S.liveAt`, `S.tracked`, `S.memo`.
+  - `chart.js` `S.chart(el, opts)` SVG step chart (hover/keyboard). `viz.js`
+    `S.viz.clock/heatmap`.
+  - `ui.js` `S.ui`: heads/icons, controls bar, autocomplete, tabs, paged table, empty/error.
+  - `pagekit.js` `S.kit`: shared range/live/untracked/leader/axis helpers.
+  - `pages/*.js`: one per page (overview, explorer — also used by scoreboards, player,
+    compare, milestones).
+
+**Data rules that matter**
+- Default scope `smp`. Servers/scopes show in API order, never sorted. Nothing hardcoded
+  from data (categories, keys, objectives, servers, presets, limits, badges) except
+  `S.fmt.HEADLINES`.
+- `earliest_known: 1` → "earliest known holder"/"before tracking", no date; `approximate: 1`
+  → amber "by <date>". Dates `en-GB` short.
+- `live_started_at` for a multi-server scope is the latest of its servers' starts.
+  `track_stats` / `track_scoreboards` false on a server → empty states, not zeros.
+- No cache-busters on API calls, no polling faster than 5 min. Everything from the API
+  goes through `C.esc()`. Item icons `/cache/items/<id>.png`; missing → letter square.
+
+**Local dev** (API sends no CORS headers): `python tools/dev_server.py` (port 4000) serves
+`_site/`, forwards `/api/stats/*` and `/cache/items/*` to `https://www.chronosmc.com`
+(`STATS_API_ORIGIN` overrides). Rebuild with `bundle exec jekyll build --watch`
+(Ruby is at `C:\Ruby32-x64in`; add it to PATH).
+
+**Tests**
+- `NODE_PATH="$(npm root -g)" node --test "tests/stats/*.cjs"` (DOM tests need global Playwright)
+- `python -m unittest tests.test_dev_server -v`
+- Checker (dev server running, screenshots to `%TEMP%/stats-shots/`):
+  `MSYS_NO_PATHCONV=1 NODE_PATH="$(npm root -g)" node tools/check_stats.cjs` — in Git Bash
+  `MSYS_NO_PATHCONV=1` stops `/stats/` args turning into `C:/Program Files/Git/stats/`.
 
 ## Local development
 - The owner works on Windows (PowerShell; GitHub Desktop for git). Build with
@@ -145,3 +167,6 @@ Key points:
   serif display fonts, stock gradient hero buttons, and cliché "Explore our features"
   copy patterns. Plain, specific copy. Nav/headers are always caps. No home-page buttons
   for Discord/GitHub/Patreon — footer links (and the Join cards) only, with icons.
+- Crafatar was down in Nov 2026: heads fall back to mc-heads, then a lettered square
+  (`S.ui.head`). Don't "fix" it by dropping Crafatar, it recovers.
+- `TEMP_*.md` files are the owner's scratch notes (gitignored, excluded from the build).
