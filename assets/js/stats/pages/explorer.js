@@ -7,7 +7,7 @@
  * (Scoreboards: the objective list, `removed` ones tagged). The selected stat gets a header,
  * a chart (Top players = /series for up to settings.limits.series_players leaderboard rows,
  * toggled by clicking rows; Servers = /totals per top-level part) and a /leaderboard table
- * that grows by 50 up to settings.limits.leaderboard.
+ * paged 50 rows at a time with limit/offset.
  *
  * Tracking off (no server in the scope has track_stats / track_scoreboards for this page's
  * kind): no requests, the key list, board and chart say so instead.
@@ -18,7 +18,7 @@
  * Every API string goes through S.fmt.esc (or textContent) before it reaches the DOM.
  * Page-only classes (stats.css): st-ex st-ex-search st-ex-q st-ex-grid st-ex-browse st-ex-cats
  * st-ex-cat st-ex-keys st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head
- * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot st-ex-moreerr.
+ * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-moreerr.
  */
 (function () {
   const S = window.S, F = S.fmt, esc = F.esc;
@@ -28,7 +28,7 @@
   const KIND = SB ? 'scoreboard' : 'stat';
   const DEF = SB ? { kind: KIND, cat: '', key: '' } : { kind: KIND, cat: 'minecraft:custom', key: 'minecraft:play_time' };
   const LINES = ['var(--teal)', 'var(--cmp)', '#8fa3c9', '#c98fa8', '#9cc48c', '#b59ad8', '#d49a6a', '#7cc4c9'];
-  const STEP = 50;          // leaderboard rows per "Load more"
+  const PAGE = 50;          // leaderboard rows per page
   const LIST_CAP = 250;     // key list rows rendered at once; the filter narrows the rest
 
   const el = {
@@ -41,7 +41,7 @@
   let keys = null, keysErr = null;   // /keys for the scope
   let browseCat = null;              // category shown in the key list (stats only)
   let mode = 'top';                  // chart mode: top | servers
-  let board = null, boardErr = null, moreErr = null, limit = STEP, loadingMore = false;
+  let board = null, boardErr = null, pageErr = null, page = 1;
   let picked = [];                   // uuids drawn in Top players, in click order
   let defaultPicks = [];             // the top rows picked when the board first loaded
   const colorOf = new Map();         // uuid -> LINES index while picked
@@ -50,7 +50,6 @@
   let off = '';                      // "Scoreboards aren't tracked on …" for the scope, or ''
 
   const limits = () => (meta.settings && meta.settings.limits) || {};
-  const maxRows = () => limits().leaderboard || 200;
   const maxLines = () => Math.max(1, Math.min(LINES.length, limits().series_players || 6));
   const bots = () => (info.hasSmp && st.bots ? 'true' : null);
   const hasIcon = cat => !SB && !['custom', 'killed', 'killed_by'].includes(F.itemId(cat));
@@ -206,7 +205,7 @@
     return SB ? 'Nobody on this scope has a score in ' + thing + ' yet.' : 'Nobody on this scope has any ' + thing + ' yet.';
   }
 
-  function paintBoard(focusFrom) {
+  function paintBoard() {
     if (off) {
       el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-ex-tbl"></div>';
       S.ui.empty(el.board.lastChild, off);
@@ -247,44 +246,32 @@
       },
       onRow: r => toggle(r.uuid),
     });
-    const cap = Math.min(board.total_count || 0, maxRows());
-    const foot = document.createElement('div');
-    foot.className = 'st-table-foot st-ex-foot';
-    let text = 'Showing ' + fmtCount(rows.length) + ' of ' + fmtCount(board.total_count);
-    if (rows.length >= maxRows() && board.total_count > rows.length) text += '. The board stops at ' + fmtCount(maxRows()) + '; search a player to see their own rank.';
-    foot.innerHTML = '<span class="st-table-count">' + esc(text) + '</span>' +
-      (moreErr ? '<span class="st-ex-moreerr" role="alert">' + esc(S.errorText(moreErr)) + '</span>' : '') +
-      (rows.length < cap && limit < maxRows() ? '<button type="button" class="st-more">' + (moreErr ? 'Try again' : 'Load more') + '</button>' : '');
-    tblEl.appendChild(foot);
-    if (focusFrom != null) {
-      const tr = tblEl.querySelector('tr[data-i="' + focusFrom + '"]');
-      if (tr) tr.focus();
+    // pages come from the API (limit/offset), so the pager sits outside the one-page table
+    if (pageErr) {
+      const e = document.createElement('p');
+      e.className = 'st-ex-moreerr'; e.setAttribute('role', 'alert');
+      e.textContent = S.errorText(pageErr) + ' Pick the page again to retry.';
+      tblEl.appendChild(e);
     }
+    S.ui.pager(tblEl, { total: board.total_count || 0, pageSize: PAGE, page, onPage: n => goPage(n) });
   }
 
-  // `more` = {prevLimit} when this is a "Load more": a failure then keeps the rows already
-  // shown, puts the limit back and shows the error next to the button.
-  async function loadBoard(my, focusFrom, more) {
-    const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), limit }, S.rangeParams(st));
+  // `keep`: a page change. A failure then keeps the page already shown and says so.
+  async function loadBoard(my, keep) {
+    const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), limit: PAGE, offset: (page - 1) * PAGE }, S.rangeParams(st));
     let res;
     try {
       res = await get('leaderboard', req);
     } catch (err) {
       if (my !== gen) return false;
-      if (more && board) {
-        limit = more.prevLimit; moreErr = err;
-        paintBoard();
-        const b = el.board.querySelector('.st-ex-foot .st-more');
-        if (b) b.focus();
-        return false;
-      }
+      if (keep && board) { page = keep.prev; pageErr = err; paintBoard(); return false; }
       boardErr = err; board = null;
       paintBoard(); paintHead();
       return false;
     }
     if (my !== gen) return false;
     const first = !board;
-    board = res; boardErr = null; moreErr = null;
+    board = res; boardErr = null; pageErr = null;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
       defaultPicks = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
@@ -292,19 +279,14 @@
       colorOf.clear();
       picked.forEach((u, i) => colorOf.set(u, i));
     }
-    paintBoard(focusFrom); paintHead();
+    paintBoard(); paintHead();
     return true;
   }
 
-  async function loadMore() {
-    if (loadingMore || !board) return;
-    loadingMore = true;
-    const btn = el.board.querySelector('.st-ex-foot .st-more');
-    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-    const from = (board.rows || []).length, prevLimit = limit;
-    limit = Math.min(limit + STEP, maxRows());
-    await loadBoard(gen, from, { prevLimit });
-    loadingMore = false;
+  async function goPage(n) {
+    const prev = page;
+    page = n;
+    await loadBoard(gen, { prev });
   }
 
   // ---- chart
@@ -413,7 +395,7 @@
 
   // ---- loading
   function resetStat() {
-    board = null; boardErr = null; moreErr = null; limit = STEP; picked = []; defaultPicks = []; colorOf.clear();
+    board = null; boardErr = null; pageErr = null; page = 1; picked = []; defaultPicks = []; colorOf.clear();
     paintBoard(); paintHead();
   }
 
@@ -526,9 +508,6 @@
     if (!b || b.dataset.value === mode) return;
     setMode(b.dataset.value);
     drawChart();
-  });
-  el.board.addEventListener('click', e => {
-    if (e.target.closest('.st-ex-foot .st-more')) loadMore();
   });
 
   function onPick(it) {
