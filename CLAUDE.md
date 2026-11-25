@@ -135,7 +135,7 @@ response disagrees, report it (backend gets fixed, not worked around). `STATS_PL
 **Local dev** (API sends no CORS headers): `python tools/dev_server.py` (port 4000) serves
 `_site/`, forwards `/api/stats/*` and `/cache/items/*` to `https://www.chronosmc.com`
 (`STATS_API_ORIGIN` overrides). Rebuild with `bundle exec jekyll build --watch`
-(Ruby is at `C:\Ruby32-x64in`; add it to PATH).
+(Ruby is at `C:\Ruby32-x64\bin`; add it to PATH).
 
 **Tests**
 - `NODE_PATH="$(npm root -g)" node --test "tests/stats/*.cjs"` (DOM tests need global Playwright)
@@ -169,4 +169,3 @@ response disagrees, report it (backend gets fixed, not worked around). `STATS_PL
   for Discord/GitHub/Patreon — footer links (and the Join cards) only, with icons.
 - Crafatar was down in Nov 2026: heads fall back to mc-heads, then a lettered square
   (`S.ui.head`). Don't "fix" it by dropping Crafatar, it recovers.
-- `TEMP_*.md` files are the owner's scratch notes (gitignored, excluded from the build).
