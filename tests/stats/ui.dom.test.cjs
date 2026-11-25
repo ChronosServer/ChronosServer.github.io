@@ -35,6 +35,8 @@ before(async () => {
   await page.route('**/*', route => {
     const u = route.request().url();
     if (/crafatar\.com|mc-heads\.net/.test(u)) return route.fulfill({ status: 500, body: 'down' });
+    if (u.includes('/cache/heads/aaaaaaaa-')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
+    if (u.includes('/cache/heads/')) return route.fulfill({ status: 404, body: 'nope' });
     if (u.includes('/assets/img/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/stone.png')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/')) return route.fulfill({ status: 404, body: 'nope' });
@@ -63,6 +65,15 @@ test('head falls back to letter when both services fail', async () => {
   assert.equal(broken, 0);
   assert.ok(requests.some(u => u.includes('crafatar.com/avatars/11111111')));
   assert.ok(requests.some(u => u.includes('mc-heads.net/avatar/11111111')));
+  assert.ok(requests.some(u => u.includes('/cache/heads/11111111-2222-3333-4444-555555555555.png')));
+});
+
+test('head tries /cache/heads first', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.head('aaaaaaaa-2222-3333-4444-555555555555', 32)));
+  await page.waitForFunction(() => { const i = document.querySelector('#c img.st-head'); return i && i.complete && i.naturalWidth > 0; });
+  assert.equal(await page.getAttribute('#c img.st-head', 'src'), '/cache/heads/aaaaaaaa-2222-3333-4444-555555555555.png');
+  assert.ok(!requests.some(u => u.includes('crafatar.com/avatars/aaaaaaaa')));
 });
 
 test('icon fallback and memo', async () => {

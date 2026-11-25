@@ -39,13 +39,15 @@
     else img._stSwap = node;
   }
 
-  // ---- heads: Crafatar -> mc-heads -> "?" square. A service that fails 3 times in a row
-  // is skipped from then on, so an outage costs a few requests, not one per row.
+  // ---- heads: our own /cache/heads (written by the bot) -> Crafatar -> mc-heads -> "?" square.
+  // A source that fails 3 times in a row is skipped from then on, so an outage (or the cache
+  // not existing yet) costs a few requests, not one per row.
   const HEADS = [
+    (u) => '/cache/heads/' + encodeURIComponent(u) + '.png',
     (u, n) => 'https://crafatar.com/avatars/' + encodeURIComponent(u) + '?size=' + n + '&overlay',
     (u, n) => 'https://mc-heads.net/avatar/' + encodeURIComponent(u) + '/' + n,
   ];
-  const headFails = [0, 0];
+  const headFails = HEADS.map(() => 0);
   function head(uuid, size) {
     size = size || 32;
     let i = headFails.findIndex(f => f < 3);
