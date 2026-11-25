@@ -25,6 +25,7 @@
   const TABS = ['all', 'scoreboards', 'milestones', 'firsts', 'rivals'];
   const PODS = 7;          // "Number one in" cards before "+N more"
   const PAGE = 50;         // table rows per page
+  const MS_PAGE = 20;      // milestone rows per Load more
 
   const el = {
     landing: $('pl-landing'), lede: $('pl-lede'), msg: $('pl-msg'), top: $('pl-top'), q: $('pl-q'),
@@ -34,7 +35,7 @@
   let meta = null, st = null, info = null, prof = null, gen = 0, cgen = 0, chart = null;
   let tabs = null, curTab = 'all', customOpen = false;
   let rows = [];                                  // prof.stats with labels, for the All stats tab
-  let fText = '', fCat = '', fOnes = false, allTbl = null;
+  let fText = '', fCat = '', fOnes = false, allTbl = null, msShown = MS_PAGE;
   const memo = new Map();
 
   function get(path, params) {
@@ -56,7 +57,9 @@
   const serverIdx = k => { const i = (meta.servers || []).findIndex(x => x.key === k); return i < 0 ? 999 : i; };
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
   const scopeText = () => (st.scope === 'all' ? 'across all servers' : 'on ' + serverLabel(st.scope));
-  const playerHref = (name, uuid) => '/stats/player/?p=' + encodeURIComponent(name || uuid);
+  // moving between players keeps the session's scope (and bots when on)
+  const playerHref = (name, uuid) => '/stats/player/?p=' + encodeURIComponent(name || uuid) +
+    (st && st.scope ? '&scope=' + encodeURIComponent(st.scope) : '') + (st && st.bots ? '&bots=true' : '');
   const name = () => F.playerName(prof);
   const catLabel = c => (F.itemId(c) === 'custom' ? 'General' : F.statLabel(c, 'x').cat);
   const plural = (n, w) => fmtCount(n) + ' ' + w + (n === 1 ? '' : 's');
@@ -148,16 +151,16 @@
     return '<div class="st-tiles st-pl-tiles">' + F.HEADLINES.map(h => {
       const s = prof.stats.find(x => x.category === h[0] && x.key === h[1]);
       const on = cur.kind === 'stat' && cur.cat === h[0] && cur.key === h[1];
-      let v = '<div class="st-v">–</div><div class="st-rk">None yet</div>';
+      let v = '<span class="st-v">–</span><span class="st-rk">None yet</span>';
       if (s) {
         const d = F.display(h[0], h[1], s.value);
         const i = d.text.lastIndexOf(' ');
         const num = i > 0 ? d.text.slice(0, i) : d.text, unit = i > 0 ? d.text.slice(i + 1) : '';
-        v = '<div class="st-v"><span title="' + esc(d.exact) + '">' + esc(num) + '</span>' + (unit ? '<small>' + esc(unit) + '</small>' : '') + '</div>' +
-          '<div class="st-rk">Rank <b>#' + esc(fmtCount(s.rank)) + '</b> of ' + esc(fmtCount(s.of)) + '</div>';
+        v = '<span class="st-v"><span title="' + esc(d.exact) + '">' + esc(num) + '</span>' + (unit ? '<small>' + esc(unit) + '</small>' : '') + '</span>' +
+          '<span class="st-rk">Rank <b>#' + esc(fmtCount(s.rank)) + '</b> of ' + esc(fmtCount(s.of)) + '</span>';
       }
       return '<button type="button" class="st-tile' + (on ? ' on' : '') + '" data-kind="stat" data-cat="' + esc(h[0]) + '" data-key="' + esc(h[1]) +
-        '" aria-pressed="' + on + '" aria-controls="pl-graph"><div class="st-lab">' + esc(h[2]) + '</div>' + v + '</button>';
+        '" aria-pressed="' + on + '" aria-controls="pl-graph"><span class="st-lab">' + esc(h[2]) + '</span>' + v + '</button>';
     }).join('') + '</div>';
   }
 
@@ -188,8 +191,8 @@
   function podHtml(s, i) {
     const d = F.display(s.category, s.key, s.value);
     return '<button type="button" class="st-pod" style="--i:' + i + '" data-kind="stat" data-cat="' + esc(s.category) + '" data-key="' + esc(s.key) + '" aria-controls="pl-graph">' +
-      artHtml(s.category, s.key, 40) + '<div class="st-pod-st">' + statHtml(s.category, s.key) + '</div>' +
-      '<div class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></div></button>';
+      artHtml(s.category, s.key, 40) + '<span class="st-pod-st">' + statHtml(s.category, s.key) + '</span>' +
+      '<span class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></span></button>';
   }
 
   function onesHtml() {
@@ -201,7 +204,7 @@
       return '<section class="st-sec" id="pl-ones"><div class="st-pl-sh"><h2>Number one in</h2>' +
         '<button type="button" class="st-again st-pl-see" data-seeall>See all ' + esc(fmtCount(ones.length)) + '</button></div>' +
         '<div class="st-pods">' + shown.map(podHtml).join('') +
-        (many ? '<button type="button" class="st-pod st-pod-more" style="--i:' + PODS + '" data-seeall>+ ' + esc(fmtCount(ones.length - PODS)) + ' more<small>Open the list</small></button>' : '') +
+        (many ? '<button type="button" class="st-pod st-pod-more" style="--i:' + PODS + '" data-seeall><span>+ ' + esc(fmtCount(ones.length - PODS)) + ' more</span><small>Open the list</small></button>' : '') +
         '</div></section>';
     }
     const best = prof.stats.slice().sort((a, b) => a.rank / a.of - b.rank / b.of || a.rank - b.rank).slice(0, PODS + 1);
@@ -311,7 +314,8 @@
     paintNote(res);
   }
 
-  function selectStat(kind, cat, key, scroll) {
+  // `focus`: move keyboard focus to the graph section (table row picks, keyboard activation)
+  function selectStat(kind, cat, key, scroll, focus) {
     st.stat = selId({ kind, cat, key });
     S.state.write(st);
     el.body.querySelectorAll('.st-pl-tiles .st-tile').forEach(b => {
@@ -323,6 +327,10 @@
     if (scroll) {
       const g = $('pl-graph');
       if (g) g.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' });
+    }
+    if (focus) {
+      const g = $('pl-graph');
+      if (g) g.focus({ preventScroll: !!scroll });
     }
   }
 
@@ -414,7 +422,7 @@
         return '<td>' + artHtml(r.category, r.key, 20) + statHtml(r.category, r.key) + '</td>' +
           '<td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
       },
-      onRow: r => selectStat('stat', r.category, r.key, true),
+      onRow: r => selectStat('stat', r.category, r.key, true, true),
     });
   }
 
@@ -433,22 +441,22 @@
         const d = F.display('scoreboard', r.objective, r.value);
         return '<td>' + esc(r.objective) + '</td><td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
       },
-      onRow: r => selectStat('scoreboard', '', r.objective, true),
+      onRow: r => selectStat('scoreboard', '', r.objective, true, true),
     });
   }
 
   function whenHtml(r) {
     const w = F.when(r);
-    if (w.kind === 'earliest') return '<div class="st-feed-d">before tracking</div>';
-    return '<div class="st-feed-d' + (w.kind === 'by' ? ' by' : '') + '">' + esc(w.text) + '</div>';
+    if (w.kind === 'earliest') return '<span class="st-feed-d">before tracking</span>';
+    return '<span class="st-feed-d' + (w.kind === 'by' ? ' by' : '') + '">' + esc(w.text) + '</span>';
   }
 
   function milestoneRow(r) {
     const v = F.display(r.category, r.stat_key, r.threshold).text;
     return '<button type="button" class="st-feed-row st-pl-row" data-kind="stat" data-cat="' + esc(r.category) + '" data-key="' + esc(r.stat_key) + '" aria-controls="pl-graph">' +
       artHtml(r.category, r.stat_key, 28) +
-      '<div class="st-feed-t">' + (r.earliest_known ? 'Already had ' : 'Passed ') + '<b>' + esc(v) + '</b> ' + statHtml(r.category, r.stat_key) +
-      ' <span>on ' + esc(serverLabel(r.server_key)) + '</span></div>' + whenHtml(r) + '</button>';
+      '<span class="st-feed-t">' + (r.earliest_known ? 'Already had ' : 'Passed ') + '<b>' + esc(v) + '</b> ' + statHtml(r.category, r.stat_key) +
+      ' <span>on ' + esc(serverLabel(r.server_key)) + '</span></span>' + whenHtml(r) + '</button>';
   }
 
   function paintMilestones(panel) {
@@ -459,17 +467,32 @@
     }
     const dated = list.filter(r => !r.earliest_known).sort((a, b) => b.at - a.at);
     const early = list.filter(r => r.earliest_known);
-    panel.innerHTML = '<div class="st-feed">' + dated.map(milestoneRow).join('') + '</div>' +
-      (early.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + early.map(milestoneRow).join('') + '</div>' : '');
+    const n = Math.min(msShown, list.length);
+    const d = dated.slice(0, n), e = early.slice(0, Math.max(0, n - dated.length));
+    panel.innerHTML = (d.length ? '<div class="st-feed">' + d.map(milestoneRow).join('') + '</div>' : '') +
+      (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '') +
+      (list.length > MS_PAGE ? '<div class="st-table-foot"><span class="st-table-count">Showing ' + esc(fmtCount(n)) + ' of ' + esc(fmtCount(list.length)) + '</span>' +
+        (n < list.length ? '<button type="button" class="st-more" id="pl-msmore">Load more</button>' : '') + '</div>' : '');
     S.ui.hydrate(panel);
+    const more = $('pl-msmore');
+    if (more) more.addEventListener('click', () => {
+      msShown += MS_PAGE;
+      paintMilestones(panel);
+      const next = panel.querySelectorAll('.st-pl-row')[n];
+      if (next) next.focus();
+    });
   }
 
   function paintFirsts(panel) {
     const list = prof.firsts || [];
     if (!list.length) { S.ui.empty(panel, name() + ' holds no firsts ' + scopeText() + ' yet.'); return; }
     const dated = list.filter(r => !r.earliest_known).length;
-    panel.innerHTML = '<p class="st-pl-intro">' + esc(name()) + ' was first on a server to get ' + esc(plural(dated, 'stat')) +
-      (list.length > dated ? ', and is the earliest known holder of ' + esc(fmtCount(list.length - dated)) + ' more that already existed when tracking began' : '') + '.</p><div></div>';
+    const early = list.length - dated;
+    const intro = !dated
+      ? esc(name()) + ' is the earliest known holder of ' + esc(plural(early, 'stat')) + ' (already true when tracking began).'
+      : esc(name()) + ' was first on a server to get ' + esc(plural(dated, 'stat')) +
+        (early ? ', and is the earliest known holder of ' + esc(fmtCount(early)) + ' more (already true when tracking began)' : '') + '.';
+    panel.innerHTML = '<p class="st-pl-intro">' + intro + '</p><div></div>';
     S.ui.table(panel.lastChild, {
       columns: [
         { id: 'stat', label: 'Stat', sort: r => F.statLabel(r.category, r.stat_key).full.toLowerCase() },
@@ -483,7 +506,7 @@
           : '<span' + (w.kind === 'by' ? ' class="st-pl-by" title="Happened between two backups; known only by this date"' : '') + '>' + esc(w.text) + '</span>';
         return '<td>' + artHtml(r.category, r.stat_key, 20) + statHtml(r.category, r.stat_key) + '</td><td>' + esc(serverLabel(r.server_key)) + '</td><td class="st-num">' + when + '</td>';
       },
-      onRow: r => selectStat('stat', r.category, r.stat_key, true),
+      onRow: r => selectStat('stat', r.category, r.stat_key, true, true),
     });
   }
 
@@ -578,6 +601,7 @@
 
   async function load() {
     const my = ++gen;
+    fText = ''; fCat = ''; fOnes = false; msShown = MS_PAGE;
     ++cgen;
     info = S.scopeInfo(meta, st.scope);
     if (chart) { chart.destroy(); chart = null; }
@@ -604,7 +628,8 @@
     if (e.target.closest('[data-seeall]')) { seeAll(); return; }
     const b = e.target.closest('button[data-key]');
     if (b && !b.closest('.st-table')) {
-      selectStat(b.dataset.kind || 'stat', b.dataset.cat || '', b.dataset.key, true);
+      // e.detail === 0: activated from the keyboard
+      selectStat(b.dataset.kind || 'stat', b.dataset.cat || '', b.dataset.key, true, e.detail === 0);
       return;
     }
     const r = e.target.closest('#pl-range button');

@@ -245,7 +245,9 @@ button.st-pod{width:100%;margin:0;border-top:0;border-left:0;border-radius:0;fon
 button.st-pod:hover{background:rgba(14,20,23,.85)}
 button.st-pod:focus-visible{outline-offset:-2px}
 .st-pod > .st-icon,.st-pod > .st-letter{width:40px;height:40px}
-.st-pod-more{display:flex;flex-direction:column;justify-content:center;gap:.25rem;font:600 1.05rem var(--mono);color:#fff}
+.st-pod > span:not(.st-letter),.st-pl-row > span:not(.st-letter),.st-pl-tiles .st-tile > span{display:block}
+.st-pod-more > span{white-space:nowrap}
+.st-pod.st-pod-more{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:.25rem;font:600 1.05rem var(--mono);color:#fff}
 .st-pod-more small{font:400 .72rem var(--mono);color:var(--mute)}
 .st-pod-more:hover small{color:var(--teal)}
 .st-pl-graph{scroll-margin-top:5.5rem}
