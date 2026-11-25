@@ -89,6 +89,40 @@ test('hostile labels are escaped', async () => {
   assert.ok((await page.textContent('#c .st-tip')).includes('<img'));
 });
 
+test('leading zeros are trimmed before the value-card check', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},0],[${T0 + DAY},5]]},
+                     {id:'b',label:'CMPs',color:'red',points:[[${T0},0],[${T0 + DAY},0],[${T0 + 2 * DAY},0]]}]`));
+  const card = await page.textContent('#c .st-valuecard');
+  assert.ok(card.includes('5 u') && card.includes('0 u'), card);
+  assert.equal(await page.locator('#c path.st-line').count(), 0);
+});
+
+test('series that trim to one point still draw as lines beside a real series', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},0],[${T0 + DAY},5]]},
+                     {id:'b',label:'CMPs',color:'red',points:[[${T0},1],[${T0 + 2 * DAY},3]]}]`));
+  assert.equal(await page.locator('#c .st-valuecard').count(), 0);
+  assert.equal(await page.locator('#c path.st-line').count(), 2);
+});
+
+test('tooltip hides inline even when a stylesheet sets its display', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},1],[${T0 + DAY},2]]}]`));
+  await page.addStyleTag({ content: '.st-tip{display:block}' });
+  const tip = page.locator('#c .st-tip');
+  assert.ok(!(await tip.isVisible()));
+  const box = await page.locator('#c svg').boundingBox();
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2);
+  assert.ok(await tip.isVisible());
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height + 200);
+  assert.ok(!(await tip.isVisible()));
+});
+
+test('update keeps keyboard focus on the chart', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},1],[${T0 + DAY},2]]}]`));
+  await page.focus('#c svg');
+  await page.evaluate(t => chartInst.update({ series: [{ id: 'a', label: 'SMP', color: 'teal', points: [[t, 3], [t + 86400, 4]] }] }), T0);
+  assert.ok(await page.evaluate(() => document.activeElement === document.querySelector('#c svg')));
+});
+
 test('update re-renders and destroy cleans up', async () => {
   await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},1],[${T0 + DAY},2]]}]`));
   await page.evaluate(() => chartInst.update({ series: [] }));

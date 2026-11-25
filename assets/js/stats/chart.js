@@ -87,7 +87,9 @@
       const from = +opts.from, to = +opts.to > +opts.from ? +opts.to : +opts.from + 1;
       const format = opts.format || (v => String(v));
       const raw = (opts.series || []).map(s => Object.assign({}, s, { points: clean(s.points) }));
-      const live = raw.filter(s => s.points.length);
+      // Trim leading zeros first, so a series that only starts counting late collapses to one point.
+      const live = raw.filter(s => s.points.length).map(s => Object.assign({}, s, { points: cm.trimLeading(s.points) }));
+      const hadFocus = !!(model && document.activeElement === model.svg);
       model = null; idx = -1;
 
       if (!live.length) {
@@ -103,7 +105,7 @@
         return;
       }
 
-      const series = live.map(s => Object.assign({}, s, { points: cm.trimLeading(s.points) }));
+      const series = live;
       const bot = height - PAD_B, top = PAD_T;
       const tx = cm.timeScale(from, to, opts.liveAt == null ? null : +opts.liveAt, PAD_L, W);
       const x = t => tx(Math.max(from, Math.min(to, t)));
@@ -153,13 +155,14 @@
       const label = series.map(s => s.label).join(', ');
       wrap.innerHTML = '<svg class="st-plot" xmlns="' + NS + '" viewBox="0 0 ' + W + ' ' + height + '" width="100%" style="display:block;height:auto;overflow:visible" tabindex="0" role="img" aria-label="' +
         esc('Chart: ' + label + '. Use arrow keys to step through changes.') + '">' + g + '</svg>' +
-        '<div class="st-tip" role="status" aria-live="polite" hidden style="position:absolute;top:0;left:0;pointer-events:none"></div>';
+        '<div class="st-tip" role="status" aria-live="polite" hidden style="position:absolute;top:0;left:0;pointer-events:none;display:none"></div>';
 
       const cps = cm.changePoints(series.map(s => s.points)).filter(t => t >= from && t <= to);
       model = { series, x, tx, y, from, to, format, cps, short: to - from < 2 * DAY,
         svg: wrap.querySelector('svg'), tip: wrap.querySelector('.st-tip'),
         cross: wrap.querySelector('.st-cross'), marks: wrap.querySelectorAll('.st-mark') };
 
+      if (hadFocus) model.svg.focus();
       if (first) { first = false; if (!reducedMotion()) drawIn(); }
     }
 
@@ -187,7 +190,7 @@
           '<span class="st-tip-label">' + esc(s.label) + '</span>: <span class="st-tip-val">' + esc(v == null ? '–' : m.format(v)) + '</span></div>';
       });
       m.tip.innerHTML = '<div class="st-tip-date">' + esc(fmtDate(t) + (m.short ? ' · ' + hhmm(t) : '')) + '</div>' + rows;
-      m.tip.hidden = false;
+      m.tip.hidden = false; m.tip.style.display = '';
       const sr = m.svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
       const px = sr.left - wr.left + xx * sr.width / W;
       const right = px > wr.width / 2;
@@ -198,7 +201,7 @@
 
     function hide() {
       const m = model; if (!m) return;
-      m.tip.hidden = true;
+      m.tip.hidden = true; m.tip.style.display = 'none';
       m.cross.setAttribute('visibility', 'hidden');
       m.marks.forEach(mk => mk.setAttribute('visibility', 'hidden'));
     }
