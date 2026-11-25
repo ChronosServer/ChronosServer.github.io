@@ -58,3 +58,12 @@ test('badge descs use the live settings shape', () => {
   assert.equal(badge('night_owl', B).desc, 'Mostly plays 0:00–6:00');
   assert.equal(badge('night_owl', {night_owl:{start_hour:1, end_hour:5}}).desc, 'Mostly plays 1:00–5:00');
 });
+test('review fixes', () => {
+  assert.equal(spotlight({trigger:'recent_milestone', name:'A', category:'minecraft:custom', key:'minecraft:play_time', value:1, detail:{threshold:36000000, at:Date.now()/1000}}, 'SMP').replace(/<[^>]+>/g,''), 'A passed 500 h play time just now');
+  assert.equal(display('minecraft:custom','minecraft:play_time',71999).text, '1 h');
+  assert.equal(display('minecraft:custom','minecraft:play_time',71000).text, '59 min');
+  for (const k of ['cat:minecraft:mined:4', 'cat:minecraft:mined:x']) {
+    const b = badge(k, {category_tiers:[1,2,3]});
+    assert.equal(b.name, 'Miner'); assert.equal(b.tier, 0);
+  }
+});

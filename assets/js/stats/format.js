@@ -49,7 +49,8 @@
     if (isCustom && TICK_KEYS.indexOf(k) !== -1) {
       const h = raw / 72000;
       const exact = group(Math.round(h * 10) / 10) + ' h';
-      if (h < 1) return { text: Math.round(raw / 1200) + ' min', exact };
+      if (h < 1 && Math.round(raw / 1200) < 60) return { text: Math.round(raw / 1200) + ' min', exact };
+      if (h < 1) return { text: '1 h', exact };
       return { text: compact(Math.round(h)) + ' h', exact };
     }
     if (isCustom && /^damage_/.test(k)) return { text: compact(raw / 10), exact: group(Math.round(raw) / 10) };
@@ -104,10 +105,11 @@
       const t = Number(parts[parts.length - 1]);
       const cat = parts.slice(1, -1).join(':');
       const k = itemId(cat);
+      const ok = t === 1 || t === 2 || t === 3;
       const noun = NOUN[k] || titleCase(k);
       const thr = (badges.category_tiers || [])[t - 1];
       return {
-        name: noun + ' ' + (ROMAN[t - 1] || t), family: 'cat', tier: t, art: CAT_ART[k] || null,
+        name: ok ? noun + ' ' + ROMAN[t - 1] : noun, family: 'cat', tier: ok ? t : 0, art: CAT_ART[k] || null,
         desc: catName(cat) + ' total' + (thr != null ? ' ≥ ' + compact(thr) : '')
       };
     }
@@ -138,7 +140,7 @@
           ? 'Only ' + esc(d.holders) + ' players have any ' + thing + '. ' + name + ' has ' + v(spot.value) + '.'
           : 'Only ' + esc(d.holders) + ' players have ever ' + vb + thing + '. ' + name + ' has ' + v(spot.value) + '.';
       case 'recent_milestone':
-        return name + ' passed ' + esc(compact(d.threshold)) + ' ' + thing + ' ' + vb + esc(ago(d.at));
+        return name + ' passed ' + v(d.threshold) + ' ' + thing + ' ' + vb + esc(ago(d.at));
       case 'recent_first':
         return isCustom
           ? name + ' was the first on ' + server + ' to get any ' + thing
