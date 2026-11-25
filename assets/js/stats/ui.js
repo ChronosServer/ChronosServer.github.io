@@ -7,8 +7,8 @@
  *   heads/icons   st-head st-icon st-letter
  *   controls      st-controls st-seg st-seg-btn on st-select st-check st-custom
  *                 st-synced (with site classes pill / stale)
- *   autocomplete  st-ac st-ac-group st-ac-key st-ac-opt st-ac-sub st-ac-meta st-ac-none
- *                 active
+ *   autocomplete  st-ac st-ac-group st-ac-key st-ac-opt st-ac-sub st-ac-name st-ac-meta
+ *                 st-ac-none active
  *   tabs          st-tabs st-tab st-tab-count on
  *   table         st-table-wrap st-table st-num st-sort st-sort-ind st-row-link
  *                 st-table-foot st-table-count st-more
