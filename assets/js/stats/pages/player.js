@@ -9,6 +9,9 @@
  *
  * Requests: first paint is /meta + /player/{p}; the graph's /series follows. Responses are
  * kept per parameter set. `gen` drops stale profile loads, `cgen` stale graphs.
+ * Merged accounts: when /player answers with another player than asked for (an alt counted
+ * as its main), the URL's p becomes the answer's name (or uuid) and a note says so.
+ * Tracking off for the scope: the Scoreboards / All stats tabs and the graph say so.
  * URL state: p, scope, bots, range/from/to (graph only), stat ("<category>|<key>" or
  * "scoreboard|<objective>"), tab.
  * Every API string goes through S.fmt.esc (or textContent) before it reaches the DOM.
@@ -16,7 +19,7 @@
  * st-pl-head st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-tiles st-pl-sh st-pl-n st-pl-see
  * st-pod-more st-pl-graph st-pl-range st-pl-chart st-pl-tabs st-pl-panel st-pl-filt st-pl-one
  * st-pl-rk st-pl-top1 st-pl-row st-pl-quiet st-pl-intro st-pl-by st-pl-ek st-pl-link st-pl-trend
- * st-pl-empty.
+ * st-pl-empty st-pl-merged.
  */
 (function () {
   const S = window.S, F = S.fmt, esc = F.esc;
@@ -36,17 +39,8 @@
   let tabs = null, curTab = 'all', customOpen = false;
   let rows = [];                                  // prof.stats with labels, for the All stats tab
   let fText = '', fCat = '', fOnes = false, allTbl = null, msShown = MS_PAGE;
-  const memo = new Map();
-
-  function get(path, params) {
-    const k = path + '?' + JSON.stringify(params);
-    if (!memo.has(k)) {
-      const p = S.api(path, params);
-      memo.set(k, p);
-      p.catch(() => memo.delete(k));
-    }
-    return memo.get(k);
-  }
+  let mergedFrom = '';                            // what the URL asked for, when the API answered with another player
+  const get = S.memo();
 
   // ---- small helpers
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
@@ -114,8 +108,9 @@
         big = '<a class="st-pl-ones" href="#pl-ones"><div class="st-bigcount">#' + esc(fmtCount(best)) + '</div><p>best rank ' + esc(scopeText()) + '</p></a>';
       }
     }
+    const merged = mergedFrom ? '<p class="st-pl-merged">Showing ' + esc(name()) + ' — ' + esc(mergedFrom) + ' is counted as the same player.</p>' : '';
     return '<header class="st-pl-head"><div class="st-ph"><span class="st-pl-skin" id="pl-skin"></span>' +
-      '<div><h1>' + esc(name()) + '</h1><div class="st-meta">' + bits.join('') + '</div></div></div>' + big + '</header>';
+      '<div><h1>' + esc(name()) + '</h1><div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
   }
 
   function paintSkin() {
@@ -242,45 +237,27 @@
     }
   }
 
-  function liveAt() {
-    const live = meta.live_started_at;
-    if (!live) return null;
-    const ts = scopeServers().map(s => live[s]).filter(t => isFinite(t));
-    return ts.length ? Math.min.apply(null, ts) : null;
-  }
-
-  function requestedStart(res) {
-    if (st.range && st.range !== 'all') return res.to - (((meta.settings && meta.settings.range_presets) || {})[st.range] || 0);
-    if (!st.range && st.from != null) return st.from;
-    return null;
-  }
+  const liveAt = () => S.liveAt(meta, st.scope);
+  const offText = kind => S.kit.untracked(meta, st.scope, kind);
 
   function paintNote(res) {
     const note = $('pl-note');
     if (!note) return;
     const bits = ['Click any stat on this page to graph it here.'];
-    if (res && res.effective_from != null) {
-      const want = requestedStart(res);
-      if (want != null && res.effective_from > want + 60) {
-        const starts = scopeServers().map(s => (meta.tracking_started_at || {})[s]).filter(t => isFinite(t));
-        const began = starts.length ? Math.min.apply(null, starts) : null;
-        bits.push(began != null && res.effective_from <= began
-          ? 'Since tracking began (' + esc(F.date(res.effective_from)) + ')'
-          : 'Since ' + esc(F.date(res.effective_from)));
-      }
-      const la = liveAt();
-      if (la != null && res.effective_from < la && la < res.to) {
-        bits.push('<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' + esc(F.date(la)) + ' gets its own stretch of the axis.');
-      }
-    }
+    const since = S.kit.sinceText(meta, st, res, scopeServers(), 'clamped');
+    if (since) bits.push(esc(S.kit.cap(since)));
+    const live = S.kit.liveNote(liveAt(), res);
+    if (live) bits.push(live);
     note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
   }
 
+  // `err`: an API error, or a string for a plain empty state
   function chartMessage(err) {
     if (chart) { chart.destroy(); chart = null; }
     const box = $('pl-chart');
     box.innerHTML = '<div class="st-chart"></div>';
-    S.ui.error(box.firstChild, err);
+    if (typeof err === 'string') S.ui.empty(box.firstChild, err);
+    else S.ui.error(box.firstChild, err);
     paintNote(null);
   }
 
@@ -291,6 +268,8 @@
     const s = sel();
     $('pl-ctitle').textContent = selTitle(s);
     paintRange();
+    const off = offText(s.kind);
+    if (off) { chartMessage(off); return; }
     if (!chart) box.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
     const params = s.kind === 'scoreboard' ? { kind: 'scoreboard', key: s.key } : { kind: 'stat', category: s.cat, key: s.key };
     Object.assign(params, { uuids: prof.uuid, scope: st.scope, include_bots: bots() }, S.rangeParams(st));
@@ -303,10 +282,11 @@
       return;
     }
     if (my !== cgen || g !== gen) return;
-    const ranged = !!(st.range && st.range !== 'all') || (!st.range && st.from != null);
+    const ranged = S.kit.ranged(st);
     const o = {
       series: [{ id: prof.uuid, label: name(), color: 'var(--teal)', points: ((res && res.series) || {})[prof.uuid] || [] }],
       from: res.effective_from, to: res.to, liveAt: liveAt(), height: 300,
+      zero: !ranged, axis: S.kit.axis(s.kind === 'scoreboard' ? 'scoreboard' : s.cat, s.key),
       format: v => (v === 0 ? '0' : disp(s, v).text),
       emptyText: name() + ' has no ' + selTitle(s).toLowerCase() + ' recorded ' + (ranged ? 'in this range' : scopeText()) + ' yet.',
     };
@@ -357,6 +337,8 @@
 
   // All stats: filter text, category buttons, "#1 only", table sorted by rank / of
   function paintAll(panel) {
+    const off = offText('stat');
+    if (off) { allTbl = null; S.ui.empty(panel, off); return; }
     const present = new Set(rows.map(r => r.category));
     const cats = (meta.categories || []).filter(c => present.has(c));
     rows.forEach(r => { if (!cats.includes(r.category)) cats.push(r.category); });
@@ -427,6 +409,8 @@
   }
 
   function paintBoards(panel) {
+    const off = offText('scoreboard');
+    if (off) { S.ui.empty(panel, off); return; }
     const list = prof.scoreboards || [];
     if (!list.length) { S.ui.empty(panel, name() + ' has no scoreboard scores ' + scopeText() + ' yet.'); return; }
     panel.innerHTML = '<div></div>';
@@ -618,9 +602,21 @@
       return;
     }
     if (my !== gen) return;
+    canonical(res);
     prof = Object.assign({}, res, { stats: res.stats || [] });
     document.title = name() + ' | Chronos';
     paintProfile();
+  }
+
+  // The API may answer for another account than asked (merged accounts): the URL then names
+  // the player it showed, and the note keeps what was asked for.
+  function canonical(res) {
+    const want = res.name || res.uuid;
+    if (!want || want === st.p) return;
+    const norm = v => String(v || '').toLowerCase().replace(/-/g, '');
+    if (norm(st.p) !== norm(res.name) && norm(st.p) !== norm(res.uuid)) mergedFrom = st.p;
+    st.p = want;
+    S.state.write(st);
   }
 
   // ---- wiring

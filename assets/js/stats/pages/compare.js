@@ -3,12 +3,14 @@
  * Two pickers (player chips, stat chips; add via search, remove with ×; limits from
  * /meta.settings.compare), the shared controls bar with a range, then a chart of the
  * selected stat (one line per player) above a table: rows = stats, columns = players, each
- * cell a value and a bar against the row's max, the row leader in teal. Clicking a row (or
+ * cell a value and a bar against the row's largest size, the row leader (highest value, when
+ * the row's values are not all equal) in teal. Rows of a kind the scope doesn't track
+ * (track_stats / track_scoreboards off on all its servers) say so instead of values. Clicking a row (or
  * Enter/Space on it) graphs that stat; arrows move between rows.
  *
  * Requests: first paint is /meta + /compare. /compare returns every key's series, so picking
  * a row costs nothing. Bot check: when the scope includes SMP, each player's /player is
- * fetched once (unless /compare already says is_bot_on_smp); a newly found bot turns the
+ * fetched once per player, whatever the scope (unless /compare already says is_bot_on_smp); a newly found bot turns the
  * bot toggle on (once per bot, so the viewer can turn it off again). After a 404, /player
  * on each player typed into the URL finds the unknown name. Responses are kept per
  * parameter set; `gen` drops stale compares, `bgen` stale bot checks.
@@ -17,13 +19,12 @@
  * Page-only classes (stats.css): st-cmp st-cmp-pick st-cmp-box st-cmp-bh st-cmp-n st-cmp-chips
  * st-cmp-chip (.bad) st-cmp-x st-cmp-tag st-cmp-add st-cmp-boxnote st-cmp-quick st-cmp-qbtn
  * st-cmp-min st-cmp-busy st-cmp-graph st-cmp-gh st-cmp-board st-cmp-table st-cmp-ph
- * st-cmp-stat st-cmp-lead st-cmp-v st-cmp-bar; line colours --st-c3..--st-c6.
+ * st-cmp-stat st-cmp-lead st-cmp-v st-cmp-bar st-cmp-off; line colours --st-c3..--st-c6.
  */
 (function () {
   const S = window.S, F = S.fmt, esc = F.esc;
   const $ = id => document.getElementById(id);
   const LINES = ['var(--teal)', 'var(--cmp)', 'var(--st-c3)', 'var(--st-c4)', 'var(--st-c5)', 'var(--st-c6)'];
-  const UNITS = { h: 'hour', d: 'day', w: 'week', m: 'month', y: 'year' };
 
   const el = {
     players: $('cmp-players'), keys: $('cmp-keys'), pq: $('cmp-pq'), kq: $('cmp-kq'),
@@ -38,17 +39,8 @@
   let keys = [];        // {id, kind, cat, key}
   let res = null, resErr = null, unknownMsg = '';
   const botAuto = new Set();   // bots that already switched the toggle on once
-  const memo = new Map();
-
-  function get(path, params) {
-    const k = path + '?' + JSON.stringify(params);
-    if (!memo.has(k)) {
-      const p = S.api(path, params);
-      memo.set(k, p);
-      p.catch(() => memo.delete(k));
-    }
-    return memo.get(k);
-  }
+  const botLookup = new Map(); // uuid -> /player promise (is_bot_on_smp doesn't depend on scope)
+  const get = S.memo();
 
   // ---- small helpers
   const cfg = () => Object.assign({ min_players: 2, max_players: 6, max_keys: 20 }, (meta.settings && meta.settings.compare) || {});
@@ -98,34 +90,10 @@
   }
 
   // ---- wording for ranges (same rules as the Explorer)
-  function rangeText() {
-    if (st.range === 'all') return 'since tracking began';
-    if (st.range) {
-      const m = /^(\d+)([hdwmy])$/.exec(st.range);
-      if (!m) return 'in ' + st.range;
-      const n = +m[1], u = UNITS[m[2]];
-      return 'in the last ' + (n === 1 ? u : n + ' ' + u + 's');
-    }
-    if (st.from != null && st.to != null) return 'between ' + F.date(st.from) + ' and ' + F.date(st.to);
-    return '';
-  }
-  function requestedStart(r) {
-    if (st.range && st.range !== 'all') return r.to - (((meta.settings && meta.settings.range_presets) || {})[st.range] || 0);
-    if (!st.range && st.from != null) return st.from;
-    return null;
-  }
-  function sinceText(r) {
-    if (!r || r.effective_from == null) return '';
-    const want = requestedStart(r);
-    if (want != null && !(r.effective_from > want + 60)) return '';
-    if (want == null && st.range !== 'all') return '';
-    const starts = scopeServers().map(s => (meta.tracking_started_at || {})[s]).filter(t => isFinite(t));
-    const began = starts.length ? Math.min.apply(null, starts) : null;
-    return began != null && r.effective_from <= began
-      ? 'since tracking began (' + F.date(r.effective_from) + ')'
-      : 'since ' + F.date(r.effective_from);
-  }
+  const rangeText = () => S.kit.rangeText(st);
+  const sinceText = r => S.kit.sinceText(meta, st, r, scopeServers(), 'all');
   const isDelta = () => !!st.range || st.from != null;
+  const offText = k => S.kit.untracked(meta, st.scope, k.kind);
 
   // ---- chips
   // `focus`: {list: 'players'|'keys', i} puts focus on that chip's × (or the input when gone)
@@ -259,18 +227,25 @@
     const body = keys.map((k, ri) => {
       const row = vals[k.id] || {};
       const vs = players.map(p => (p.uuid && typeof row[p.uuid] === 'number' ? row[p.uuid] : null));
-      const max = vs.reduce((m, v) => (v != null && v > m ? v : m), 0);
       const on = sel && k.id === sel.id;
       const label = keyLabel(k).full;
-      return '<tr data-i="' + ri + '" class="st-row-link' + (on ? ' on' : '') + '" tabindex="' + (on ? 0 : -1) + '"' +
-        (on ? ' aria-current="true"' : '') + ' aria-controls="cmp-graph"><td class="st-cmp-stat">' + artHtml(k, 20) + '<span>' + keyHtml(k) + '</span></td>' +
+      const start = '<tr data-i="' + ri + '" class="st-row-link' + (on ? ' on' : '') + '" tabindex="' + (on ? 0 : -1) + '"' +
+        (on ? ' aria-current="true"' : '') + ' aria-controls="cmp-graph"><td class="st-cmp-stat">' + artHtml(k, 20) + '<span>' + keyHtml(k) + '</span></td>';
+      const off = offText(k);
+      if (off) return start + '<td class="st-cmp-off" colspan="' + players.length + '">' + esc(off) + '</td></tr>';
+      // the leader: the highest value, when the row's values (a missing one counts as 0) differ
+      const cmp = vs.map(v => (v == null ? 0 : v));
+      const top = Math.max.apply(null, cmp);
+      const differ = cmp.some(v => v !== cmp[0]);
+      const big = vs.reduce((m, v) => (v != null && Math.abs(v) > m ? Math.abs(v) : m), 0);
+      return start +
         vs.map(v => {
           if (v == null) return '<td class="st-num st-cmp-v"><span class="st-cmp-none">–</span></td>';
-          const d = disp(k, v);
-          const lead = max > 0 && v === max;
-          const w = max > 0 && v > 0 ? Math.max(2, Math.round(v / max * 100)) : 0;
+          const d = delta ? F.signed(k.kind === 'scoreboard' ? 'scoreboard' : k.cat, k.key, v) : disp(k, v);
+          const lead = differ && v === top;
+          const w = big > 0 && v !== 0 ? Math.max(2, Math.round(Math.abs(v) / big * 100)) : 0;
           return '<td class="st-num st-cmp-v' + (lead ? ' st-cmp-lead' : '') + '">' +
-            '<span title="' + esc(d.exact) + '">' + (delta && v > 0 ? '+' : '') + esc(d.text) + '</span>' +
+            '<span title="' + esc(d.exact) + '">' + esc(d.text) + '</span>' +
             (lead ? '<span class="sr-only"> (leads ' + esc(label) + ')</span>' : '') +
             '<span class="st-cmp-bar" aria-hidden="true"><i style="width:' + w + '%"></i></span></td>';
         }).join('') + '</tr>';
@@ -301,12 +276,7 @@
   }
 
   // ---- chart
-  function liveAt() {
-    const live = meta.live_started_at;
-    if (!live) return null;
-    const ts = scopeServers().map(s => live[s]).filter(t => isFinite(t));
-    return ts.length ? Math.min.apply(null, ts) : null;
-  }
+  const liveAt = () => S.liveAt(meta, st.scope);
 
   function drawChart() {
     const k = selKey();
@@ -314,10 +284,19 @@
     const l = keyLabel(k);
     el.ccat.textContent = l.cat;
     el.ctitle.textContent = l.name;
+    const off = offText(k);
+    if (off) {
+      if (chart) { chart.destroy(); chart = null; }
+      el.chart.innerHTML = '<div class="st-chart"></div>';
+      S.ui.empty(el.chart.firstChild, off);
+      el.note.innerHTML = '';
+      return;
+    }
     const ser = (res.series || {})[k.id] || {};
     const series = players.map((p, i) => ({ id: p.uuid || p.tok, label: pName(p), color: LINES[i], points: (p.uuid && ser[p.uuid]) || [] }));
     const o = {
       series, from: res.effective_from, to: res.to, liveAt: liveAt(), height: 300,
+      zero: !S.kit.ranged(st), axis: S.kit.axis(k.kind === 'scoreboard' ? 'scoreboard' : k.cat, k.key),
       format: v => (v === 0 ? '0' : disp(k, v).text),
       emptyText: 'None of these players has any ' + l.full + ' recorded ' + (isDelta() ? 'in this range' : 'here') + ' yet.',
     };
@@ -325,10 +304,8 @@
     const bits = [series.map(s => '<span class="st-k" style="background:' + s.color + '"></span>' + esc(s.label)).join(' &nbsp; ')];
     const since = sinceText(res);
     if (since) bits.push(esc(since.charAt(0).toUpperCase() + since.slice(1)));
-    const la = liveAt();
-    if (la != null && res.effective_from < la && la < res.to) {
-      bits.push('<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' + esc(F.date(la)) + ' gets its own stretch of the axis.');
-    }
+    const live = S.kit.liveNote(liveAt(), res);
+    if (live) bits.push(live);
     el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
   }
 
@@ -341,18 +318,48 @@
   }
 
   // ---- loading
-  // Match the response's players to ours: by uuid, then by name, then by position.
+  // Match the response's players to ours: by uuid, then by name, then by position. A name
+  // answered by another player (merged accounts: an alt counted as its main) is noted.
   function resolve(list) {
-    const left = list.slice();
+    const left = list.slice(), merged = [];
     players.forEach((p, i) => {
       let j = left.findIndex(r => p.uuid && norm(r.uuid) === norm(p.uuid));
       if (j < 0) j = left.findIndex(r => norm(r.uuid) === norm(p.tok) || (r.name && r.name.toLowerCase() === String(p.tok).toLowerCase()));
       if (j < 0 && left.length === players.length - i) j = 0;
       if (j < 0) return;
       const r = left.splice(j, 1)[0];
+      if (!p.uuid && norm(r.uuid) !== norm(p.tok) && norm(r.name) !== norm(p.tok)) merged.push(p.tok + ' is counted as ' + F.playerName(r));
       p.uuid = r.uuid; p.name = r.name || null; p.unknown = false;
       if (typeof r.is_bot_on_smp === 'boolean') p.bot = r.is_bot_on_smp;
     });
+    return merged;
+  }
+
+  function mergeNote(list) {
+    if (list.length) boxNote('players', list.join('. ') + '.');
+  }
+
+  // /compare answers once per real player: an alt asked for next to its main has no row of
+  // its own. Ask /player who it is; when that is a player already here, drop the alt's chip.
+  async function foldMerged(my, merged) {
+    const todo = players.filter(p => !p.uuid && !p.unknown);
+    if (!todo.length) { mergeNote(merged); return; }
+    const main = new Map();
+    await Promise.all(todo.map(p => get('player/' + encodeURIComponent(p.tok), { scope: st.scope })
+      .then(r => { main.set(p, r); }, () => { /* leave it unresolved */ })));
+    if (my !== gen) return;
+    todo.forEach(p => {
+      const r = main.get(p);
+      const into = r && players.find(q => q !== p && q.uuid && norm(q.uuid) === norm(r.uuid));
+      if (!into) return;
+      players.splice(players.indexOf(p), 1);
+      merged.push(p.tok + ' is counted as ' + pName(into) + ', so it is shown once');
+    });
+    mergeNote(merged);
+    writeState();
+    paintChips(); paintMsg();
+    paintTable();
+    drawChart();
   }
 
   async function load(focusI) {
@@ -391,12 +398,13 @@
     if (my !== gen) return;
     el.app.classList.remove('st-cmp-busy'); el.app.removeAttribute('aria-busy');
     res = r; unknownMsg = '';
-    resolve(r.players || []);
+    const merged = resolve(r.players || []);
     if (!selKey()) st.stat = '';
     writeState();
     paintChips(); paintMsg();
     paintTable(focusI);
     drawChart();
+    foldMerged(my, merged);
     checkBots();
   }
 
@@ -423,10 +431,21 @@
     const todo = players.filter(p => p.uuid && p.bot === null);
     if (!todo.length) { applyBots(); return; }
     const my = ++bgen;
-    await Promise.all(todo.map(p => get('player/' + encodeURIComponent(p.uuid), { scope: st.scope })
+    await Promise.all(todo.map(p => botOf(p.uuid)
       .then(r => { p.bot = !!r.is_bot_on_smp; }, () => { /* unknown: leave the toggle alone */ })));
     if (my !== bgen) return;
     applyBots();
+  }
+
+  // One /player per uuid for the bot flag, whatever scope it was first asked with.
+  function botOf(uuid) {
+    const k = norm(uuid);
+    if (!botLookup.has(k)) {
+      const pr = get('player/' + encodeURIComponent(uuid), { scope: st.scope });
+      botLookup.set(k, pr);
+      pr.catch(() => { if (botLookup.get(k) === pr) botLookup.delete(k); });
+    }
+    return botLookup.get(k);
   }
 
   function applyBots() {
@@ -459,7 +478,13 @@
     const b = e.target.closest('.st-cmp-qbtn');
     if (!b) return;
     const next = b.nextElementSibling || b.previousElementSibling;
-    addKey(parseKey(b.dataset.id));
+    const k = parseKey(b.dataset.id);
+    if (!k) {
+      // its category isn't in /meta.categories any more: say so and keep the button
+      boxNote('keys', b.textContent + " isn't available from the stats server right now.");
+      return;
+    }
+    addKey(k);
     // the button is gone after the repaint: keep focus in the quick-add row (or the input)
     const same = next && Array.from(el.quick.querySelectorAll('.st-cmp-qbtn')).find(x => x.dataset.id === next.dataset.id);
     (same || el.quick.querySelector('.st-cmp-qbtn') || el.kq).focus();

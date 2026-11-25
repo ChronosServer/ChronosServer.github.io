@@ -5,7 +5,7 @@
  * heading, without a date.
  * Firsts: /firsts?order=newest, settings.limits.feed rows a page, paged the same way. Dated
  * firsts come first, then the earliest known holders. Server / category / text filters run
- * over the rows loaded so far (the UI says so); "Load more" first shows more of the loaded
+ * over the rows loaded so far (the UI says so; the text filter waits 150 ms of quiet typing); "Load more" first shows more of the loaded
  * matches, then fetches the next page. If the backend ignores order=newest (no `next` in the
  * answer), whatever came back is sorted newest first here and capped, with no further pages.
  * Rivalries: /rivalries?limit=50, gap now vs 7 days ago as two bars, "overtakes in N days".
@@ -33,18 +33,9 @@
 
   let meta = null, st = null, info = null, gen = 0, tabs = null, cur = 'feed';
   let feed = null, firsts = null, rivals = null;
-  let fSrv = '', fCat = '', fText = '', fShown = STEP;
-  const memo = new Map();
-
-  function get(path, params) {
-    const k = path + '?' + JSON.stringify(params);
-    if (!memo.has(k)) {
-      const p = S.api(path, params);
-      memo.set(k, p);
-      p.catch(() => memo.delete(k));
-    }
-    return memo.get(k);
-  }
+  let fSrv = '', fCat = '', fText = '', fShown = STEP, fTimer = 0;
+  const get = S.memo();
+  const TEXT_WAIT = 150;      // ms of typing quiet before the firsts text filter repaints
 
   // ---- small helpers
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
@@ -84,6 +75,7 @@
   function pager(path, extra) {
     return { path, extra, rows: [], next: null, err: null, moreErr: null, busy: false, started: false, done: false, fallback: false };
   }
+  const tabOf = P => (P.path === 'milestones' ? 'feed' : 'firsts');
   const baseParams = P => Object.assign({ scope: st.scope, limit: P.path === 'milestones' ? FEED_PAGE : feedLimit() }, P.extra);
 
   // Dated firsts newest first, then earliest known holders (their `at` is only the tracking start).
@@ -138,7 +130,7 @@
       if (my !== gen) return false;
       P.busy = false; P.moreErr = err;
       paint();
-      focusIn('.st-ms-foot .st-more');
+      if (cur === tabOf(P)) focusIn('.st-ms-foot .st-more');
       return false;
     }
     if (my !== gen) return false;
@@ -201,6 +193,7 @@
     const from = feed.rows.length;
     busyButton();
     if (await fetchMore(feed, paintFeed)) {
+      if (cur !== 'feed') return;   // the reader moved to another tab meanwhile: no focus jump
       paintFeed();
       focusIn('[data-i="' + from + '"]');
       if (!el.panel.querySelector('[data-i="' + from + '"]')) focusIn('.st-ms-foot .st-more');
@@ -230,7 +223,10 @@
         cats.map(c => opt(c, catLabel(c), fCat === c)).join('') + '</select></label>' +
       '</div><p class="st-ms-note" id="ms-note" aria-live="polite"></p><div id="ms-res"></div>';
     $('ms-q').value = fText;
-    $('ms-q').addEventListener('input', () => { fText = $('ms-q').value; fShown = STEP; paintFirstRows(); });
+    $('ms-q').addEventListener('input', () => {
+      clearTimeout(fTimer);
+      fTimer = setTimeout(() => { fText = $('ms-q') ? $('ms-q').value : fText; fShown = STEP; paintFirstRows(); }, TEXT_WAIT);
+    });
     ['ms-srv', 'ms-cat'].forEach(id => {
       const s = $(id);
       if (!s) return;
@@ -319,7 +315,7 @@
     busyButton();
     if (await fetchMore(firsts, paintFirsts)) {
       fShown = from + STEP;
-      paintFirstRows(from);
+      if (cur === 'firsts') paintFirstRows(from);
     }
   }
 
@@ -349,11 +345,7 @@
       bar('Gap now', gap, '') + bar('7 days ago', was, 'st-rv-was') + '</div>' + eta + '</div>';
   }
 
-  function liveSince() {
-    const live = meta.live_started_at || {};
-    const ts = scopeServers().map(k => live[k]).filter(t => isFinite(t));
-    return ts.length ? Math.min.apply(null, ts) : null;
-  }
+  const liveSince = () => S.liveAt(meta, st.scope);
 
   function paintRivals() {
     if (cur !== 'rivals') return;

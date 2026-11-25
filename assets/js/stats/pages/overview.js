@@ -26,19 +26,8 @@
   let meta = null, st = null, info = null, gen = 0, chart = null, tabs = null;
   let tab = 'milestones', pulseMode = 'clock', pulseData = null;
   let shown = F.HEADLINES.slice();   // headline rows present in the scope
-  const memo = new Map();
   const tileData = new Map();         // itemId -> /totals response for the current load
-
-  // One request per distinct parameter set; failures are forgotten so a retry can ask again.
-  function get(path, params) {
-    const k = path + '?' + JSON.stringify(params);
-    if (!memo.has(k)) {
-      const p = S.api(path, params);
-      memo.set(k, p);
-      p.catch(() => memo.delete(k));
-    }
-    return memo.get(k);
-  }
+  const get = S.memo();               // one request per parameter set; failures are retried
 
   // custom stats and the entity categories (killed, killed_by) have no item art
   const hasIcon = cat => !['custom', 'killed', 'killed_by'].includes(F.itemId(cat));
@@ -48,7 +37,7 @@
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
-  const isDelta = () => !!((st.range && st.range !== 'all') || (!st.range && st.from != null));
+  const isDelta = () => S.kit.ranged(st);
   const playerHref = uuid => '/stats/player/?p=' + encodeURIComponent(uuid);
 
   function partColor(part) {
@@ -103,7 +92,7 @@
     }
     if (isDelta()) {
       const gain = ps.reduce((a, p) => a + p.gain, 0);
-      out += '<div class="st-rk"><b>+' + esc(F.display(h[0], h[1], gain).text) + '</b> since ' + esc(F.date(res.effective_from)) + '</div>';
+      out += '<div class="st-rk"><b>' + esc(F.signed(h[0], h[1], gain).text) + '</b> since ' + esc(F.date(res.effective_from)) + '</div>';
     } else if (!split) {
       out += '<div class="st-rk">All time</div>';
     }
@@ -125,36 +114,16 @@
   }
 
   // ---- chart
-  function liveAt() {
-    const live = meta.live_started_at;
-    if (!live) return null;
-    const ts = scopeServers().map(s => live[s]).filter(t => isFinite(t));
-    return ts.length ? Math.min.apply(null, ts) : null;
-  }
-
-  function requestedStart(res) {
-    if (st.range && st.range !== 'all') return res.to - (((meta.settings && meta.settings.range_presets) || {})[st.range] || 0);
-    if (!st.range && st.from != null) return st.from;
-    return null;
-  }
+  const liveAt = () => S.liveAt(meta, st.scope);
 
   function paintNote(res) {
     if (!res) { el.note.innerHTML = ''; return; }
     const keys = info.parts.map(p => '<span class="st-k" style="background:' + partColor(p) + '"></span>' + esc(partLabel(p))).join(' &nbsp; ');
     const bits = [keys];
-    const starts = scopeServers().map(s => (meta.tracking_started_at || {})[s]).filter(t => isFinite(t));
-    const began = starts.length ? Math.min.apply(null, starts) : null;
-    const want = requestedStart(res);
-    if (want == null || res.effective_from > want + 60) {
-      bits.push(began != null && res.effective_from <= began
-        ? 'Since tracking began (' + esc(F.date(res.effective_from)) + ')'
-        : 'Since ' + esc(F.date(res.effective_from)));
-    }
-    const la = liveAt();
-    if (la != null && res.effective_from < la && la < res.to) {
-      bits.push('<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' +
-        esc(F.date(la)) + ' gets its own stretch of the axis.');
-    }
+    const since = S.kit.sinceText(meta, st, res, scopeServers(), 'always');
+    if (since) bits.push(esc(S.kit.cap(since)));
+    const live = S.kit.liveNote(liveAt(), res);
+    if (live) bits.push(live);
     el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
   }
 
@@ -164,6 +133,7 @@
     }));
     return {
       series, from: res.effective_from, to: res.to, liveAt: liveAt(), height: 300,
+      zero: !isDelta(), axis: S.kit.axis(h[0], h[1]),
       format: v => (v === 0 ? '0' : F.display(h[0], h[1], v).text),
       emptyText: 'No ' + h[2].toLowerCase() + ' recorded in this range yet.',
     };
@@ -186,7 +156,11 @@
   async function drawSelected(my, pending, forH) {
     const h = forH || selected();
     if (forH && selected() !== forH) return;
-    if (!h) { chartMessage('<div class="st-chart"><div class="st-empty">None of the headline stats are tracked on this scope yet.</div></div>'); return; }
+    if (!h) {
+      const off = S.kit.untracked(meta, st.scope, 'stat');
+      chartMessage('<div class="st-chart"><div class="st-empty">' + esc(off || 'None of the headline stats are tracked on this scope yet.') + '</div></div>');
+      return;
+    }
     try {
       const res = await (pending || totals(h));
       if (my !== gen || selected() !== h) return;
@@ -226,7 +200,7 @@
   function spotDetail(sp) {
     const d = sp.detail || {}, v = n => F.display(sp.category, sp.key, n).text;
     if (sp.trigger === 'outlier' && d.median != null) return 'median ' + v(d.median) + (d.holders ? ' across ' + F.compact(d.holders) + ' players' : '');
-    if (sp.trigger === 'mover' && d.delta != null) return '+' + v(d.delta) + ' this week';
+    if (sp.trigger === 'mover' && d.delta != null) return F.signed(sp.category, sp.key, d.delta).text + ' this week';
     return '';
   }
 
@@ -435,7 +409,8 @@
   async function load() {
     const my = ++gen;
     info = S.scopeInfo(meta, st.scope);
-    shown = F.HEADLINES.slice();
+    // stats off on every server of the scope: no tiles, the chart says why
+    shown = S.tracked(meta, st.scope, 'stat') ? F.HEADLINES.slice() : [];
     tileData.clear();
     paintTiles();
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
@@ -445,6 +420,11 @@
     el.pulseBody.className = '';
     el.pulseBody.innerHTML = '<div class="st-empty">Loading…</div>';
 
+    if (!shown.length) {
+      drawSelected(my);
+      loadSpot(my); loadPulse(my); paintFeed(my);
+      return;
+    }
     // first paint: the selected tile's totals
     const first = selected();
     const pending = totals(first);

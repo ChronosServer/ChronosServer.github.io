@@ -9,6 +9,9 @@
  * toggled by clicking rows; Servers = /totals per top-level part) and a /leaderboard table
  * that grows by 50 up to settings.limits.leaderboard.
  *
+ * Tracking off (no server in the scope has track_stats / track_scoreboards for this page's
+ * kind): no requests, the key list, board and chart say so instead.
+ *
  * Requests: first paint is /meta + /leaderboard (Scoreboards with no objective chosen needs
  * /keys first to find the default). Then /keys and the chart in parallel. Responses are kept
  * per parameter set. `gen` drops stale stat loads, `kgen` stale key lists, `cgen` stale charts.
@@ -28,7 +31,6 @@
   const PARTS = ['var(--teal)', 'var(--cmp)', '#8fa3c9', '#c98fa8'];
   const STEP = 50;          // leaderboard rows per "Load more"
   const LIST_CAP = 250;     // key list rows rendered at once; the filter narrows the rest
-  const UNITS = { h: 'hour', d: 'day', w: 'week', m: 'month', y: 'year' };
 
   const el = {
     controls: $('ex-controls'), app: $('ex-app'), q: $('ex-q'), cats: $('ex-cats'), filter: $('ex-filter'),
@@ -44,17 +46,8 @@
   let picked = [];                   // uuids drawn in Top players, in click order
   const colorOf = new Map();         // uuid -> LINES index while picked
   const names = new Map();           // uuid -> display name
-  const memo = new Map();
-
-  function get(path, params) {
-    const k = path + '?' + JSON.stringify(params);
-    if (!memo.has(k)) {
-      const p = S.api(path, params);
-      memo.set(k, p);
-      p.catch(() => memo.delete(k));
-    }
-    return memo.get(k);
-  }
+  const get = S.memo();
+  let off = '';                      // "Scoreboards aren't tracked on …" for the scope, or ''
 
   const limits = () => (meta.settings && meta.settings.limits) || {};
   const maxRows = () => limits().leaderboard || 200;
@@ -64,6 +57,7 @@
   const catLabel = c => (F.itemId(c) === 'custom' ? 'General' : F.statLabel(c, 'x').cat);
   const label = () => (SB ? { cat: 'Objective', name: st.key, full: st.key } : F.statLabel(st.cat, st.key));
   const disp = v => F.display(SB ? 'scoreboard' : st.cat, st.key, v);
+  const signed = v => F.signed(SB ? 'scoreboard' : st.cat, st.key, v);
   const statParams = () => (SB ? { kind: KIND, key: st.key } : { kind: KIND, category: st.cat, key: st.key });
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
@@ -79,34 +73,9 @@
   }
 
   // ---- wording for ranges
-  function rangeText() {
-    if (st.range === 'all') return 'since tracking began';
-    if (st.range) {
-      const m = /^(\d+)([hdwmy])$/.exec(st.range);
-      if (!m) return 'in ' + st.range;
-      const n = +m[1], u = UNITS[m[2]];
-      return 'in the last ' + (n === 1 ? u : n + ' ' + u + 's');
-    }
-    if (st.from != null && st.to != null) return 'between ' + F.date(st.from) + ' and ' + F.date(st.to);
-    return '';
-  }
-  function requestedStart(res) {
-    if (st.range && st.range !== 'all') return res.to - (((meta.settings && meta.settings.range_presets) || {})[st.range] || 0);
-    if (!st.range && st.from != null) return st.from;
-    return null;
-  }
-  // "Since 24 Nov 2026" when the API clamped the window (or "since tracking began (…)").
-  function sinceText(res, servers) {
-    if (!res || res.effective_from == null) return '';
-    const want = requestedStart(res);
-    if (want != null && !(res.effective_from > want + 60)) return '';
-    if (want == null && st.range !== 'all') return '';
-    const starts = servers.map(s => (meta.tracking_started_at || {})[s]).filter(t => isFinite(t));
-    const began = starts.length ? Math.min.apply(null, starts) : null;
-    return began != null && res.effective_from <= began
-      ? 'since tracking began (' + F.date(res.effective_from) + ')'
-      : 'since ' + F.date(res.effective_from);
-  }
+  const rangeText = () => S.kit.rangeText(st);
+  // "since 24 Nov 2026" when the API clamped the window (or "since tracking began (…)").
+  const sinceText = (res, servers) => S.kit.sinceText(meta, st, res, servers, 'all');
 
   // ---- header
   function paintHead() {
@@ -159,6 +128,7 @@
   }
 
   function paintKeys() {
+    if (off) { S.ui.empty(el.keys, off); return; }
     if (keysErr) { S.ui.error(el.keys, keysErr); return; }
     if (!keys) { el.keys.innerHTML = '<div class="st-empty">Loading…</div>'; return; }
     const all = listItems();
@@ -234,6 +204,11 @@
   }
 
   function paintBoard(focusFrom) {
+    if (off) {
+      el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-ex-tbl"></div>';
+      S.ui.empty(el.board.lastChild, off);
+      return;
+    }
     if (boardErr) {
       el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-ex-tbl"></div>';
       S.ui.error(el.board.lastChild, boardErr);
@@ -262,7 +237,7 @@
         const d = disp(r.value);
         return '<td class="st-num st-ex-rk">' + rowSwatch(r.uuid) + esc(r.rank) + '</td>' +
           '<td><a class="st-ex-pl" href="' + esc(playerHref(r)) + '">' + S.ui.headHtml(r.uuid, 24) + '<span>' + esc(F.playerName(r)) + '</span></a></td>' +
-          '<td class="st-num" title="' + esc(d.exact) + '">' + (delta && r.value > 0 ? '+' : '') + esc(d.text) + '</td>';
+          '<td class="st-num" title="' + esc(d.exact) + '">' + esc(delta ? signed(r.value).text : d.text) + '</td>';
       },
       onRow: r => toggle(r.uuid),
     });
@@ -326,12 +301,8 @@
   }
 
   // ---- chart
-  function liveAt(servers) {
-    const live = meta.live_started_at;
-    if (!live) return null;
-    const ts = servers.map(s => live[s]).filter(t => isFinite(t));
-    return ts.length ? Math.min.apply(null, ts) : null;
-  }
+  // Top players: the selected scope; Servers: every server (the parts of `all`).
+  const liveAt = () => S.liveAt(meta, mode === 'top' ? st.scope : 'all');
 
   function chartMessage(text, isErr) {
     if (chart) { chart.destroy(); chart = null; }
@@ -346,10 +317,8 @@
     const bits = [keysHtml];
     const since = sinceText(res, servers);
     if (since) bits.push(esc(since.charAt(0).toUpperCase() + since.slice(1)));
-    const la = liveAt(servers);
-    if (la != null && res.effective_from < la && la < res.to) {
-      bits.push('<em>Shaded: backup imports, a few points far apart.</em> Live 15-minute history since ' + esc(F.date(la)) + ' gets its own stretch of the axis.');
-    }
+    const live = S.kit.liveNote(liveAt(), res);
+    if (live) bits.push(live);
     if (extra) bits.push('<em>' + esc(extra) + '</em>');
     el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
   }
@@ -358,6 +327,7 @@
   async function drawChart() {
     const my = ++cgen, g = gen;
     const extra = noteExtra; noteExtra = '';
+    if (off) { chartMessage(off); return; }
     if (!st.key) { chartMessage(SB ? 'Pick an objective to see its history.' : 'Pick a stat to see its history.'); return; }
     let series, res, servers;
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
@@ -382,7 +352,8 @@
     }
     if (my !== cgen || g !== gen) return;
     const o = {
-      series, from: res.effective_from, to: res.to, liveAt: liveAt(servers), height: 280,
+      series, from: res.effective_from, to: res.to, liveAt: liveAt(), height: 280,
+      zero: !S.kit.ranged(st), axis: S.kit.axis(SB ? 'scoreboard' : st.cat, st.key),
       format: v => (v === 0 ? '0' : disp(v).text),
       emptyText: 'Nothing recorded for ' + label().full + ' in this range yet.',
     };
@@ -425,7 +396,7 @@
   async function loadStat() {
     const my = ++gen;
     resetStat();
-    if (!st.key) { drawChart(); return; }
+    if (off || !st.key) { drawChart(); return; }
     await loadBoard(my);
     if (my !== gen) return;
     drawChart();
@@ -436,9 +407,11 @@
   async function load(scopeChange) {
     const my = ++gen, km = ++kgen;
     info = S.scopeInfo(meta, st.scope);
+    off = S.kit.untracked(meta, st.scope, KIND);
     keys = null; keysErr = null;
     paintBrowse();
     resetStat();
+    if (off) { drawChart(); return; }
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
     if (SB && (!st.key || scopeChange)) {
       // the default objective is the first one in this scope's list
