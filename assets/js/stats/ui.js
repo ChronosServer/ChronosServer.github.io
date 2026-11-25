@@ -365,9 +365,11 @@
     function render(data) {
       items = [];
       list.innerHTML = '';
-      const players = (data && data.players) || [];
-      const stats = (data && data.stats) || [];
-      const objectives = (data && data.objectives) || [];
+      // opts.types (e.g. ['players']) limits the groups shown
+      const want = g => !opts.types || opts.types.includes(g);
+      const players = (want('players') && data && data.players) || [];
+      const stats = (want('stats') && data && data.stats) || [];
+      const objectives = (want('objectives') && data && data.objectives) || [];
       if (players.length) {
         list.appendChild(heading('Players', 'st-ac-group'));
         players.forEach(p => {
@@ -413,7 +415,7 @@
             (o.servers && o.servers.length ? ' <span class="st-ac-meta">' + esc(o.servers.join(', ')) + '</span>' : '')));
         });
       }
-      if (!items.length) list.appendChild(heading('No players, stats or objectives match that.', 'st-ac-none'));
+      if (!items.length) list.appendChild(heading(opts.noneText || 'No players, stats or objectives match that.', 'st-ac-none'));
       hydrate(list);
       place();
       show(list, true);

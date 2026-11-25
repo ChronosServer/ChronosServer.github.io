@@ -19,6 +19,11 @@
  *             st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head st-ex-title
  *             st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot
  *             st-ex-moreerr
+ *   player    st-pl st-pl-landing st-pl-lede st-pl-top (.st-pl-big) st-pl-find st-pl-ctl st-pl-head
+ *             st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-tiles st-pl-sh st-pl-n st-pl-see
+ *             st-pod-more st-pl-graph st-pl-range st-pl-chart st-pl-tabs st-pl-panel st-pl-filt
+ *             st-pl-one st-pl-rk st-pl-top1 st-pl-row st-pl-quiet st-pl-early st-pl-intro st-pl-by
+ *             st-pl-ek st-pl-link st-pl-trend st-pl-empty st-pl-none
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
  */
 :root{--cmp:#c9b37e;--st-tint:color-mix(in srgb,var(--teal) 22%,transparent);--st-pop:rgba(8,11,13,.97)}
@@ -206,6 +211,78 @@ input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans
 .st-ex-board .panel.err{margin:1rem 1.1rem}
 .st-ex-moreerr{flex:1 1 220px;color:#ffb9a8}
 
+/* ---- player page (dossier) */
+.st-pl-landing[hidden],#pl-body[hidden]{display:none}
+.st-pl-lede{margin:0 0 1.2rem;max-width:34rem;font:400 1.05rem/1.5 var(--sans);color:var(--ink)}
+.st-pl-landing .panel.err{margin:0 0 1.2rem}
+.st-pl-top{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;margin:0 0 1.8rem}
+.st-pl-find{position:relative;flex:0 1 300px;min-width:min(240px,100%)}
+.st-pl-find input{width:100%;min-width:0}
+.st-pl-ctl{flex:1 1 380px;min-width:0}
+.st-pl-ctl .st-controls{margin:0}
+.st-pl-big .st-pl-find{flex:1 1 100%;max-width:560px}
+.st-pl-big .st-pl-find input{padding:.8rem 1rem;font:400 1rem var(--sans)}
+.st-pl-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1.2rem 2rem;align-items:end;margin:0 0 1.6rem}
+.st-ph h1{margin:0 0 .6rem}
+.st-pl-skin{position:relative;display:block;width:110px;min-height:72px}
+.st-pl-skin::before{content:"";position:absolute;left:-18%;right:-18%;bottom:-8px;height:26px;background:radial-gradient(closest-side,color-mix(in srgb,var(--teal) 38%,transparent),transparent);pointer-events:none}
+.st-pl-skin img{position:relative;display:block;animation:st-pl-drop .7s var(--ease) .1s both}
+.st-pl-skin .st-head{width:72px;height:72px}
+@keyframes st-pl-drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+.st-pl-ones{display:block;text-align:right;text-decoration:none;color:inherit}
+.st-pl-ones .st-bigcount{font-variant-numeric:tabular-nums;transition:color .2s}
+.st-pl-ones:hover .st-bigcount{color:var(--teal)}
+.st-pl-ones:focus-visible{outline-offset:6px}
+.st-pl-bot{border-color:rgba(229,169,60,.55);color:var(--amber)}
+.st-pl-anon{font-style:italic}
+.st-pl-tiles .st-v{font-size:1.55rem}
+.st-sec > h2 .st-pl-n,.st-pl-sh .st-pl-n{margin-left:.5rem;font:400 .8rem var(--mono);letter-spacing:0;color:var(--mute)}
+.st-pl-sh{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:baseline;justify-content:space-between;margin:0 0 1rem}
+.st-pl-sh h2{margin:0}
+.st-pl-see{margin-left:0}
+.st-pl-empty{margin:0;font-size:.88rem;color:var(--mute)}
+button.st-pod{width:100%;margin:0;border-top:0;border-left:0;border-radius:0;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:background-color .2s;animation:up .45s var(--ease) both;animation-delay:calc(var(--i,0) * 45ms)}
+button.st-pod:hover{background:rgba(14,20,23,.85)}
+button.st-pod:focus-visible{outline-offset:-2px}
+.st-pod > .st-icon,.st-pod > .st-letter{width:40px;height:40px}
+.st-pod-more{display:flex;flex-direction:column;justify-content:center;gap:.25rem;font:600 1.05rem var(--mono);color:#fff}
+.st-pod-more small{font:400 .72rem var(--mono);color:var(--mute)}
+.st-pod-more:hover small{color:var(--teal)}
+.st-pl-graph{scroll-margin-top:5.5rem}
+.st-pl-graph:focus{outline:none}
+.st-pl-range{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.st-pl-chart .st-note{margin:0;padding:0 1.2rem .9rem}
+.st-pl-tabs{scroll-margin-top:5rem}
+.st-pl-panel:focus{outline:none}
+.st-pl-panel > .st-empty{padding:2rem 1.1rem}
+.st-pl-filt .st-seg{flex:1 1 100%}
+.st-pl-filt .st-sel{min-width:min(200px,100%)}
+.st-pl-one{flex:none;margin:0;padding:.38rem .9rem;background:var(--panel);border:1px solid var(--line);border-radius:2px;color:var(--mute);font:500 .72rem var(--mono);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:color .15s,background-color .15s,border-color .15s}
+.st-pl-one small{margin-left:.35rem;letter-spacing:0;opacity:.85}
+.st-pl-one:hover{color:#fff}
+.st-pl-one.on{color:#fff;border-color:var(--teal);background:var(--st-tint)}
+.st-pl-rk{color:var(--mute)}
+.st-pl-rk small{font-size:.74rem}
+.st-pl-top1{color:var(--teal);font-weight:600}
+.st-pl-top1 small{font-weight:400;color:var(--mute)}
+.st-pl-panel .st-table td > span:not([class]){color:var(--mute)}
+.st-pl-row{width:100%;margin:0;background:none;border:0;border-top:1px solid var(--line);font:inherit;color:inherit;text-align:left;cursor:pointer}
+.st-pl-row:first-child{border-top:0}
+.st-pl-row:hover{background:rgba(235,232,230,.04)}
+.st-pl-row:focus-visible{outline-offset:-2px}
+.st-pl-row > .st-icon,.st-pl-row > .st-letter{width:28px;height:28px}
+.st-pl-quiet{margin:0;padding:1.4rem 1.1rem .6rem;border-top:1px solid var(--line);font:500 .68rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
+.st-pl-early{opacity:.72}
+.st-pl-intro{margin:0;padding:.9rem 1.1rem;border-bottom:1px solid var(--line);font-size:.86rem;color:var(--mute)}
+.st-pl-by{color:var(--amber)}
+.st-pl-ek{color:var(--mute);font-family:var(--sans);font-size:.82rem}
+.st-pl-link{margin:0;padding:0;background:none;border:0;font:inherit;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
+.st-pl-link span{color:inherit}
+.st-pl-link:hover{color:#fff;text-decoration-color:var(--teal)}
+.st-pl-trend.on{color:var(--teal)}
+.st-pl-none{margin-top:1rem}
+.st-pl-none a{color:var(--teal)}
+
 /* ---- heads, item icons, fallback squares (S.ui) */
 .st-head,.st-icon{flex:none;display:inline-block;vertical-align:middle;image-rendering:pixelated}
 .st-letter{flex:none;display:inline-grid;place-items:center;vertical-align:middle;overflow:hidden;background:color-mix(in srgb,var(--teal) 12%,transparent);border:1px solid color-mix(in srgb,var(--teal) 35%,transparent);font:700 .62rem/1 var(--display);color:var(--teal);text-transform:uppercase}
@@ -307,9 +384,16 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
   .st-feed-d{grid-column:2}
   .st-table th,.st-table td{padding-left:.7rem;padding-right:.7rem}
   .st-controls .st-synced{margin-left:0}
+  .st-pl-head{grid-template-columns:1fr}
+  .st-pl-ones{display:flex;align-items:baseline;gap:.8rem;text-align:left}
+  .st-pl-ones .st-bigcount{font-size:2.6rem}
+  .st-pl-ones .st-bigcount + p{margin:0}
+  .st-pl-skin{width:72px}
+  .st-pod{padding:.8rem .9rem}
 }
 
 /* ---- reduced motion: no transitions (chart draw-in is skipped in chart.js) */
 @media (prefers-reduced-motion:reduce){
-  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-again,.st-ex-cat{transition:none}
+  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-again,.st-ex-cat,.st-pl-one,.st-pl-ones .st-bigcount,button.st-pod{transition:none}
+  .st-pl-skin img,button.st-pod{animation:none}
 }
