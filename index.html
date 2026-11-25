@@ -43,9 +43,11 @@ bg: chronos_spawn
 
 <section class="sec" id="explore">
   <h2 class="reveal">Explore</h2>
-  {% assign td = "0,60,110,150,185,215" | split: "," %}{% assign n = 0 %}
+  {% assign td = "0,60,110,150,185,215,240" | split: "," %}{% assign n = 0 %}
+  {% comment %}sections with sub-pages (children in nav.yml) lead the grid as a full-width tile{% endcomment %}
+  {% assign parents = site.data.nav | where_exp: "l", "l.children" %}{% assign singles = site.data.nav | where_exp: "l", "l.children == nil" %}{% assign explore = parents | concat: singles %}
   <div class="tiles">
-    {% for l in site.data.nav %}{% unless l.url == "/" or l.url == "/gallery/" %}<a class="tile reveal" style="--d:{{ td[n] }}ms" href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><span class="k">{{ l.title }}</span><span class="n" id="t-{{ l.title | slugify }}">{{ l.hint | default: "-" }}</span><span class="d">{{ l.desc }}</span></a>{% assign n = n | plus: 1 %}{% endunless %}{% endfor %}
+    {% for l in explore %}{% unless l.url == "/" or l.url == "/gallery/" %}<a class="tile reveal" style="--d:{{ td[n] }}ms{% if l.children %};grid-column:1/-1{% endif %}" href="{{ l.url }}"{% if l.blank %} target="_blank" rel="noopener"{% endif %}><span class="k">{{ l.title }}</span><span class="n" id="t-{{ l.title | slugify }}">{{ l.hint | default: "-" }}</span><span class="d">{{ l.desc }}</span></a>{% assign n = n | plus: 1 %}{% endunless %}{% endfor %}
   </div>
 </section>
 
