@@ -98,8 +98,8 @@ and `/api/stats/*` (Stats API, below).
 ## Stats section
 Frontend for the bot's read-only `/api/stats/*` (FastAPI behind nginx). Contract:
 `STATS_API.md` (owner's copy, committed) — build against it, don't invent fields; if a live
-response disagrees, report it (backend gets fixed, not worked around). `STATS_PLAN.md` /
-`STATS_FRONTEND_PROMPT.md` are the scope and kickoff docs. Open backend issues go in
+response disagrees, report it (backend gets fixed, not worked around). `STATS_PLAN.md` is
+the scope doc. Open backend issues go in
 `TEMP_FOR_BOT.md` (owner scratch note, gitignored, like all `TEMP_*.md`).
 
 **Structure**
