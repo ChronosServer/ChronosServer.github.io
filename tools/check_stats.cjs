@@ -11,7 +11,7 @@
  *
  * Not failures: /cache/items/ 404s (missing item icons are expected), errors from the
  * third-party head services (crafatar.com, mc-heads.net), and API 404s on pages whose URL
- * contains "p=" (an unknown player is a valid state).
+ * contains "p=" or "players=" (an unknown player is a valid state).
  */
 const fs = require('fs');
 const os = require('os');
@@ -53,7 +53,7 @@ function expected(url, status, pageUrl, origin) {
   try { u = new URL(url); } catch { return false; }
   if (u.origin !== origin) return true;               // only same-origin responses are checked
   if (status === 404 && u.pathname.startsWith('/cache/items/')) return true;
-  if (status === 404 && u.pathname.startsWith('/api/') && /[?&]p=/.test(pageUrl)) return true;
+  if (status === 404 && u.pathname.startsWith('/api/') && /[?&](p|players)=/.test(pageUrl)) return true;
   return false;
 }
 

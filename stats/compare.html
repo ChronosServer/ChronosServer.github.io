@@ -1,0 +1,38 @@
+---
+layout: stats
+permalink: /stats/compare/
+title: Compare
+bg: chronos_spawn
+page_js: compare
+---
+<div class="page st-cmp" id="cmp-root">
+  <h1>Compare</h1>
+  <div class="st-cmp-pick">
+    <section class="panel st-cmp-box" aria-labelledby="cmp-ph">
+      <div class="st-cmp-bh"><h2 class="st-lab" id="cmp-ph">Players</h2><span class="st-cmp-n" id="cmp-pn"></span></div>
+      <ul class="st-cmp-chips" id="cmp-players" aria-label="Players being compared"></ul>
+      <div class="st-cmp-add"><input class="st-sel" id="cmp-pq" type="search" placeholder="Add a player" aria-label="Add a player"></div>
+      <p class="st-cmp-boxnote" id="cmp-pnote" role="status"></p>
+    </section>
+    <section class="panel st-cmp-box" aria-labelledby="cmp-kh">
+      <div class="st-cmp-bh"><h2 class="st-lab" id="cmp-kh">Stats</h2><span class="st-cmp-n" id="cmp-kn"></span></div>
+      <ul class="st-cmp-chips" id="cmp-keys" aria-label="Stats being compared"></ul>
+      <div class="st-cmp-add"><input class="st-sel" id="cmp-kq" type="search" placeholder="Add a stat or objective" aria-label="Add a stat or scoreboard objective"></div>
+      <p class="st-cmp-boxnote" id="cmp-knote" role="status"></p>
+      <div class="st-cmp-quick" id="cmp-quick"></div>
+    </section>
+  </div>
+  <div id="cmp-controls"></div>
+  <div id="cmp-msg" aria-live="polite"></div>
+  <div id="cmp-app">
+    <section class="panel st-cmp-graph" id="cmp-graph" tabindex="-1" aria-labelledby="cmp-ctitle">
+      <div class="st-cmp-gh"><div><span class="st-lab" id="cmp-ccat">Stat</span><h2 class="st-ex-name" id="cmp-ctitle">–</h2></div></div>
+      <div id="cmp-chart"></div>
+      <div class="st-note" id="cmp-note"></div>
+    </section>
+    <section class="panel st-cmp-board" aria-labelledby="cmp-th">
+      <div class="st-ex-bh"><h2 class="st-h2" id="cmp-th">Side by side</h2><span class="st-ex-hint" id="cmp-hint"></span></div>
+      <div id="cmp-table"></div>
+    </section>
+  </div>
+</div>
