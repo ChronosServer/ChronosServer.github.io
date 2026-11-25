@@ -11,7 +11,7 @@
  *                 st-ac-none active
  *   tabs          st-tabs st-tab st-tab-count on
  *   table         st-table-wrap st-table st-num st-sort st-sort-ind st-row-link
- *                 st-table-foot st-table-count st-more
+ *                 st-pager st-pager-count st-pager-btns st-pg st-pg-prev st-pg-next st-pg-gap
  *   states        st-empty (site classes panel err for errors)
  *   data attrs    data-kind, data-value, data-type, data-id, data-col
  * Inline styles are limited to sizes of fallback squares, hiding (style.display) and
@@ -521,11 +521,66 @@
   // column.sort: true sorts by row[id], a function sorts by its return value; num columns
   // sort descending first, text columns ascending. sortBy: column id; sortDir: "asc"|"desc"
   // overrides that default.
+  // ---- pager: "‹ 1 … 39 40 41 … 80 ›" plus "Showing 1,951–2,000 of 4,000". Pages are 1-based.
+  // Renders nothing when everything fits on one page. Used by S.ui.table and server-paged lists.
+  function pager(el, o) {
+    const size = o.pageSize || 50;
+    let total = o.total || 0, cur = o.page || 1, nav = null;
+    const nf = n => n.toLocaleString('en-GB');
+    function pages(last) {
+      const want = new Set([1, last, cur - 1, cur, cur + 1].filter(n => n >= 1 && n <= last));
+      const out = [];
+      let prev = 0;
+      Array.from(want).sort((a, b) => a - b).forEach(n => {
+        if (n - prev === 2) out.push(prev + 1);          // a gap of one page shows that page
+        else if (n - prev > 2) out.push(null);
+        out.push(n);
+        prev = n;
+      });
+      return out;
+    }
+    function render() {
+      const last = Math.max(1, Math.ceil(total / size));
+      cur = Math.min(Math.max(1, cur), last);
+      if (total <= size) { if (nav) { nav.remove(); nav = null; } return; }
+      if (!nav) {
+        nav = document.createElement('nav');
+        nav.className = 'st-pager';
+        nav.setAttribute('aria-label', 'Pages');
+        nav.addEventListener('click', e => {
+          const b = e.target.closest('button[data-page]');
+          if (!b || b.disabled) return;
+          const n = +b.dataset.page;
+          if (n === cur) return;
+          cur = n;
+          render();
+          if (o.onPage) o.onPage(n);
+          const top = el.getBoundingClientRect().top;
+          if (top < 0 && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+        });
+        el.appendChild(nav);
+      }
+      const from = (cur - 1) * size + 1, to = Math.min(total, cur * size);
+      const btn = (n, cls, label, aria) => '<button type="button" class="' + cls + '" data-page="' + n + '"' +
+        (aria ? ' aria-label="' + aria + '"' : '') + (n === cur && cls === 'st-pg' ? ' aria-current="page"' : '') +
+        ((cls !== 'st-pg' && (n < 1 || n > last)) ? ' disabled' : '') + '>' + label + '</button>';
+      nav.innerHTML = '<span class="st-pager-count">Showing ' + nf(from) + '–' + nf(to) + ' of ' + nf(total) + '</span>' +
+        '<span class="st-pager-btns">' + btn(cur - 1, 'st-pg-prev', '‹', 'Previous page') +
+        pages(last).map(n => n == null ? '<span class="st-pg-gap" aria-hidden="true">…</span>' : btn(n, 'st-pg', String(n))).join('') +
+        btn(cur + 1, 'st-pg-next', '›', 'Next page') + '</span>';
+    }
+    render();
+    return {
+      set(t, p) { total = t || 0; if (p != null) cur = p; render(); },
+      get page() { return cur; },
+    };
+  }
+
   function table(el, o) {
     const columns = o.columns || [];
     const pageSize = o.pageSize || 50;
     let rows = (o.rows || []).slice();
-    let shown = pageSize;
+    let page = 1;
     let sortId = null, sortDir = 1;
     if (o.sortBy) {
       const c = columns.find(x => x.id === o.sortBy);
@@ -557,12 +612,7 @@
     t.appendChild(thead); t.appendChild(tbody);
     wrap.appendChild(t);
     el.appendChild(wrap);
-    const foot = document.createElement('div');
-    foot.className = 'st-table-foot';
-    foot.innerHTML = '<span class="st-table-count"></span> <button type="button" class="st-more">Load more</button>';
-    el.appendChild(foot);
-    const count = foot.querySelector('.st-table-count');
-    const more = foot.querySelector('.st-more');
+    const pg = pager(el, { total: 0, pageSize, page: 1, onPage: n => { page = n; paint(); } });
 
     function sortVal(c, r) { return typeof c.sort === 'function' ? c.sort(r) : r[c.id]; }
     function applySort() {
@@ -591,13 +641,11 @@
       });
     }
     function paint() {
-      const n = Math.min(shown, rows.length);
-      tbody.innerHTML = rows.slice(0, n).map((r, i) =>
-        '<tr data-i="' + i + '"' + (o.onRow ? ' class="st-row-link" tabindex="0"' : '') + '>' + o.rowHtml(r) + '</tr>').join('');
+      const start = (page - 1) * pageSize;
+      tbody.innerHTML = rows.slice(start, start + pageSize).map((r, i) =>
+        '<tr data-i="' + (start + i) + '"' + (o.onRow ? ' class="st-row-link" tabindex="0"' : '') + '>' + o.rowHtml(r) + '</tr>').join('');
       hydrate(tbody);
-      count.textContent = rows.length > pageSize ? 'Showing ' + n.toLocaleString('en-GB') + ' of ' + rows.length.toLocaleString('en-GB') : '';
-      show(more, n < rows.length);
-      show(foot, rows.length > pageSize);
+      pg.set(rows.length, page);
       paintHead();
     }
     htr.addEventListener('click', e => {
@@ -607,11 +655,10 @@
       const c = columns.find(x => x.id === id);
       if (id === sortId) sortDir = -sortDir;
       else { sortId = id; sortDir = c.num ? -1 : 1; }
-      shown = pageSize;
+      page = 1;
       applySort();
       paint();
     });
-    more.addEventListener('click', () => { shown += pageSize; paint(); });
     if (o.onRow) {
       const act = e => {
         const tr = e.target.closest('tr[data-i]');
@@ -624,7 +671,8 @@
     applySort();
     paint();
     return {
-      setRows(next) { rows = (next || []).slice(); shown = pageSize; applySort(); paint(); },
+      setRows(next) { rows = (next || []).slice(); page = 1; applySort(); paint(); },
+      page(n) { page = n; paint(); },
     };
   }
 
@@ -634,7 +682,7 @@
     el.innerHTML = '<div class="panel err" role="alert">' + esc(msg) + '</div>';
   }
 
-  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, empty, error,
+  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, empty, error,
            splitScopes, dayStart, dayEnd };
   if (typeof module !== 'undefined') module.exports = S.ui;
 })(typeof window !== 'undefined' ? window : globalThis);

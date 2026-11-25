@@ -470,6 +470,13 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 .st-table-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.8rem;padding:.8rem 1.1rem;border-top:1px solid var(--line);font:400 .74rem var(--mono);color:var(--mute)}
 .st-more{margin:0;padding:.4rem .9rem;background:none;border:1px solid var(--line);border-radius:2px;color:var(--ink);font:500 .7rem var(--mono);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:border-color .15s,color .15s}
 .st-more:hover{color:#fff;border-color:var(--teal)}
+.st-pager{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.6rem .8rem;padding:.7rem 1.1rem;border-top:1px solid var(--line);font:400 .74rem var(--mono);color:var(--mute)}
+.st-pager-btns{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem}
+.st-pg,.st-pg-prev,.st-pg-next{min-width:2rem;margin:0;padding:.35rem .5rem;background:none;border:1px solid var(--line);border-radius:2px;color:var(--ink);font:500 .72rem var(--mono);font-variant-numeric:tabular-nums;cursor:pointer;transition:border-color .15s,color .15s}
+.st-pg:hover,.st-pg-prev:hover:not(:disabled),.st-pg-next:hover:not(:disabled){color:#fff;border-color:var(--teal)}
+.st-pg[aria-current=page]{color:#fff;border-color:var(--teal);background:color-mix(in srgb,var(--teal) 18%,transparent)}
+.st-pg-prev:disabled,.st-pg-next:disabled{opacity:.35;cursor:default}
+.st-pg-gap{padding:0 .2rem}
 
 /* ---- search autocomplete (S.ui.autocomplete); position is set inline */
 .st-ac{max-height:min(380px,60vh);margin:4px 0 0;padding:.3rem 0;overflow-y:auto;list-style:none;background:var(--st-pop);border:1px solid var(--line);border-radius:3px;box-shadow:0 14px 30px rgba(0,0,0,.45)}
@@ -534,6 +541,6 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 
 /* ---- reduced motion: no transitions (chart draw-in is skipped in chart.js) */
 @media (prefers-reduced-motion:reduce){
-  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-again,.st-ex-cat,.st-pl-one,.st-pl-ones .st-bigcount,button.st-pod,.st-cmp-x,.st-cmp-qbtn,.st-cmp-busy{transition:none}
+  .st-seg-btn,.st-tab,.st-tab::after,.st-tile,.st-more,.st-pg,.st-pg-prev,.st-pg-next,.st-again,.st-ex-cat,.st-pl-one,.st-pl-ones .st-bigcount,button.st-pod,.st-cmp-x,.st-cmp-qbtn,.st-cmp-busy{transition:none}
   .st-pl-skin img,button.st-pod{animation:none}
 }

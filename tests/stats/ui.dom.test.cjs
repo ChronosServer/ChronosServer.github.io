@@ -183,23 +183,60 @@ test('table sorts and pages', async () => {
   await mount();
   await page.evaluate(() => {
     const rows = Array.from({ length: 120 }, (_, i) => ({ name: 'p' + i, value: i }));
-    S.ui.table(document.getElementById('c'), {
+    window.tbl = S.ui.table(document.getElementById('c'), {
       columns: [{ id: 'name', label: 'Player' }, { id: 'value', label: 'Value', num: true, sort: true }],
       rows, rowHtml: r => '<td>' + S.fmt.esc(r.name) + '</td><td>' + r.value + '</td>',
     });
   });
   assert.equal(await page.locator('#c tbody tr').count(), 50);
-  await page.click('#c button.st-more');
-  assert.equal(await page.locator('#c tbody tr').count(), 100);
-  await page.click('#c button.st-more');
-  assert.equal(await page.locator('#c tbody tr').count(), 120);
-  assert.equal(await page.locator('#c button.st-more').isVisible(), false);
+  assert.ok((await page.textContent('#c .st-pager')).includes('Showing 1–50 of 120'));
+  await page.click('#c .st-pg[data-page="3"]');
+  assert.equal(await page.locator('#c tbody tr').count(), 20);
+  assert.equal(await page.textContent('#c tbody tr:first-child td:first-child'), 'p100');
+  assert.equal(await page.getAttribute('#c .st-pg[data-page="3"]', 'aria-current'), 'page');
   await page.click('#c th[data-col=value] button');
   assert.equal(await page.getAttribute('#c th[data-col=value]', 'aria-sort'), 'descending');
   assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '119');
   assert.equal(await page.locator('#c tbody tr').count(), 50);
+  await page.click('#c .st-pg-next');
+  assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '69');
   await page.click('#c th[data-col=value] button');
   assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '0');
+});
+
+test('pager hides for one page', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 50 }, (_, i) => ({ name: 'p' + i, value: i }));
+    S.ui.table(document.getElementById('c'), {
+      columns: [{ id: 'name', label: 'Player' }], rows, rowHtml: r => '<td>' + r.name + '</td>',
+    });
+  });
+  assert.equal(await page.locator('#c tbody tr').count(), 50);
+  assert.equal(await page.locator('#c .st-pager').count(), 0);
+});
+
+test('pager gaps and ends', async () => {
+  await mount();
+  const got = await page.evaluate(() => {
+    const el = document.getElementById('c');
+    const seen = [];
+    const pg = S.ui.pager(el, { total: 4000, pageSize: 50, page: 40, onPage: n => seen.push(n) });
+    const labels = Array.from(el.querySelectorAll('.st-pg, .st-pg-gap')).map(b => b.textContent);
+    const cur = el.querySelector('[aria-current="page"]').textContent;
+    const count = el.querySelector('.st-pager-count').textContent;
+    el.querySelector('.st-pg-next').click();
+    pg.set(4000, 1);
+    const prevDisabled = el.querySelector('.st-pg-prev').disabled;
+    pg.set(30, 1);
+    return { labels, cur, count, seen, prevDisabled, gone: el.querySelector('.st-pager') === null };
+  });
+  assert.deepEqual(got.labels, ['1', '…', '39', '40', '41', '…', '80']);
+  assert.equal(got.cur, '40');
+  assert.equal(got.count, 'Showing 1,951–2,000 of 4,000');
+  assert.deepEqual(got.seen, [41]);
+  assert.equal(got.prevDisabled, true);
+  assert.equal(got.gone, true);
 });
 
 test('tabs, empty and error', async () => {

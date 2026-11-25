@@ -28,7 +28,7 @@
   const TABS = ['all', 'scoreboards', 'milestones', 'firsts', 'rivals'];
   const PODS = 7;          // "Number one in" cards before "+N more"
   const PAGE = 50;         // table rows per page
-  const MS_PAGE = 20;      // milestone rows per Load more
+  const MS_PAGE = 20;      // milestone rows per page
 
   const el = {
     landing: $('pl-landing'), lede: $('pl-lede'), msg: $('pl-msg'), top: $('pl-top'), q: $('pl-q'),
@@ -38,7 +38,7 @@
   let meta = null, st = null, info = null, prof = null, gen = 0, cgen = 0, chart = null;
   let tabs = null, curTab = 'all', customOpen = false;
   let rows = [];                                  // prof.stats with labels, for the All stats tab
-  let fText = '', fCat = '', fOnes = false, allTbl = null, msShown = MS_PAGE;
+  let fText = '', fCat = '', fOnes = false, allTbl = null, msPage = 1;
   let mergedFrom = '';                            // what the URL asked for, when the API answered with another player
   const get = S.memo();
 
@@ -448,20 +448,14 @@
     }
     const dated = list.filter(r => !r.earliest_known).sort((a, b) => b.at - a.at);
     const early = list.filter(r => r.earliest_known);
-    const n = Math.min(msShown, list.length);
-    const d = dated.slice(0, n), e = early.slice(0, Math.max(0, n - dated.length));
+    // one ordered list (dated newest first, then the before-tracking ones), cut into pages
+    const start = (msPage - 1) * MS_PAGE, end = start + MS_PAGE;
+    const d = dated.slice(start, end);
+    const e = early.slice(Math.max(0, start - dated.length), Math.max(0, end - dated.length));
     panel.innerHTML = (d.length ? '<div class="st-feed">' + d.map(milestoneRow).join('') + '</div>' : '') +
-      (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '') +
-      (list.length > MS_PAGE ? '<div class="st-table-foot"><span class="st-table-count">Showing ' + esc(fmtCount(n)) + ' of ' + esc(fmtCount(list.length)) + '</span>' +
-        (n < list.length ? '<button type="button" class="st-more" id="pl-msmore">Load more</button>' : '') + '</div>' : '');
+      (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '');
     S.ui.hydrate(panel);
-    const more = $('pl-msmore');
-    if (more) more.addEventListener('click', () => {
-      msShown += MS_PAGE;
-      paintMilestones(panel);
-      const next = panel.querySelectorAll('.st-pl-row')[n];
-      if (next) next.focus();
-    });
+    S.ui.pager(panel, { total: list.length, pageSize: MS_PAGE, page: msPage, onPage: n => { msPage = n; paintMilestones(panel); } });
   }
 
   function paintFirsts(panel) {
@@ -582,7 +576,7 @@
 
   async function load() {
     const my = ++gen;
-    fText = ''; fCat = ''; fOnes = false; msShown = MS_PAGE;
+    fText = ''; fCat = ''; fOnes = false; msPage = 1;
     ++cgen;
     info = S.scopeInfo(meta, st.scope);
     if (chart) { chart.destroy(); chart = null; }
