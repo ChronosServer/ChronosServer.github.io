@@ -36,7 +36,7 @@
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
  */
 :root{--cmp:#c9b37e;--st-c3:#7d9be0;--st-c4:#d4885a;--st-c5:#c77fb8;--st-c6:#d9d4c7;--st-tint:color-mix(in srgb,var(--teal) 22%,transparent);--st-pop:rgba(8,11,13,.97)}
-.st-tip[hidden],.st-ac[hidden],.st-empty[hidden],.st-custom[hidden]{display:none}
+.st-ex-reset[hidden],.st-tip[hidden],.st-ac[hidden],.st-empty[hidden],.st-custom[hidden]{display:none}
 
 /* ---- layout */
 .st-bar{display:flex;flex-wrap:wrap;gap:.8rem;align-items:center;justify-content:space-between;margin:1rem 0 1.6rem}

@@ -171,6 +171,10 @@
     return s || ((m && m.servers) || []).map(x => x.key);
   }
 
+  // Server keys to draw as separate lines for a scope (one per server, API order). Same set as
+  // scopeServers; a separate name so callers say what they mean.
+  const serverLines = (m, scope) => scopeServers(m, scope);
+
   // Where live 15-minute history starts for a scope: the LATEST of its servers'
   // live_started_at (STATS_API "Time ranges"). null when none of them has one.
   function liveAt(m, scope) {
@@ -210,8 +214,8 @@
 
   S.ApiError = ApiError; S.api = api; S.errorText = errorText; S.meta = meta;
   S.state = state; S.scopeInfo = scopeInfo; S.rangeParams = rangeParams;
-  S.scopeServers = scopeServers; S.liveAt = liveAt; S.tracked = tracked; S.memo = memo;
+  S.scopeServers = scopeServers; S.serverLines = serverLines; S.liveAt = liveAt; S.tracked = tracked; S.memo = memo;
   if (typeof module !== 'undefined') {
-    module.exports = { ApiError, api, errorText, meta, state, scopeInfo, rangeParams, scopeServers, liveAt, tracked, memo };
+    module.exports = { ApiError, api, errorText, meta, state, scopeInfo, rangeParams, scopeServers, serverLines, liveAt, tracked, memo };
   }
 })(typeof window !== 'undefined' ? window : globalThis);

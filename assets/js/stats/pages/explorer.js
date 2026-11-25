@@ -28,7 +28,6 @@
   const KIND = SB ? 'scoreboard' : 'stat';
   const DEF = SB ? { kind: KIND, cat: '', key: '' } : { kind: KIND, cat: 'minecraft:custom', key: 'minecraft:play_time' };
   const LINES = ['var(--teal)', 'var(--cmp)', '#8fa3c9', '#c98fa8', '#9cc48c', '#b59ad8', '#d49a6a', '#7cc4c9'];
-  const PARTS = ['var(--teal)', 'var(--cmp)', '#8fa3c9', '#c98fa8'];
   const STEP = 50;          // leaderboard rows per "Load more"
   const LIST_CAP = 250;     // key list rows rendered at once; the filter narrows the rest
 
@@ -44,6 +43,7 @@
   let mode = 'top';                  // chart mode: top | servers
   let board = null, boardErr = null, moreErr = null, limit = STEP, loadingMore = false;
   let picked = [];                   // uuids drawn in Top players, in click order
+  let defaultPicks = [];             // the top rows picked when the board first loaded
   const colorOf = new Map();         // uuid -> LINES index while picked
   const names = new Map();           // uuid -> display name
   const get = S.memo();
@@ -66,10 +66,14 @@
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
 
-  // Servers mode compares the top-level parts (smp vs cmps). Without /meta.scope_groups it
-  // falls back to the selected scope alone, which is no comparison, so the toggle hides.
+  // Servers mode: one line per server in the selected scope (smp -> SMP only, cmps -> each
+  // CMP, all -> every server), API order. Servers not tracking this page's kind are left out.
   function serverParts() {
-    return meta.scope_groups ? S.scopeInfo(meta, 'all').parts : [st.scope];
+    const flag = SB ? 'track_scoreboards' : 'track_stats';
+    return S.serverLines(meta, st.scope).filter(k => {
+      const s = (meta.servers || []).find(x => x.key === k);
+      return !s || s[flag] !== false;
+    });
   }
 
   // ---- wording for ranges
@@ -220,8 +224,11 @@
     const rows = board.rows || [];
     const delta = board.mode === 'delta';
     const hint = rows.length ? 'Click or press Enter on a row to add or remove its line (up to ' + maxLines() + ').' : '';
-    el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2><span class="st-ex-hint">' + esc(hint) + '</span></div>' +
+    el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2><span class="st-ex-hint">' + esc(hint) + '</span>' +
+      '<button type="button" class="st-again st-ex-reset" hidden>Reset to top ' + esc(defaultPicks.length) + '</button></div>' +
       '<div class="st-ex-tbl"></div>';
+    el.board.querySelector('.st-ex-reset').addEventListener('click', resetPicks);
+    paintReset();
     const tblEl = el.board.lastChild;
     if (!rows.length) { S.ui.empty(tblEl, boardEmpty()); return; }
     S.ui.table(tblEl, {
@@ -280,7 +287,8 @@
     board = res; boardErr = null; moreErr = null;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
-      picked = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
+      defaultPicks = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
+      picked = defaultPicks.slice();
       colorOf.clear();
       picked.forEach((u, i) => colorOf.set(u, i));
     }
@@ -301,7 +309,7 @@
 
   // ---- chart
   // Top players: the selected scope; Servers: every server (the parts of `all`).
-  const liveAt = () => S.liveAt(meta, mode === 'top' ? st.scope : 'all');
+  const liveAt = () => S.liveAt(meta, st.scope);
 
   function chartMessage(text, isErr) {
     if (chart) { chart.destroy(); chart = null; }
@@ -338,9 +346,9 @@
         series = uuids.map(u => ({ id: u, label: names.get(u) || u.slice(0, 8), color: LINES[colorOf.get(u)], points: ((res && res.series) || {})[u] || [] }));
       } else {
         const parts = serverParts();
-        servers = (meta.servers || []).map(s => s.key);
+        servers = parts;
         res = await get('totals', Object.assign(statParams(), { scopes: parts.join(','), include_bots: bots() }, S.rangeParams(st)));
-        series = parts.map((p, i) => ({ id: p, label: partLabel(p), color: PARTS[i % PARTS.length], points: ((res && res.series) || {})[p] || [] }));
+        series = parts.map((p, i) => ({ id: p, label: partLabel(p), color: LINES[i % LINES.length], points: ((res && res.series) || {})[p] || [] }));
       }
     } catch (err) {
       if (my !== cgen || g !== gen) return;
@@ -381,12 +389,31 @@
       picked.push(uuid); colorOf.set(uuid, c);
     }
     paintSwatches();
+    paintReset();
+    drawChart();
+  }
+
+  // The reset button shows only while the drawn players differ from the default top rows.
+  function paintReset() {
+    const b = el.board.querySelector('.st-ex-reset');
+    if (!b) return;
+    const same = picked.length === defaultPicks.length && defaultPicks.every(u => picked.includes(u));
+    b.hidden = same || !defaultPicks.length;
+  }
+
+  function resetPicks() {
+    picked = defaultPicks.slice();
+    colorOf.clear();
+    picked.forEach((u, i) => colorOf.set(u, i));
+    if (mode !== 'top') setMode('top');
+    paintSwatches();
+    paintReset();
     drawChart();
   }
 
   // ---- loading
   function resetStat() {
-    board = null; boardErr = null; moreErr = null; limit = STEP; picked = []; colorOf.clear();
+    board = null; boardErr = null; moreErr = null; limit = STEP; picked = []; defaultPicks = []; colorOf.clear();
     paintBoard(); paintHead();
   }
 
@@ -537,7 +564,6 @@
     else if (!(meta.categories || []).includes(st.cat) || !st.key) { st.cat = DEF.cat; st.key = DEF.key; }
     browseCat = SB ? null : st.cat;
     S.state.write(st);
-    if (serverParts().length < 2) el.mode.style.display = 'none';   // one line is no comparison
     let lastScope = st.scope;
     S.ui.controls(el.controls, meta, st, () => {
       const changed = st.scope !== lastScope;
