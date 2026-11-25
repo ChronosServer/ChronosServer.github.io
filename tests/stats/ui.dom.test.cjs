@@ -396,3 +396,36 @@ test('open autocomplete lifts its blurred panel above later panels', async () =>
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(() => document.getElementById('box').classList.contains('st-ac-host')), false);
 });
+
+test('pager keeps keyboard focus on page change', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({ name: 'p' + i, value: i }));
+    S.ui.table(document.getElementById('c'), {
+      columns: [{ id: 'name', label: 'Player' }], rows, rowHtml: r => '<td>' + r.name + '</td>',
+    });
+  });
+  await page.focus('#c .st-pg-next');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'st-pg-next');
+  await page.focus('#c .st-pg[data-page="3"]');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.page), '3');
+  assert.equal(await page.getAttribute('#c .st-pager-count', 'aria-live'), 'polite');
+});
+
+test('pager built with focus: true focuses the current page', async () => {
+  await mount();
+  const cur = await page.evaluate(() => {
+    S.ui.pager(document.getElementById('c'), { total: 300, pageSize: 50, page: 2, focus: true });
+    return document.activeElement.getAttribute('aria-current') + ':' + document.activeElement.textContent;
+  });
+  assert.equal(cur, 'page:2');
+});
+
+test('icon never loads a protocol-relative or foreign path', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('//evil.test/x', 20)));
+  await page.waitForSelector('#c .st-letter');
+  assert.ok(!requests.some(u => new URL(u).host === 'evil.test'));
+});

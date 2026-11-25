@@ -254,7 +254,9 @@ async function load() {
     $('stats').textContent = count((d.segments || []).length, 'segment', 'segments') + ' · ' +
       count((d.junctions || []).length, 'junction', 'junctions') + ' · ' + count((d.stations || []).length, 'station', 'stations') +
       ' · ' + count(d.total_length, 'block', 'blocks') + ' of bolt';
-    C.stamp($('stamp'), at);
+    // a scan is a one-off, so its age is information, not a warning: never amber
+    C.stamp($('stamp'), at, Infinity);
+    $('stamp').textContent = 'Scanned ' + C.ago(at);
     if (!d.progress || !d.progress.complete) {
       // the scanner is still running: show progress and check again shortly
       msg.hidden = false;

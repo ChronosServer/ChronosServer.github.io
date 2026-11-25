@@ -38,7 +38,7 @@
   let meta = null, st = null, info = null, prof = null, gen = 0, cgen = 0, chart = null;
   let tabs = null, curTab = 'all', customOpen = false;
   let rows = [];                                  // prof.stats with labels, for the All stats tab
-  let fText = '', fCat = '', fOnes = false, allTbl = null, msPage = 1;
+  let fText = '', fCat = '', fOnes = false, allTbl = null, msPage = 1, msFocus = false;
   let mergedFrom = '';                            // what the URL asked for, when the API answered with another player
   const get = S.memo();
 
@@ -463,7 +463,8 @@
     panel.innerHTML = (d.length ? '<div class="st-feed">' + d.map(milestoneRow).join('') + '</div>' : '') +
       (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '');
     S.ui.hydrate(panel);
-    S.ui.pager(panel, { total: list.length, pageSize: MS_PAGE, page: msPage, onPage: n => { msPage = n; paintMilestones(panel); } });
+    S.ui.pager(panel, { total: list.length, pageSize: MS_PAGE, page: msPage, onPage: n => { msPage = n; msFocus = true; paintMilestones(panel); }, focus: msFocus });
+    msFocus = false;
   }
 
   function paintFirsts(panel) {

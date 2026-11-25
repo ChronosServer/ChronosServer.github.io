@@ -41,7 +41,7 @@
   let keys = null, keysErr = null;   // /keys for the scope
   let browseCat = null;              // category shown in the key list (stats only)
   let mode = 'top';                  // chart mode: top | servers
-  let board = null, boardErr = null, pageErr = null, page = 1;
+  let board = null, boardErr = null, pageErr = null, page = 1, shownPage = 1, pageSeq = 0, focusPager = false;
   let picked = [];                   // uuids drawn in Top players, in click order
   let defaultPicks = [];             // the top rows picked when the board first loaded
   const colorOf = new Map();         // uuid -> LINES index while picked
@@ -253,25 +253,28 @@
       e.textContent = S.errorText(pageErr) + ' Pick the page again to retry.';
       tblEl.appendChild(e);
     }
-    S.ui.pager(tblEl, { total: board.total_count || 0, pageSize: PAGE, page, onPage: n => goPage(n) });
+    // a page change rebuilds the board: focus lands back on the pager for keyboard users
+    S.ui.pager(tblEl, { total: board.total_count || 0, pageSize: PAGE, page, onPage: n => goPage(n), focus: focusPager });
+    focusPager = false;
   }
 
   // `keep`: a page change. A failure then keeps the page already shown and says so.
   async function loadBoard(my, keep) {
+    const seq = ++pageSeq;   // only the latest page request may paint
     const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), limit: PAGE, offset: (page - 1) * PAGE }, S.rangeParams(st));
     let res;
     try {
       res = await get('leaderboard', req);
     } catch (err) {
-      if (my !== gen) return false;
-      if (keep && board) { page = keep.prev; pageErr = err; paintBoard(); return false; }
+      if (my !== gen || seq !== pageSeq) return false;
+      if (keep && board) { page = keep.prev; pageErr = err; focusPager = true; paintBoard(); return false; }
       boardErr = err; board = null;
       paintBoard(); paintHead();
       return false;
     }
-    if (my !== gen) return false;
+    if (my !== gen || seq !== pageSeq) return false;
     const first = !board;
-    board = res; boardErr = null; pageErr = null;
+    board = res; boardErr = null; pageErr = null; shownPage = page;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
       defaultPicks = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
@@ -284,9 +287,9 @@
   }
 
   async function goPage(n) {
-    const prev = page;
     page = n;
-    await loadBoard(gen, { prev });
+    focusPager = true;
+    await loadBoard(gen, { prev: shownPage });
   }
 
   // ---- chart
@@ -395,7 +398,7 @@
 
   // ---- loading
   function resetStat() {
-    board = null; boardErr = null; pageErr = null; page = 1; picked = []; defaultPicks = []; colorOf.clear();
+    board = null; boardErr = null; pageErr = null; page = 1; shownPage = 1; picked = []; defaultPicks = []; colorOf.clear();
     paintBoard(); paintHead();
   }
 

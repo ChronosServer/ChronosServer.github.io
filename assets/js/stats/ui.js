@@ -83,7 +83,8 @@
     img.loading = 'lazy';
     img.decoding = 'async';
     img.onerror = () => { missingIcons.add(id); img.onerror = null; swap(img, letter(l, size, 'st-icon')); };
-    img.src = id.charAt(0) === '/' ? id : '/cache/items/' + encodeURIComponent(id) + '.png';
+    // site images are allowed only from /assets/ (category pictures); anything else is an item id
+    img.src = /^\/assets\/[\w./-]+$/.test(id) && id.indexOf('..') < 0 ? id : '/cache/items/' + encodeURIComponent(id) + '.png';
     return img;
   }
 
@@ -578,16 +579,26 @@
         });
         el.appendChild(nav);
       }
+      // the buttons are re-drawn: keep focus on the same control (prev/next, else the current page)
+      const had = document.activeElement && nav.contains(document.activeElement) ? document.activeElement : null;
+      const again = had && (had.classList.contains('st-pg-prev') || had.classList.contains('st-pg-next')) ? '.' + had.className : '[aria-current=page]';
       const from = (cur - 1) * size + 1, to = Math.min(total, cur * size);
       const btn = (n, cls, label, aria) => '<button type="button" class="' + cls + '" data-page="' + n + '"' +
         (aria ? ' aria-label="' + aria + '"' : '') + (n === cur && cls === 'st-pg' ? ' aria-current="page"' : '') +
         ((cls !== 'st-pg' && (n < 1 || n > last)) ? ' disabled' : '') + '>' + label + '</button>';
-      nav.innerHTML = '<span class="st-pager-count">Showing ' + nf(from) + '–' + nf(to) + ' of ' + nf(total) + '</span>' +
+      nav.innerHTML = '<span class="st-pager-count" aria-live="polite">Showing ' + nf(from) + '–' + nf(to) + ' of ' + nf(total) + '</span>' +
         '<span class="st-pager-btns">' + btn(cur - 1, 'st-pg-prev', '‹', 'Previous page') +
         pages(last).map(n => n == null ? '<span class="st-pg-gap" aria-hidden="true">…</span>' : btn(n, 'st-pg', String(n))).join('') +
         btn(cur + 1, 'st-pg-next', '›', 'Next page') + '</span>';
+      if (had) {
+        let f = nav.querySelector(again);
+        if (!f || f.disabled) f = nav.querySelector('[aria-current=page]');
+        if (f) f.focus();
+      }
     }
     render();
+    // hosts that rebuild themselves on a page change pass focus: true to land on the new pager
+    if (o.focus && nav) { const c = nav.querySelector('[aria-current=page]'); if (c) c.focus(); }
     return {
       set(t, p) { total = t || 0; if (p != null) cur = p; render(); },
       get page() { return cur; },
