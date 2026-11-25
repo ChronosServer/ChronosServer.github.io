@@ -109,8 +109,7 @@
     const focused = el.cats.contains(document.activeElement) ? document.activeElement.dataset.cat : null;
     el.cats.innerHTML = (meta.categories || []).map(c => {
       const on = c === browseCat;
-      const first = catKeys(c)[0];
-      const art = hasIcon(c) && first ? S.ui.iconHtml(F.itemId(first), 18, catLabel(c).charAt(0)) : S.ui.iconHtml('', 18, catLabel(c).charAt(0));
+      const art = S.ui.iconHtml(F.catIcon(c) || '', 18, catLabel(c).charAt(0));
       const n = keys ? catKeys(c).length : null;
       return '<button type="button" class="st-ex-cat' + (on ? ' on' : '') + '" data-cat="' + esc(c) + '" aria-pressed="' + on + '">' +
         art + '<span>' + esc(catLabel(c)) + '</span>' + (n != null ? '<small>' + esc(fmtCount(n)) + '</small>' : '') + '</button>';

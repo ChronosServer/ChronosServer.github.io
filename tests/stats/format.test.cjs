@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { compact, display, statLabel, playerName, when, badge, spotlight } = require('../../assets/js/stats/format.js');
+const { compact, display, statLabel, playerName, when, badge, spotlight, catIcon } = require('../../assets/js/stats/format.js');
 
 test('compact', () => {
   assert.equal(compact(1552), '1,552'); assert.equal(compact(9999), '9,999');
@@ -37,7 +37,8 @@ test('badges', () => {
   assert.equal(badge('top1:50', B).name, 'Legend');
   assert.equal(badge('milestone:10000000', B).name, 'Ten-Millionaire');
   assert.equal(badge('cat:minecraft:picked_up:3', B).name, 'Collector III');
-  assert.equal(badge('cat:minecraft:picked_up:3', B).art, 'hopper');
+  assert.equal(badge('cat:minecraft:picked_up:3', B).art, 'netherrack');
+  assert.equal(badge('cat:minecraft:mined:2', {}).art, 'diamond_pickaxe');
   assert.equal(badge('veteran', B).name, 'Veteran');
   assert.equal(badge('night_owl', B).name, 'Night Owl');
   assert.equal(badge('firsts:20', B).tier, 0);              // retired tier
@@ -152,4 +153,17 @@ test('signed drops the sign when the value shows as 0', () => {
   assert.equal(F.signed('minecraft:custom', 'minecraft:play_time', 100).text, '0 min');
   assert.equal(F.signed('scoreboard', 'digs', 0.2).text, '0');
   assert.equal(F.signed('scoreboard', 'digs', -0.2).text, '0');
+});
+
+test('catIcon maps every category', () => {
+  assert.equal(catIcon('minecraft:broken'), '/assets/img/cat-broken.png');
+  assert.equal(catIcon('minecraft:crafted'), 'crafting_table');
+  assert.equal(catIcon('minecraft:custom'), 'player_head');
+  assert.equal(catIcon('minecraft:dropped'), 'dirt');
+  assert.equal(catIcon('minecraft:killed'), 'diamond_sword');
+  assert.equal(catIcon('minecraft:killed_by'), 'creeper_spawn_egg');
+  assert.equal(catIcon('minecraft:mined'), 'diamond_pickaxe');
+  assert.equal(catIcon('minecraft:picked_up'), 'netherrack');
+  assert.equal(catIcon('minecraft:used'), 'firework_rocket');
+  assert.equal(catIcon('minecraft:nope'), null);
 });

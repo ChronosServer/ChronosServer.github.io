@@ -124,7 +124,8 @@ the scope doc. Open backend issues go in
 **Data rules that matter**
 - Default scope `smp`. Servers/scopes show in API order, never sorted. Nothing hardcoded
   from data (categories, keys, objectives, servers, presets, limits, badges) except
-  `S.fmt.HEADLINES`.
+  `S.fmt.HEADLINES` and the owner's category pictures `S.fmt.catIcon` (a `/` path is a site
+  image, e.g. `assets/img/cat-broken.png`; anything else is an item id).
 - `earliest_known: 1` → "earliest known holder"/"before tracking", no date; `approximate: 1`
   → amber "by <date>". Dates `en-GB` short.
 - `live_started_at` for a multi-server scope is the latest of its servers' starts.

@@ -35,6 +35,7 @@ before(async () => {
   await page.route('**/*', route => {
     const u = route.request().url();
     if (/crafatar\.com|mc-heads\.net/.test(u)) return route.fulfill({ status: 500, body: 'down' });
+    if (u.includes('/assets/img/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/stone.png')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/')) return route.fulfill({ status: 404, body: 'nope' });
     if (u.includes('/api/stats/search')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SEARCH) });
@@ -75,6 +76,12 @@ test('icon fallback and memo', async () => {
   await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('stone')));
   await page.waitForFunction(() => { const i = document.querySelector('#c img.st-icon'); return i && i.complete && i.naturalWidth > 0; });
   assert.equal(await page.getAttribute('#c img.st-icon', 'src'), '/cache/items/stone.png');
+});
+
+test('icon accepts a site path', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('/assets/img/cat-broken.png', 20)));
+  assert.equal(await page.getAttribute('#c img.st-icon', 'src'), '/assets/img/cat-broken.png');
 });
 
 test('autocomplete escapes and navigates', async () => {

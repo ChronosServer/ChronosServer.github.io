@@ -81,7 +81,7 @@
     img.loading = 'lazy';
     img.decoding = 'async';
     img.onerror = () => { missingIcons.add(id); img.onerror = null; swap(img, letter(l, size, 'st-icon')); };
-    img.src = '/cache/items/' + encodeURIComponent(id) + '.png';
+    img.src = id.charAt(0) === '/' ? id : '/cache/items/' + encodeURIComponent(id) + '.png';
     return img;
   }
 

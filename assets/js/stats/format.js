@@ -19,7 +19,11 @@
   const TICK_KEYS = ['play_time', 'total_world_time', 'time_since_death', 'time_since_rest', 'sneak_time'];
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const ROMAN = ['I', 'II', 'III'];
-  const CAT_ART = { mined: 'diamond_pickaxe', used: 'bricks', crafted: 'crafting_table', picked_up: 'hopper' };
+  // Category pictures, chosen by the owner (curated like HEADLINES). A value starting with "/"
+  // is a site image; anything else is an item id under /cache/items/.
+  const CAT_ICON = { broken: '/assets/img/cat-broken.png', crafted: 'crafting_table', custom: 'player_head', dropped: 'dirt',
+    killed: 'diamond_sword', killed_by: 'creeper_spawn_egg', mined: 'diamond_pickaxe', picked_up: 'netherrack', used: 'firework_rocket' };
+  const catIcon = (category) => CAT_ICON[itemId(category)] || null;
 
   const itemId = (key) => String(key == null ? '' : key).replace(/^[^:]*:/, '');
   const sentence = (s) => { s = s.replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };
@@ -154,7 +158,7 @@
       const noun = NOUN[k] || titleCase(k);
       const thr = (badges.category_tiers || [])[t - 1];
       return {
-        name: ok ? noun + ' ' + ROMAN[t - 1] : noun, family: 'cat', tier: ok ? t : 0, art: CAT_ART[k] || null,
+        name: ok ? noun + ' ' + ROMAN[t - 1] : noun, family: 'cat', tier: ok ? t : 0, art: catIcon(cat),
         desc: catName(cat) + ' total' + (thr != null ? ' ≥ ' + compact(thr) : '')
       };
     }
@@ -201,6 +205,6 @@
     }
   }
 
-  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
+  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, catIcon, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
   if (typeof module !== 'undefined') module.exports = S.fmt;
 })(typeof window !== 'undefined' ? window : globalThis);
