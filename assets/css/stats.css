@@ -483,6 +483,7 @@ a.st-pod:hover{background:rgba(14,20,23,.85)}
 .st-bubble[hidden]{display:none}
 
 /* ---- search autocomplete (S.ui.autocomplete); position is set inline */
+.st-ac-host{position:relative;z-index:30}
 .st-ac{max-height:min(380px,60vh);margin:4px 0 0;padding:.3rem 0;overflow-y:auto;list-style:none;background:var(--st-pop);border:1px solid var(--line);border-radius:3px;box-shadow:0 14px 30px rgba(0,0,0,.45)}
 .st-ac-group{padding:.55rem .9rem .25rem;font:500 .64rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
 .st-ac-group:not(:first-child){margin-top:.25rem;border-top:1px solid var(--line)}

@@ -311,7 +311,21 @@
 
     let items = [], active = -1, timer = null, seq = 0;
 
+    // A blurred .panel around the input is its own stacking layer, so later panels paint over
+    // the open list whatever its z-index. Lift every such ancestor while the list is open.
+    let hosts = [];
+    function lift(on) {
+      hosts.forEach(h => h.classList.remove('st-ac-host'));
+      hosts = [];
+      if (!on) return;
+      for (let a = input.parentElement; a && a !== document.body; a = a.parentElement) {
+        const cs = getComputedStyle(a);
+        if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none') ||
+            cs.filter !== 'none' || cs.transform !== 'none') { a.classList.add('st-ac-host'); hosts.push(a); }
+      }
+    }
     function close() {
+      lift(false);
       show(list, false);
       input.setAttribute('aria-expanded', 'false');
       input.removeAttribute('aria-activedescendant');
@@ -418,6 +432,7 @@
       if (!items.length) list.appendChild(heading(opts.noneText || 'No players, stats or objectives match that.', 'st-ac-none'));
       hydrate(list);
       place();
+      lift(true);
       show(list, true);
       input.setAttribute('aria-expanded', 'true');
       setActive(-1);
@@ -425,7 +440,8 @@
     async function run(q) {
       const my = ++seq;
       let data;
-      try { data = await S.api('search', { q, limit }); } catch (e) { if (my === seq) close(); return; }
+      // ids use _ where labels show spaces: "redstone block" -> redstone_block (names can't hold spaces)
+      try { data = await S.api('search', { q: q.replace(/\s+/g, '_'), limit }); } catch (e) { if (my === seq) close(); return; }
       if (my !== seq || input.value.trim() !== q) return;
       render(data);
     }

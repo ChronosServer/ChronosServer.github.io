@@ -355,3 +355,33 @@ test('tip toggles on tap', async () => {
   assert.equal(await tp.locator('.st-bubble').isVisible(), false);
   await ctx.close();
 });
+
+test('autocomplete sends spaces as underscores', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<input id=q>';
+    S.ui.autocomplete(document.getElementById('q'), { onPick: () => {} });
+  });
+  await page.focus('#q');
+  await page.keyboard.type('  redstone   block ');
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some(e => e.name.includes('/api/stats/search')));
+  await page.waitForTimeout(50);
+  const qs = requests.filter(u => u.includes('/api/stats/search')).map(u => new URL(u).searchParams.get('q'));
+  assert.ok(qs.length > 0);
+  assert.equal(qs[qs.length - 1], 'redstone_block');
+  assert.equal(await page.inputValue('#q'), '  redstone   block ');
+});
+
+test('open autocomplete lifts its blurred panel above later panels', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<section id=box style="backdrop-filter:blur(4px)"><div><input id=q></div></section><div id=later style="backdrop-filter:blur(4px)">later</div>';
+    S.ui.autocomplete(document.getElementById('q'), { onPick: () => {} });
+  });
+  await page.focus('#q');
+  await page.keyboard.type('sto');
+  await page.waitForSelector('[role=listbox] [role=option]');
+  assert.equal(await page.evaluate(() => document.getElementById('box').classList.contains('st-ac-host')), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.getElementById('box').classList.contains('st-ac-host')), false);
+});
