@@ -11,7 +11,7 @@
  *                 st-ac-none active
  *   tabs          st-tabs st-tab st-tab-count on
  *   table         st-table-wrap st-table st-num st-sort st-sort-ind st-row-link
- *                 st-table-foot st-table-count st-more
+ *                 st-pager st-pager-count st-pager-btns st-pg st-pg-prev st-pg-next st-pg-gap
  *   states        st-empty (site classes panel err for errors)
  *   data attrs    data-kind, data-value, data-type, data-id, data-col
  * Inline styles are limited to sizes of fallback squares, hiding (style.display) and
@@ -39,13 +39,15 @@
     else img._stSwap = node;
   }
 
-  // ---- heads: Crafatar -> mc-heads -> "?" square. A service that fails 3 times in a row
-  // is skipped from then on, so an outage costs a few requests, not one per row.
+  // ---- heads: our own /cache/heads (written by the bot) -> Crafatar -> mc-heads -> "?" square.
+  // A source that fails 3 times in a row is skipped from then on, so an outage (or the cache
+  // not existing yet) costs a few requests, not one per row.
   const HEADS = [
+    (u) => '/cache/heads/' + encodeURIComponent(u) + '.png',
     (u, n) => 'https://crafatar.com/avatars/' + encodeURIComponent(u) + '?size=' + n + '&overlay',
     (u, n) => 'https://mc-heads.net/avatar/' + encodeURIComponent(u) + '/' + n,
   ];
-  const headFails = [0, 0];
+  const headFails = HEADS.map(() => 0);
   function head(uuid, size) {
     size = size || 32;
     let i = headFails.findIndex(f => f < 3);
@@ -81,7 +83,8 @@
     img.loading = 'lazy';
     img.decoding = 'async';
     img.onerror = () => { missingIcons.add(id); img.onerror = null; swap(img, letter(l, size, 'st-icon')); };
-    img.src = '/cache/items/' + encodeURIComponent(id) + '.png';
+    // site images are allowed only from /assets/ (category pictures); anything else is an item id
+    img.src = /^\/assets\/[\w./-]+$/.test(id) && id.indexOf('..') < 0 ? id : '/cache/items/' + encodeURIComponent(id) + '.png';
     return img;
   }
 
@@ -311,7 +314,21 @@
 
     let items = [], active = -1, timer = null, seq = 0;
 
+    // A blurred .panel around the input is its own stacking layer, so later panels paint over
+    // the open list whatever its z-index. Lift every such ancestor while the list is open.
+    let hosts = [];
+    function lift(on) {
+      hosts.forEach(h => h.classList.remove('st-ac-host'));
+      hosts = [];
+      if (!on) return;
+      for (let a = input.parentElement; a && a !== document.body; a = a.parentElement) {
+        const cs = getComputedStyle(a);
+        if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none') ||
+            cs.filter !== 'none' || cs.transform !== 'none') { a.classList.add('st-ac-host'); hosts.push(a); }
+      }
+    }
     function close() {
+      lift(false);
       show(list, false);
       input.setAttribute('aria-expanded', 'false');
       input.removeAttribute('aria-activedescendant');
@@ -418,6 +435,7 @@
       if (!items.length) list.appendChild(heading(opts.noneText || 'No players, stats or objectives match that.', 'st-ac-none'));
       hydrate(list);
       place();
+      lift(true);
       show(list, true);
       input.setAttribute('aria-expanded', 'true');
       setActive(-1);
@@ -425,7 +443,8 @@
     async function run(q) {
       const my = ++seq;
       let data;
-      try { data = await S.api('search', { q, limit }); } catch (e) { if (my === seq) close(); return; }
+      // ids use _ where labels show spaces: "redstone block" -> redstone_block (names can't hold spaces)
+      try { data = await S.api('search', { q: q.replace(/\s+/g, '_'), limit }); } catch (e) { if (my === seq) close(); return; }
       if (my !== seq || input.value.trim() !== q) return;
       render(data);
     }
@@ -521,11 +540,131 @@
   // column.sort: true sorts by row[id], a function sorts by its return value; num columns
   // sort descending first, text columns ascending. sortBy: column id; sortDir: "asc"|"desc"
   // overrides that default.
+  // ---- pager: "‹ 1 … 39 40 41 … 80 ›" plus "Showing 1,951–2,000 of 4,000". Pages are 1-based.
+  // Renders nothing when everything fits on one page. Used by S.ui.table and server-paged lists.
+  function pager(el, o) {
+    const size = o.pageSize || 50;
+    let total = o.total || 0, cur = o.page || 1, nav = null;
+    const nf = n => n.toLocaleString('en-GB');
+    function pages(last) {
+      const want = new Set([1, last, cur - 1, cur, cur + 1].filter(n => n >= 1 && n <= last));
+      const out = [];
+      let prev = 0;
+      Array.from(want).sort((a, b) => a - b).forEach(n => {
+        if (n - prev === 2) out.push(prev + 1);          // a gap of one page shows that page
+        else if (n - prev > 2) out.push(null);
+        out.push(n);
+        prev = n;
+      });
+      return out;
+    }
+    function render() {
+      const last = Math.max(1, Math.ceil(total / size));
+      cur = Math.min(Math.max(1, cur), last);
+      if (total <= size) { if (nav) { nav.remove(); nav = null; } return; }
+      if (!nav) {
+        nav = document.createElement('nav');
+        nav.className = 'st-pager';
+        nav.setAttribute('aria-label', 'Pages');
+        nav.addEventListener('click', e => {
+          const b = e.target.closest('button[data-page]');
+          if (!b || b.disabled) return;
+          const n = +b.dataset.page;
+          if (n === cur) return;
+          cur = n;
+          render();
+          if (o.onPage) o.onPage(n);
+          const top = el.getBoundingClientRect().top;
+          if (top < 0 && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+        });
+        el.appendChild(nav);
+      }
+      // the buttons are re-drawn: keep focus on the same control (prev/next, else the current page)
+      const had = document.activeElement && nav.contains(document.activeElement) ? document.activeElement : null;
+      const again = had && (had.classList.contains('st-pg-prev') || had.classList.contains('st-pg-next')) ? '.' + had.className : '[aria-current=page]';
+      const from = (cur - 1) * size + 1, to = Math.min(total, cur * size);
+      const btn = (n, cls, label, aria) => '<button type="button" class="' + cls + '" data-page="' + n + '"' +
+        (aria ? ' aria-label="' + aria + '"' : '') + (n === cur && cls === 'st-pg' ? ' aria-current="page"' : '') +
+        ((cls !== 'st-pg' && (n < 1 || n > last)) ? ' disabled' : '') + '>' + label + '</button>';
+      nav.innerHTML = '<span class="st-pager-count" aria-live="polite">Showing ' + nf(from) + '–' + nf(to) + ' of ' + nf(total) + '</span>' +
+        '<span class="st-pager-btns">' + btn(cur - 1, 'st-pg-prev', '‹', 'Previous page') +
+        pages(last).map(n => n == null ? '<span class="st-pg-gap" aria-hidden="true">…</span>' : btn(n, 'st-pg', String(n))).join('') +
+        btn(cur + 1, 'st-pg-next', '›', 'Next page') + '</span>';
+      if (had) {
+        let f = nav.querySelector(again);
+        if (!f || f.disabled) f = nav.querySelector('[aria-current=page]');
+        if (f) f.focus();
+      }
+    }
+    render();
+    // hosts that rebuild themselves on a page change pass focus: true to land on the new pager
+    if (o.focus && nav) { const c = nav.querySelector('[aria-current=page]'); if (c) c.focus(); }
+    return {
+      set(t, p) { total = t || 0; if (p != null) cur = p; render(); },
+      get page() { return cur; },
+    };
+  }
+
+  // ---- tip: styled tooltip for every [data-tip] inside `root`. Hover or keyboard focus shows it,
+  // a tap toggles it (touch), a tap elsewhere / Escape / leaving hides it. One shared bubble.
+  let bubble = null, tipFor = null, lastPointer = '', tapWasOpen = false;
+  function tipHide() {
+    if (!bubble || !tipFor) return;
+    tipFor.removeAttribute('aria-describedby');
+    tipFor = null;
+    bubble.classList.remove('on');
+    bubble.hidden = true;
+  }
+  function tipShow(t) {
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.className = 'st-bubble';
+      bubble.id = 'st-bubble';
+      bubble.setAttribute('role', 'tooltip');
+      bubble.hidden = true;
+      document.body.appendChild(bubble);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') tipHide(); });
+      document.addEventListener('pointerdown', e => { if (!e.target.closest || !e.target.closest('[data-tip]')) tipHide(); });
+      window.addEventListener('scroll', tipHide, { passive: true });
+    }
+    if (tipFor && tipFor !== t) tipFor.removeAttribute('aria-describedby');
+    tipFor = t;
+    bubble.textContent = t.dataset.tip;
+    t.setAttribute('aria-describedby', bubble.id);
+    bubble.hidden = false;
+    const r = t.getBoundingClientRect(), b = bubble.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    let top = r.top - b.height - 8;
+    if (top < 8) top = r.bottom + 8;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - b.width / 2), vw - b.width - 8);
+    bubble.style.top = Math.round(top) + 'px';
+    bubble.style.left = Math.round(Math.max(8, left)) + 'px';
+    requestAnimationFrame(() => { if (tipFor === t) bubble.classList.add('on'); });
+  }
+  function tip(root) {
+    if (!root || root.dataset.stTip) return;
+    root.dataset.stTip = '1';
+    const at = e => e.target.closest && e.target.closest('[data-tip]');
+    root.addEventListener('pointerover', e => { const t = at(e); if (t && e.pointerType === 'mouse') tipShow(t); });
+    root.addEventListener('pointerout', e => {
+      const t = at(e);
+      if (t && e.pointerType === 'mouse' && t === tipFor && !t.contains(e.relatedTarget) && document.activeElement !== t) tipHide();
+    });
+    root.addEventListener('focusin', e => { const t = at(e); if (t) tipShow(t); });
+    root.addEventListener('focusout', e => { const t = at(e); if (t && t === tipFor) tipHide(); });
+    root.addEventListener('pointerdown', e => { lastPointer = e.pointerType; const t = at(e); tapWasOpen = !!t && t === tipFor; });
+    root.addEventListener('click', e => {
+      const t = at(e);
+      if (!t || lastPointer !== 'touch') return;
+      if (tapWasOpen) tipHide(); else tipShow(t);
+    });
+  }
+
   function table(el, o) {
     const columns = o.columns || [];
     const pageSize = o.pageSize || 50;
     let rows = (o.rows || []).slice();
-    let shown = pageSize;
+    let page = 1;
     let sortId = null, sortDir = 1;
     if (o.sortBy) {
       const c = columns.find(x => x.id === o.sortBy);
@@ -557,12 +696,7 @@
     t.appendChild(thead); t.appendChild(tbody);
     wrap.appendChild(t);
     el.appendChild(wrap);
-    const foot = document.createElement('div');
-    foot.className = 'st-table-foot';
-    foot.innerHTML = '<span class="st-table-count"></span> <button type="button" class="st-more">Load more</button>';
-    el.appendChild(foot);
-    const count = foot.querySelector('.st-table-count');
-    const more = foot.querySelector('.st-more');
+    const pg = pager(el, { total: 0, pageSize, page: 1, onPage: n => { page = n; paint(); } });
 
     function sortVal(c, r) { return typeof c.sort === 'function' ? c.sort(r) : r[c.id]; }
     function applySort() {
@@ -591,13 +725,11 @@
       });
     }
     function paint() {
-      const n = Math.min(shown, rows.length);
-      tbody.innerHTML = rows.slice(0, n).map((r, i) =>
-        '<tr data-i="' + i + '"' + (o.onRow ? ' class="st-row-link" tabindex="0"' : '') + '>' + o.rowHtml(r) + '</tr>').join('');
+      const start = (page - 1) * pageSize;
+      tbody.innerHTML = rows.slice(start, start + pageSize).map((r, i) =>
+        '<tr data-i="' + (start + i) + '"' + (o.onRow ? ' class="st-row-link" tabindex="0"' : '') + '>' + o.rowHtml(r) + '</tr>').join('');
       hydrate(tbody);
-      count.textContent = rows.length > pageSize ? 'Showing ' + n.toLocaleString('en-GB') + ' of ' + rows.length.toLocaleString('en-GB') : '';
-      show(more, n < rows.length);
-      show(foot, rows.length > pageSize);
+      pg.set(rows.length, page);
       paintHead();
     }
     htr.addEventListener('click', e => {
@@ -607,11 +739,10 @@
       const c = columns.find(x => x.id === id);
       if (id === sortId) sortDir = -sortDir;
       else { sortId = id; sortDir = c.num ? -1 : 1; }
-      shown = pageSize;
+      page = 1;
       applySort();
       paint();
     });
-    more.addEventListener('click', () => { shown += pageSize; paint(); });
     if (o.onRow) {
       const act = e => {
         const tr = e.target.closest('tr[data-i]');
@@ -624,7 +755,8 @@
     applySort();
     paint();
     return {
-      setRows(next) { rows = (next || []).slice(); shown = pageSize; applySort(); paint(); },
+      setRows(next) { rows = (next || []).slice(); page = 1; applySort(); paint(); },
+      page(n) { page = n; paint(); },
     };
   }
 
@@ -634,7 +766,7 @@
     el.innerHTML = '<div class="panel err" role="alert">' + esc(msg) + '</div>';
   }
 
-  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, empty, error,
+  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, tip, empty, error,
            splitScopes, dayStart, dayEnd };
   if (typeof module !== 'undefined') module.exports = S.ui;
 })(typeof window !== 'undefined' ? window : globalThis);

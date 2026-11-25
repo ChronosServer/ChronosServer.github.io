@@ -198,3 +198,15 @@ test('memo shares one request per path and params, and forgets failures', async 
   assert.equal(n, 3);
   assert.notEqual(core.memo()('keys', { scope: 'smp' }), b);   // each page cache is separate
 });
+
+test('serverLines: one line per server in the scope, API order', () => {
+  const m = {
+    servers: [{ key: 'smp' }, { key: 'building' }, { key: 'cmp' }, { key: 'cmp2' }],
+    scope_groups: { cmps: ['building', 'cmp', 'cmp2'] },
+  };
+  assert.deepEqual(core.serverLines(m, 'smp'), ['smp']);
+  assert.deepEqual(core.serverLines(m, 'cmps'), ['building', 'cmp', 'cmp2']);
+  assert.deepEqual(core.serverLines(m, 'all'), ['smp', 'building', 'cmp', 'cmp2']);
+  assert.deepEqual(core.serverLines(m, 'cmp2'), ['cmp2']);
+  assert.deepEqual(core.serverLines({ servers: m.servers }, 'cmp'), ['cmp']);
+});

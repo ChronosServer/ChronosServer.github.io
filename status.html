@@ -14,6 +14,9 @@ bg: chronos_spawn
 </main>
 <script>
 const $ = id => document.getElementById(id);
+// Owner's fixed order; anything else goes after, A to Z.
+const ORDER = ['smp', 'cmp', 'cmp2', 'cmp3', 'cmp4', 'mirror', 'snapshot', 'tour', 'public'];
+const rank = n => { const i = ORDER.indexOf(n.toLowerCase()); return i < 0 ? ORDER.length : i; };
 const lvl = (p, w, b) => p > b ? 'bad' : p > w ? 'warn' : '';
 const row = (name, p, val, sub, w = 70, b = 90) =>
   `<div class="row"><span class="name">${name}</span>` +
@@ -28,7 +31,7 @@ async function hw() {
       row('Memory', d.ram.percent, `${d.ram.used} <small>/ ${d.ram.total} GB</small>`, `${d.ram.percent}% in use`) +
       row('Swap', d.swap.percent, `${d.swap.used} <small>/ ${d.swap.total} GB</small>`, `${d.swap.percent}% in use. Overflow RAM paged to disk; high use is a warning sign`, 40, 80) +
       row('Disk', d.disk.percent, `${d.disk.used} <small>/ ${d.disk.total} GB</small>`, `${d.disk.percent}% of ${d.disk.total_tb} TB used, ${d.disk.write_gb} GB written, ${d.disk.read_gb} GB read`, 80, 92) +
-      row('Network', null, `${d.net.sent_gb} <small>GB</small>`, `sent since boot, ${d.net.recv_gb} GB received`);
+      row('Network', null, `<span class="nw">${d.net.sent_gb} <small>GB ↑</small></span> / <span class="nw">${d.net.recv_gb} <small>GB ↓</small></span>`, 'sent / received since boot');
     $('hw-t').className = 'pill'; $('hw-t').textContent = 'Live';
   } catch (e) {
     C.fail($('hw'), e); $('hw-t').className = 'pill stale'; $('hw-t').textContent = 'Unavailable';
@@ -38,10 +41,10 @@ async function hw() {
 async function sv() {
   try {
     const {data, at} = await C.json('/data/server_status.json');
-    const e = Object.entries(data.servers || data).filter(([, v]) => typeof v === 'string').sort((a, b) => a[0].localeCompare(b[0]));
+    const e = Object.entries(data.servers || data).filter(([, v]) => typeof v === 'string').sort((a, b) => rank(a[0]) - rank(b[0]) || a[0].localeCompare(b[0]));
     if (!e.length) throw new Error('server_status.json has no servers. Run /sync in Discord.');
     $('sv').className = 'servers';
-    $('sv').innerHTML = e.map(([n, s]) => `<div class="srv"><i class="dot ${s === 'Online' ? '' : 'off'}"></i>${C.esc(n)}<span class="sr-only">${C.esc(s)}</span></div>`).join('');
+    $('sv').innerHTML = e.map(([n, s]) => `<div class="srv"><i class="dot ${s === 'Online' ? '' : 'off'}"></i>${C.esc(n.toUpperCase())}<span class="sr-only">${C.esc(s)}</span></div>`).join('');
     C.stamp($('sv-t'), at);
     $('sv-t').textContent = e.filter(([, s]) => s === 'Online').length + ' of ' + e.length + ' online. ' + $('sv-t').textContent;
   } catch (e) { C.fail($('sv'), e); }

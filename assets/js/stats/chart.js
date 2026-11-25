@@ -23,7 +23,7 @@
 (function (root) {
   const S = root.S = root.S || {};
   const NS = 'http://www.w3.org/2000/svg';
-  const W_DEFAULT = 1000, W_MIN = 240, PAD_L = 58, PAD_B = 26, PAD_T = 14;
+  const W_DEFAULT = 1000, W_MIN = 240, PAD_L = 58, PAD_B = 26, PAD_T = 14, ZONE_BAND = 18;
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const DAY = 86400, YEAR = 365.25 * DAY;
 
@@ -114,17 +114,22 @@
         return;
       }
       if (live.every(s => s.points.length === 1)) {
-        wrap.innerHTML = '<div class="st-valuecard">' + live.map(s => {
-          const p = s.points[0];
-          return '<div class="st-vc-row"><span class="st-vc-label">' + esc(s.label) + '</span> <span class="st-vc-val">' +
-            esc(format(p[1])) + '</span> <span class="st-vc-date">' + esc(fmtDate(p[0])) + '</span></div>';
-        }).join('') + '</div>';
+        // Nothing has changed yet on any line: show the numbers, with the date once when shared.
+        const dates = live.map(s => fmtDate(s.points[0][0]));
+        const same = dates.every(d => d === dates[0]);
+        wrap.innerHTML = '<div class="st-valuecard">' + live.map((s, i) =>
+          '<div class="st-vc-row"><span class="st-vc-label">' + esc(s.label) + '</span> <span class="st-vc-val">' +
+            esc(format(s.points[0][1])) + '</span>' + (same ? '' : ' <span class="st-vc-date">' + esc(dates[i]) + '</span>') + '</div>'
+        ).join('') + (same ? '<div class="st-vc-asof">As of ' + esc(dates[0]) + '</div>' : '') + '</div>';
+        inst.valueCard = true;
         return;
       }
 
       const series = live;
-      const bot = height - PAD_B, top = PAD_T;
+      inst.valueCard = false;
       const tx = cm.timeScale(from, to, opts.liveAt == null ? null : +opts.liveAt, PAD_L, W);
+      // a split axis gets a band above the plot for the BACKUPS / LIVE labels
+      const bot = height - PAD_B, top = PAD_T + (tx.split != null ? ZONE_BAND : 0);
       const x = t => tx(Math.max(from, Math.min(to, t)));
       // y range over what is visible: the value carried into `from`, then points up to `to`
       const zero = opts.zero !== false;
@@ -151,8 +156,8 @@
       let g = '';
       if (tx.split != null) {
         g += '<rect class="st-zone" x="' + PAD_L + '" y="' + top + '" width="' + n1(tx.split - PAD_L) + '" height="' + (bot - top) + '" fill="rgba(229,169,60,.05)"/>' +
-          '<text class="st-zonel" x="' + (PAD_L + 8) + '" y="' + (top + 14) + '" fill="var(--amber)">BACKUPS</text>' +
-          '<text class="st-zonel st-zonel-live" x="' + n1(tx.split + 8) + '" y="' + (top + 14) + '" fill="var(--teal)">LIVE · EVERY 15 MIN</text>';
+          '<text class="st-zonel" x="' + (PAD_L + 8) + '" y="' + (PAD_T + 12) + '" fill="var(--amber)">BACKUPS</text>' +
+          '<text class="st-zonel st-zonel-live" x="' + n1(tx.split + 8) + '" y="' + (PAD_T + 12) + '" fill="var(--teal)">LIVE · EVERY 15 MIN</text>';
       }
       for (const t of dom.ticks) {
         const yy = n1(y(t * unit.div));
@@ -281,10 +286,8 @@
       ro.observe(wrap);
     }
 
-    opts = Object.assign({}, initial);
-    render();
-
-    return {
+    const inst = {
+      valueCard: false,   // true while the last render showed the value card instead of lines
       update(next) { opts = Object.assign({}, opts, next); render(); },
       destroy() {
         wrap.removeEventListener('mousemove', onMove);
@@ -297,6 +300,9 @@
         model = null;
       }
     };
+    opts = Object.assign({}, initial);
+    render();
+    return inst;
   };
 
   if (typeof module !== 'undefined') module.exports = S.chart;

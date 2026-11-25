@@ -35,6 +35,9 @@ before(async () => {
   await page.route('**/*', route => {
     const u = route.request().url();
     if (/crafatar\.com|mc-heads\.net/.test(u)) return route.fulfill({ status: 500, body: 'down' });
+    if (u.includes('/cache/heads/aaaaaaaa-')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
+    if (u.includes('/cache/heads/')) return route.fulfill({ status: 404, body: 'nope' });
+    if (u.includes('/assets/img/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/stone.png')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
     if (u.includes('/cache/items/')) return route.fulfill({ status: 404, body: 'nope' });
     if (u.includes('/api/stats/search')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SEARCH) });
@@ -62,6 +65,15 @@ test('head falls back to letter when both services fail', async () => {
   assert.equal(broken, 0);
   assert.ok(requests.some(u => u.includes('crafatar.com/avatars/11111111')));
   assert.ok(requests.some(u => u.includes('mc-heads.net/avatar/11111111')));
+  assert.ok(requests.some(u => u.includes('/cache/heads/11111111-2222-3333-4444-555555555555.png')));
+});
+
+test('head tries /cache/heads first', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.head('aaaaaaaa-2222-3333-4444-555555555555', 32)));
+  await page.waitForFunction(() => { const i = document.querySelector('#c img.st-head'); return i && i.complete && i.naturalWidth > 0; });
+  assert.equal(await page.getAttribute('#c img.st-head', 'src'), '/cache/heads/aaaaaaaa-2222-3333-4444-555555555555.png');
+  assert.ok(!requests.some(u => u.includes('crafatar.com/avatars/aaaaaaaa')));
 });
 
 test('icon fallback and memo', async () => {
@@ -75,6 +87,12 @@ test('icon fallback and memo', async () => {
   await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('stone')));
   await page.waitForFunction(() => { const i = document.querySelector('#c img.st-icon'); return i && i.complete && i.naturalWidth > 0; });
   assert.equal(await page.getAttribute('#c img.st-icon', 'src'), '/cache/items/stone.png');
+});
+
+test('icon accepts a site path', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('/assets/img/cat-broken.png', 20)));
+  assert.equal(await page.getAttribute('#c img.st-icon', 'src'), '/assets/img/cat-broken.png');
 });
 
 test('autocomplete escapes and navigates', async () => {
@@ -176,23 +194,60 @@ test('table sorts and pages', async () => {
   await mount();
   await page.evaluate(() => {
     const rows = Array.from({ length: 120 }, (_, i) => ({ name: 'p' + i, value: i }));
-    S.ui.table(document.getElementById('c'), {
+    window.tbl = S.ui.table(document.getElementById('c'), {
       columns: [{ id: 'name', label: 'Player' }, { id: 'value', label: 'Value', num: true, sort: true }],
       rows, rowHtml: r => '<td>' + S.fmt.esc(r.name) + '</td><td>' + r.value + '</td>',
     });
   });
   assert.equal(await page.locator('#c tbody tr').count(), 50);
-  await page.click('#c button.st-more');
-  assert.equal(await page.locator('#c tbody tr').count(), 100);
-  await page.click('#c button.st-more');
-  assert.equal(await page.locator('#c tbody tr').count(), 120);
-  assert.equal(await page.locator('#c button.st-more').isVisible(), false);
+  assert.ok((await page.textContent('#c .st-pager')).includes('Showing 1–50 of 120'));
+  await page.click('#c .st-pg[data-page="3"]');
+  assert.equal(await page.locator('#c tbody tr').count(), 20);
+  assert.equal(await page.textContent('#c tbody tr:first-child td:first-child'), 'p100');
+  assert.equal(await page.getAttribute('#c .st-pg[data-page="3"]', 'aria-current'), 'page');
   await page.click('#c th[data-col=value] button');
   assert.equal(await page.getAttribute('#c th[data-col=value]', 'aria-sort'), 'descending');
   assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '119');
   assert.equal(await page.locator('#c tbody tr').count(), 50);
+  await page.click('#c .st-pg-next');
+  assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '69');
   await page.click('#c th[data-col=value] button');
   assert.equal(await page.textContent('#c tbody tr:first-child td:last-child'), '0');
+});
+
+test('pager hides for one page', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 50 }, (_, i) => ({ name: 'p' + i, value: i }));
+    S.ui.table(document.getElementById('c'), {
+      columns: [{ id: 'name', label: 'Player' }], rows, rowHtml: r => '<td>' + r.name + '</td>',
+    });
+  });
+  assert.equal(await page.locator('#c tbody tr').count(), 50);
+  assert.equal(await page.locator('#c .st-pager').count(), 0);
+});
+
+test('pager gaps and ends', async () => {
+  await mount();
+  const got = await page.evaluate(() => {
+    const el = document.getElementById('c');
+    const seen = [];
+    const pg = S.ui.pager(el, { total: 4000, pageSize: 50, page: 40, onPage: n => seen.push(n) });
+    const labels = Array.from(el.querySelectorAll('.st-pg, .st-pg-gap')).map(b => b.textContent);
+    const cur = el.querySelector('[aria-current="page"]').textContent;
+    const count = el.querySelector('.st-pager-count').textContent;
+    el.querySelector('.st-pg-next').click();
+    pg.set(4000, 1);
+    const prevDisabled = el.querySelector('.st-pg-prev').disabled;
+    pg.set(30, 1);
+    return { labels, cur, count, seen, prevDisabled, gone: el.querySelector('.st-pager') === null };
+  });
+  assert.deepEqual(got.labels, ['1', '…', '39', '40', '41', '…', '80']);
+  assert.equal(got.cur, '40');
+  assert.equal(got.count, 'Showing 1,951–2,000 of 4,000');
+  assert.deepEqual(got.seen, [41]);
+  assert.equal(got.prevDisabled, true);
+  assert.equal(got.gone, true);
 });
 
 test('tabs, empty and error', async () => {
@@ -272,4 +327,105 @@ test('scope split follows meta.scope_groups when present', async () => {
   assert.equal(await page.inputValue('.st-controls select'), 'cmp');
   assert.equal(await page.locator('.st-seg[data-kind=scope] button[aria-pressed=true]').count(), 0);
   assert.ok(!(await page.locator('.st-controls input[type=checkbox]').isVisible()));
+});
+
+test('tip shows on hover and focus, one at a time', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const c = document.getElementById('c');
+    c.innerHTML = '<p style="margin:80px"><span id=t1 data-tip="First &lt;b&gt;tip" tabindex=0>A</span> <span id=t2 data-tip="Second tip" tabindex=0>B</span></p>';
+    S.ui.tip(c);
+  });
+  await page.hover('#t1');
+  const bubble = page.locator('.st-bubble');
+  await bubble.waitFor({ state: 'visible' });
+  assert.equal(await bubble.textContent(), 'First <b>tip');
+  assert.equal(await page.getAttribute('#t1', 'aria-describedby'), await bubble.getAttribute('id'));
+  await page.focus('#t2');
+  assert.equal(await bubble.textContent(), 'Second tip');
+  assert.equal(await page.locator('.st-bubble').count(), 1);
+  await page.keyboard.press('Escape');
+  assert.equal(await bubble.isVisible(), false);
+});
+
+test('tip toggles on tap', async () => {
+  const ctx = await browser.newContext({ hasTouch: true });
+  const tp = await ctx.newPage();
+  await tp.route('**/*', r => r.request().url().startsWith(ORIGIN)
+    ? r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><body><div id=c></div></body>' }) : r.abort());
+  await tp.goto(ORIGIN + '/stats/');
+  for (const f of ['chronos.js', 'stats/format.js', 'stats/core.js', 'stats/ui.js']) await tp.addScriptTag({ path: path.join(ROOT, f) });
+  await tp.evaluate(() => {
+    const c = document.getElementById('c');
+    c.innerHTML = '<p style="margin:80px"><span id=t1 data-tip="Tap tip" tabindex=0>A</span></p><p id=away style="height:300px">x</p>';
+    S.ui.tip(c);
+  });
+  await tp.tap('#t1');
+  assert.equal(await tp.locator('.st-bubble').isVisible(), true);
+  await tp.tap('#away');
+  assert.equal(await tp.locator('.st-bubble').isVisible(), false);
+  await ctx.close();
+});
+
+test('autocomplete sends spaces as underscores', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<input id=q>';
+    S.ui.autocomplete(document.getElementById('q'), { onPick: () => {} });
+  });
+  await page.focus('#q');
+  await page.keyboard.type('  redstone   block ');
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some(e => e.name.includes('/api/stats/search')));
+  await page.waitForTimeout(50);
+  const qs = requests.filter(u => u.includes('/api/stats/search')).map(u => new URL(u).searchParams.get('q'));
+  assert.ok(qs.length > 0);
+  assert.equal(qs[qs.length - 1], 'redstone_block');
+  assert.equal(await page.inputValue('#q'), '  redstone   block ');
+});
+
+test('open autocomplete lifts its blurred panel above later panels', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<section id=box style="backdrop-filter:blur(4px)"><div><input id=q></div></section><div id=later style="backdrop-filter:blur(4px)">later</div>';
+    S.ui.autocomplete(document.getElementById('q'), { onPick: () => {} });
+  });
+  await page.focus('#q');
+  await page.keyboard.type('sto');
+  await page.waitForSelector('[role=listbox] [role=option]');
+  assert.equal(await page.evaluate(() => document.getElementById('box').classList.contains('st-ac-host')), true);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.getElementById('box').classList.contains('st-ac-host')), false);
+});
+
+test('pager keeps keyboard focus on page change', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const rows = Array.from({ length: 120 }, (_, i) => ({ name: 'p' + i, value: i }));
+    S.ui.table(document.getElementById('c'), {
+      columns: [{ id: 'name', label: 'Player' }], rows, rowHtml: r => '<td>' + r.name + '</td>',
+    });
+  });
+  await page.focus('#c .st-pg-next');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'st-pg-next');
+  await page.focus('#c .st-pg[data-page="3"]');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.page), '3');
+  assert.equal(await page.getAttribute('#c .st-pager-count', 'aria-live'), 'polite');
+});
+
+test('pager built with focus: true focuses the current page', async () => {
+  await mount();
+  const cur = await page.evaluate(() => {
+    S.ui.pager(document.getElementById('c'), { total: 300, pageSize: 50, page: 2, focus: true });
+    return document.activeElement.getAttribute('aria-current') + ':' + document.activeElement.textContent;
+  });
+  assert.equal(cur, 'page:2');
+});
+
+test('icon never loads a protocol-relative or foreign path', async () => {
+  await mount();
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.icon('//evil.test/x', 20)));
+  await page.waitForSelector('#c .st-letter');
+  assert.ok(!requests.some(u => new URL(u).host === 'evil.test'));
 });

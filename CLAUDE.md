@@ -41,8 +41,7 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
   amber=stale, red=error/offline. Syncopate for the wordmark/headers (all-caps),
   IBM Plex Mono for data/labels/pills, IBM Plex Sans for body and nav links (uppercase,
   letter-spaced). Square-ish corners (2–3px), thin lines, no shadows-as-decoration.
-  Reveal-on-scroll via `.reveal` + IntersectionObserver. No jQuery, no Bootstrap on the
-  redesigned pages.
+  Reveal-on-scroll via `.reveal` + IntersectionObserver. No jQuery, no Bootstrap.
 - `assets/js/chronos.js` exposes `window.C`:
   - `C.json(url)` → `{data, at}` (fetch with `cache:'no-cache'`, throws on non-2xx, `at`
     from `Last-Modified`). Note: it forces `no-cache` — fine for `/data/*.json`; the
@@ -61,7 +60,7 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | Storage | `storage.html` (main/dig tabs) | `/data/ms_storage.json`, `/data/dig_storage.json` |
 | Archive | `archive.html` (Discord forum mirror, tag-filterable) | `/data/archive.json` |
 | Status | `status.html` | `/api/status` (live host CPU/RAM/etc.) + `/data/server_status.json` (per-server up/down) |
-| Bolt map | `boltmap.html` | `/data/boltmap.json` |
+| Bolt map | `boltmap.html` (`kind: map`, canvas with pan/zoom) | `/data/boltmap.json` (polls every 5 s only while the scanner reports `progress.complete: false`) |
 | World map | `worldmap.html` (`kind: map`) | Overviewer at `/map/` in an iframe below the nav; `/map` still works standalone (served on the server, not in this repo) |
 | Stats overview | `/stats/` (`stats/index.html`) | `/api/stats/{meta,totals,keys,spotlight,activity,milestones,firsts}` |
 | Stat explorer | `/stats/explorer/` | `meta`, `keys`, `search`, `leaderboard`, `series`, `totals` |
@@ -72,12 +71,6 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | 404 | `404.html` | — |
 
 The Stats pages sit under one **Stats ▾** nav dropdown; see "Stats section" below.
-
-### Legacy leftovers (pre-redesign)
-`boltmap.html` was NOT migrated: `layout: null`, its own hardcoded nav, Bootstrap 5 CDN
-and `css/site.css` (which references `assets/background2.png`). `css/animate.min.css`,
-`js/jquery.min.js(.map)` and `assets/background.png` are unreferenced. Don't extend the
-legacy files; if touching boltmap, migrate it to `layout: default` instead.
 
 ## Data flow (read-only from this repo's POV)
 Every dynamic page fetches JSON from `/data/*.json`, written by the bot (Chronos-Bot).
@@ -124,7 +117,8 @@ the scope doc. Open backend issues go in
 **Data rules that matter**
 - Default scope `smp`. Servers/scopes show in API order, never sorted. Nothing hardcoded
   from data (categories, keys, objectives, servers, presets, limits, badges) except
-  `S.fmt.HEADLINES`.
+  `S.fmt.HEADLINES` and the owner's category pictures `S.fmt.catIcon` (a `/` path is a site
+  image, e.g. `assets/img/cat-broken.png`; anything else is an item id).
 - `earliest_known: 1` → "earliest known holder"/"before tracking", no date; `approximate: 1`
   → amber "by <date>". Dates `en-GB` short.
 - `live_started_at` for a multi-server scope is the latest of its servers' starts.

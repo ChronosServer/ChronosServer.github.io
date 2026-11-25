@@ -296,12 +296,11 @@
       emptyText: 'None of these players has any ' + l.full + ' recorded ' + (isDelta() ? 'in this range' : 'here') + ' yet.',
     };
     if (chart) chart.update(o); else { el.chart.innerHTML = ''; chart = S.chart(el.chart, o); }
-    const bits = [series.map(s => '<span class="st-k" style="background:' + s.color + '"></span>' + esc(s.label)).join(' &nbsp; ')];
+    // no legend under the value card: there are no lines to match
+    const bits = chart.valueCard ? [] : [series.map(s => '<span class="st-k" style="background:' + s.color + '"></span>' + esc(s.label)).join(' &nbsp; ')];
     const since = sinceText(res);
     if (since) bits.push(esc(since.charAt(0).toUpperCase() + since.slice(1)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
-    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   function clearView() {

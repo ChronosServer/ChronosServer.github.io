@@ -28,7 +28,7 @@
   const TABS = ['all', 'scoreboards', 'milestones', 'firsts', 'rivals'];
   const PODS = 7;          // "Number one in" cards before "+N more"
   const PAGE = 50;         // table rows per page
-  const MS_PAGE = 20;      // milestone rows per Load more
+  const MS_PAGE = 20;      // milestone rows per page
 
   const el = {
     landing: $('pl-landing'), lede: $('pl-lede'), msg: $('pl-msg'), top: $('pl-top'), q: $('pl-q'),
@@ -38,7 +38,7 @@
   let meta = null, st = null, info = null, prof = null, gen = 0, cgen = 0, chart = null;
   let tabs = null, curTab = 'all', customOpen = false;
   let rows = [];                                  // prof.stats with labels, for the All stats tab
-  let fText = '', fCat = '', fOnes = false, allTbl = null, msShown = MS_PAGE;
+  let fText = '', fCat = '', fOnes = false, allTbl = null, msPage = 1, msFocus = false;
   let mergedFrom = '';                            // what the URL asked for, when the API answered with another player
   const get = S.memo();
 
@@ -87,6 +87,7 @@
     const h = F.HEADLINES.find(x => x[0] === s.cat && x[1] === s.key);
     return h ? h[2] : F.statLabel(s.cat, s.key).full;
   }
+  const boardLink = (kind, cat, key) => '<a class="st-board-link" href="' + esc(S.kit.boardHref(kind, cat, key, st)) + '">Leaderboard →</a>';
   const disp = (s, v) => F.display(s.kind === 'scoreboard' ? 'scoreboard' : s.cat, s.key, v);
 
   // ---- header
@@ -173,7 +174,7 @@
     if (!cards.length) body = '<p class="st-pl-empty">No badges ' + esc(scopeText()) + ' yet. They come with firsts, #1 spots, big numbers and long play time.</p>';
     else {
       body = '<div class="st-badges">' + cards.map(b =>
-        '<div class="st-badge' + (b.tier >= 3 ? ' t3' : '') + '"' + (b.desc ? ' title="' + esc(b.desc) + '"' : '') + '>' +
+        '<div class="st-badge' + (b.tier >= 3 ? ' t3' : '') + '"' + (b.desc ? ' data-tip="' + esc(b.desc) + '" tabindex="0"' : '') + '>' +
         '<div class="st-art" aria-hidden="true">' + (b.art ? S.ui.iconHtml(b.art, 22, b.name.charAt(0)) : esc(b.name.charAt(0))) + '</div>' +
         '<div><div class="st-badge-n">' + esc(b.name) + '</div><div class="st-badge-s">' + esc(b.sv.map(serverLabel).join(' · ')) +
         (b.desc ? '<span class="sr-only">. ' + esc(b.desc) + '</span>' : '') + '</div></div></div>').join('') + '</div>';
@@ -184,9 +185,11 @@
   // ---- "Number one in" (or "Best ranks")
   function podHtml(s, i) {
     const d = F.display(s.category, s.key, s.value);
-    return '<button type="button" class="st-pod" style="--i:' + i + '" data-kind="stat" data-cat="' + esc(s.category) + '" data-key="' + esc(s.key) + '" aria-controls="pl-graph">' +
+    // the pod selects the stat into the graph; the corner link opens its full leaderboard
+    return '<div class="st-podcell"><button type="button" class="st-pod" style="--i:' + i + '" data-kind="stat" data-cat="' + esc(s.category) + '" data-key="' + esc(s.key) + '" aria-controls="pl-graph">' +
       artHtml(s.category, s.key, 40) + '<span class="st-pod-st">' + statHtml(s.category, s.key) + '</span>' +
-      '<span class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></span></button>';
+      '<span class="st-pod-v"><span title="' + esc(d.exact) + '">' + esc(d.text) + '</span><small>#' + esc(fmtCount(s.rank)) + ' of ' + esc(fmtCount(s.of)) + '</small></span></button>' +
+      boardLink('stat', s.category, s.key) + '</div>';
   }
 
   function onesHtml() {
@@ -211,7 +214,7 @@
     const presets = Object.keys((meta.settings && meta.settings.range_presets) || {});
     const btns = presets.concat(['all', 'custom']).map(k =>
       '<button type="button" class="st-seg-btn" data-value="' + esc(k) + '" aria-pressed="false">' + esc(k.toUpperCase()) + '</button>').join('');
-    return '<section class="st-sec st-pl-graph" id="pl-graph" tabindex="-1"><div class="st-pl-sh"><h2 id="pl-ctitle"></h2>' +
+    return '<section class="st-sec st-pl-graph" id="pl-graph" tabindex="-1"><div class="st-pl-sh"><h2 id="pl-ctitle"></h2><a class="st-board-link" id="pl-board" href="#">Leaderboard →</a>' +
       '<div class="st-pl-range"><div class="st-seg" role="group" aria-label="Graph range" id="pl-range">' + btns + '</div>' +
       '<span class="st-custom" id="pl-custom"><label>From <input type="date" name="from"></label> <label>To <input type="date" name="to"></label></span></div></div>' +
       '<div class="panel st-pl-chart"><div id="pl-chart"></div><div class="st-note" id="pl-note"></div></div></section>';
@@ -245,9 +248,7 @@
     const bits = ['Click any stat on this page to graph it here.'];
     const since = S.kit.sinceText(meta, st, res, scopeServers(), 'clamped');
     if (since) bits.push(esc(S.kit.cap(since)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
-    note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   // `err`: an API error, or a string for a plain empty state
@@ -266,6 +267,7 @@
     if (!box) return;
     const s = sel();
     $('pl-ctitle').textContent = selTitle(s);
+    $('pl-board').href = S.kit.boardHref(s.kind, s.cat, s.key, st);
     paintRange();
     const off = offText(s.kind);
     if (off) { chartMessage(off); return; }
@@ -396,12 +398,14 @@
         { id: 'stat', label: 'Stat', sort: r => r.lab.toLowerCase() },
         { id: 'value', label: 'Value', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
+        { id: 'board', label: '', sort: null },
       ],
       rows: hits, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {
         const d = F.display(r.category, r.key, r.value);
         return '<td>' + artHtml(r.category, r.key, 20) + statHtml(r.category, r.key) + '</td>' +
-          '<td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
+          '<td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>' +
+          '<td class="st-board-cell">' + boardLink('stat', r.category, r.key) + '</td>';
       },
       onRow: r => selectStat('stat', r.category, r.key, true, true),
     });
@@ -418,11 +422,13 @@
         { id: 'objective', label: 'Objective', sort: r => String(r.objective).toLowerCase() },
         { id: 'value', label: 'Score', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
+        { id: 'board', label: '', sort: null },
       ],
       rows: list, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {
         const d = F.display('scoreboard', r.objective, r.value);
-        return '<td>' + esc(r.objective) + '</td><td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>';
+        return '<td>' + esc(r.objective) + '</td><td class="st-num" title="' + esc(d.exact) + '">' + esc(d.text) + '</td><td class="st-num">' + rankHtml(r) + '</td>' +
+          '<td class="st-board-cell">' + boardLink('scoreboard', null, r.objective) + '</td>';
       },
       onRow: r => selectStat('scoreboard', '', r.objective, true, true),
     });
@@ -450,20 +456,15 @@
     }
     const dated = list.filter(r => !r.earliest_known).sort((a, b) => b.at - a.at);
     const early = list.filter(r => r.earliest_known);
-    const n = Math.min(msShown, list.length);
-    const d = dated.slice(0, n), e = early.slice(0, Math.max(0, n - dated.length));
+    // one ordered list (dated newest first, then the before-tracking ones), cut into pages
+    const start = (msPage - 1) * MS_PAGE, end = start + MS_PAGE;
+    const d = dated.slice(start, end);
+    const e = early.slice(Math.max(0, start - dated.length), Math.max(0, end - dated.length));
     panel.innerHTML = (d.length ? '<div class="st-feed">' + d.map(milestoneRow).join('') + '</div>' : '') +
-      (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '') +
-      (list.length > MS_PAGE ? '<div class="st-table-foot"><span class="st-table-count">Showing ' + esc(fmtCount(n)) + ' of ' + esc(fmtCount(list.length)) + '</span>' +
-        (n < list.length ? '<button type="button" class="st-more" id="pl-msmore">Load more</button>' : '') + '</div>' : '');
+      (e.length ? '<h3 class="st-pl-quiet">Already reached before tracking began</h3><div class="st-feed st-pl-early">' + e.map(milestoneRow).join('') + '</div>' : '');
     S.ui.hydrate(panel);
-    const more = $('pl-msmore');
-    if (more) more.addEventListener('click', () => {
-      msShown += MS_PAGE;
-      paintMilestones(panel);
-      const next = panel.querySelectorAll('.st-pl-row')[n];
-      if (next) next.focus();
-    });
+    S.ui.pager(panel, { total: list.length, pageSize: MS_PAGE, page: msPage, onPage: n => { msPage = n; msFocus = true; paintMilestones(panel); }, focus: msFocus });
+    msFocus = false;
   }
 
   function paintFirsts(panel) {
@@ -552,6 +553,7 @@
       return;
     }
     el.body.innerHTML = headerHtml() + tilesHtml() + badgesHtml() + onesHtml() + graphHtml() + tabsHtml();
+    S.ui.tip(el.body);
     S.ui.hydrate(el.body);
     paintSkin();
     const big = el.body.querySelector('.st-bigcount[data-count]');
@@ -584,7 +586,7 @@
 
   async function load() {
     const my = ++gen;
-    fText = ''; fCat = ''; fOnes = false; msShown = MS_PAGE;
+    fText = ''; fCat = ''; fOnes = false; msPage = 1;
     ++cgen;
     info = S.scopeInfo(meta, st.scope);
     if (chart) { chart.destroy(); chart = null; }

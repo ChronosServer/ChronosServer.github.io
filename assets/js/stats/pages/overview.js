@@ -20,7 +20,7 @@
   const el = {
     controls: $('ov-controls'), app: $('ov-app'), tiles: $('ov-tiles'), chart: $('ov-chart'), note: $('ov-note'),
     spot: $('ov-spot'), pulse: $('ov-pulse'), pulseMode: $('ov-pulse-mode'), pulseBody: $('ov-pulse-body'),
-    tabs: $('ov-tabs'), feed: $('ov-feed'),
+    tabs: $('ov-tabs'), feed: $('ov-feed'), top: $('ov-top'),
   };
 
   let meta = null, st = null, info = null, gen = 0, chart = null, tabs = null;
@@ -119,12 +119,10 @@
   function paintNote(res) {
     if (!res) { el.note.innerHTML = ''; return; }
     const keys = info.parts.map(p => '<span class="st-k" style="background:' + partColor(p) + '"></span>' + esc(partLabel(p))).join(' &nbsp; ');
-    const bits = [keys];
+    const bits = chart && chart.valueCard ? [] : [keys];
     const since = S.kit.sinceText(meta, st, res, scopeServers(), 'always');
     if (since) bits.push(esc(S.kit.cap(since)));
-    const live = S.kit.liveNote(liveAt(), res);
-    if (live) bits.push(live);
-    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ');
+    el.note.innerHTML = bits.join(' &nbsp;·&nbsp; ') + S.kit.liveNote(liveAt(), res);
   }
 
   function chartOpts(h, res) {
@@ -405,6 +403,43 @@
     }
   }
 
+  // ---- top players: short all-time lists, each linking to its full ranking. Hours played
+  // comes from /leaderboard; more lists join when the backend ranks #1 spots, firsts, badges.
+  const TOP_N = 5;
+  const TOP_LISTS = [
+    { title: 'Most hours played', cat: 'minecraft:custom', key: 'minecraft:play_time' },
+  ];
+
+  function topCard(t, body, foot) {
+    return '<div class="panel st-top-card"><span class="st-lab">' + esc(t.title) + '</span>' + body + (foot || '') + '</div>';
+  }
+
+  async function loadTop(my) {
+    const off = S.kit.untracked(meta, st.scope, 'stat');
+    if (off) { el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">' + esc(off) + '</p>')).join(''); return; }
+    el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">Loading…</p>')).join('');
+    const cards = await Promise.all(TOP_LISTS.map(async t => {
+      let res;
+      try {
+        res = await get('leaderboard', { kind: 'stat', category: t.cat, key: t.key, scope: st.scope, include_bots: bots(), limit: TOP_N });
+      } catch (err) {
+        return topCard(t, '<p class="st-top-empty">' + esc(S.errorText(err)) + '</p>');
+      }
+      const rows = (res && res.rows) || [];
+      if (!rows.length) return topCard(t, '<p class="st-top-empty">Nobody here yet.</p>');
+      const list = '<ol class="st-top-list">' + rows.map(r => {
+        const d = F.display(t.cat, t.key, r.value);
+        return '<li><span class="st-top-rk">' + esc(r.rank) + '</span>' +
+          '<a class="st-top-pl" href="' + esc(S.kit.playerHref(st, r.name, r.uuid)) + '">' + S.ui.headHtml(r.uuid, 22) + '<span>' + esc(F.playerName(r)) + '</span></a>' +
+          '<span class="st-top-v" title="' + esc(d.exact) + '">' + esc(d.text) + '</span></li>';
+      }).join('') + '</ol>';
+      return topCard(t, list, '<a class="st-board-link" href="' + esc(S.kit.boardHref('stat', t.cat, t.key, st)) + '">Full ranking →</a>');
+    }));
+    if (my !== gen) return;
+    el.top.innerHTML = cards.join('');
+    S.ui.hydrate(el.top);
+  }
+
   // ---- one pass over the data for the current state
   async function load() {
     const my = ++gen;
@@ -422,7 +457,7 @@
 
     if (!shown.length) {
       drawSelected(my);
-      loadSpot(my); loadPulse(my); paintFeed(my);
+      loadSpot(my); loadPulse(my); loadTop(my); paintFeed(my);
       return;
     }
     // first paint: the selected tile's totals
@@ -442,6 +477,7 @@
     filterTiles(my);
     loadSpot(my);
     loadPulse(my);
+    loadTop(my);
     paintFeed(my);
   }
 
