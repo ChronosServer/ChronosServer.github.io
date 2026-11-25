@@ -60,6 +60,7 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 .row:first-child{border-top:0}
 .row .name{font:500 .72rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .row .val{font:600 1rem var(--mono);text-align:right;white-space:nowrap}
+.row .val:has(.nw){grid-row:1;grid-column:2/4}
 .row .val small{color:var(--mute);font-weight:400;font-size:.8rem}
 .row .sub{grid-column:2/-1;font-size:.82rem;color:var(--mute)}
 .meter{height:5px;background:rgba(235,232,230,.1)}
@@ -109,7 +110,7 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 .foot a:hover{color:#fff}
 
 @media (max-width:760px){.about{grid-template-columns:1fr;gap:2rem}.gal{grid-template-columns:repeat(2,1fr)}.gal a:first-child{grid-column:span 2;grid-row:auto;aspect-ratio:16/10}}
-@media (max-width:560px){.nav{gap:1rem;padding:0 1rem}.row{grid-template-columns:5rem 1fr 9rem;padding:.8rem 1rem}}
+@media (max-width:560px){.nav{gap:1rem;padding:0 1rem}.row{grid-template-columns:5rem 1fr 9rem;padding:.8rem 1rem}.row .val:has(.nw){white-space:normal}.row .val .nw{white-space:nowrap}}
 /* reduced motion: no movement or delays, just a short fade */
 @media (prefers-reduced-motion:reduce){
   .mark,.wordmark span,.tag,.page{animation:fade .3s linear both!important;animation-delay:0s!important}
