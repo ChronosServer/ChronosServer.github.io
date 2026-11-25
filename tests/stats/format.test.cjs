@@ -51,3 +51,10 @@ test('spotlight escapes and follows templates', () => {
   assert.equal(spotlight({trigger:'mover', name:'T', category:'minecraft:custom', key:'minecraft:play_time', value:3473310, detail:{from:2149856, delta:1323454}}, 'CMP').replace(/<[^>]+>/g,''), "T's play time went from 30 h to 48 h this week");
   assert.equal(spotlight({trigger:null}, ''), '');
 });
+test('badge descs use the live settings shape', () => {
+  const B = {veteran_hours:1000, regular:{days:20, window_days:30}, night_owl:{min_buckets:40, window_days:30, share:0.5, start_hour:0, end_hour:6}};
+  assert.equal(badge('veteran', B).desc, '1,000 h played');
+  assert.equal(badge('regular', B).desc, 'Active on 20 of the last 30 days');
+  assert.equal(badge('night_owl', B).desc, 'Mostly plays 0:00–6:00');
+  assert.equal(badge('night_owl', {night_owl:{start_hour:1, end_hour:5}}).desc, 'Mostly plays 1:00–5:00');
+});

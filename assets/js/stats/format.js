@@ -112,8 +112,8 @@
       };
     }
     if (fam === 'veteran') return { name: 'Veteran', family: fam, tier: 1, art: null, desc: group(badges.veteran_hours || 1000) + ' h played' };
-    if (fam === 'regular') return { name: 'Regular', family: fam, tier: 1, art: null, desc: 'Active on ' + (badges.regular_days || 20) + ' of the last ' + (badges.regular_window_days || 30) + ' days' };
-    if (fam === 'night_owl') return { name: 'Night Owl', family: fam, tier: 1, art: null, desc: 'Mostly plays ' + (badges.night_start != null ? badges.night_start : 0) + ':00–' + (badges.night_end != null ? badges.night_end : 6) + ':00' };
+    if (fam === 'regular') { const r = badges.regular || {}; return { name: 'Regular', family: fam, tier: 1, art: null, desc: 'Active on ' + (r.days || 20) + ' of the last ' + (r.window_days || 30) + ' days' }; }
+    if (fam === 'night_owl') { const o = badges.night_owl || {}; return { name: 'Night Owl', family: fam, tier: 1, art: null, desc: 'Mostly plays ' + (o.start_hour != null ? o.start_hour : 0) + ':00–' + (o.end_hour != null ? o.end_hour : 6) + ':00' }; }
     if (fam === 'overtaker') return { name: 'Overtaker', family: fam, tier: 1, art: null, desc: 'Passed the player above in a rivalry' };
     return { name: titleCase(String(badgeKey)), family: fam, tier: 0, art: null, desc: '' };
   }
