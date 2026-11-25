@@ -1,0 +1,43 @@
+---
+layout: stats
+permalink: /stats/
+title: Stats
+bg: chronos_spawn
+page_js: overview
+---
+<div class="page st-ov">
+  <h1>Stats</h1>
+  <div id="ov-controls"></div>
+  <div id="ov-app">
+    <div class="st-tiles" id="ov-tiles"></div>
+    <div class="panel st-ov-chart">
+      <div id="ov-chart"></div>
+      <div class="st-note" id="ov-note"></div>
+    </div>
+
+    <div class="st-two st-sec reveal">
+      <div class="panel st-spot" id="ov-spot" aria-live="polite"></div>
+      <div class="panel st-pulse" id="ov-pulse">
+        <div class="st-pulse-head">
+          <div><span class="st-lab">Server pulse</span><h2 class="st-h2">When people play</h2></div>
+          <div class="st-seg" role="group" aria-label="Pulse view" id="ov-pulse-mode">
+            <button type="button" class="st-seg-btn on" data-value="clock" aria-pressed="true">Clock</button>
+            <button type="button" class="st-seg-btn" data-value="week" aria-pressed="false">Week</button>
+          </div>
+        </div>
+        <div id="ov-pulse-body"></div>
+      </div>
+    </div>
+
+    <section class="st-sec reveal">
+      <div class="st-bar st-feed-head">
+        <h2 class="st-h2">Milestones and firsts</h2>
+        <a class="st-again" href="/stats/milestones/">All milestones</a>
+      </div>
+      <div class="panel st-feed">
+        <div id="ov-tabs"></div>
+        <div id="ov-feed" role="tabpanel"></div>
+      </div>
+    </section>
+  </div>
+</div>

@@ -4,5 +4,6 @@
 - {title: Storage, url: /storage/, desc: "What is in the vaults"}
 - {title: Archive, url: /archive/, desc: "Public forum posts"}
 - {title: Status, url: /status/, desc: "Host health and server uptime"}
+- {title: Stats, url: /stats/, desc: "Every stat on every server, with history", hint: "Live", children: [{title: Overview, url: /stats/}, {title: Explorer, url: /stats/explorer/}, {title: Scoreboards, url: /stats/scoreboards/}, {title: Player, url: /stats/player/}, {title: Compare, url: /stats/compare/}, {title: Milestones, url: /stats/milestones/}]}
 - {title: Bolt map, url: /boltmap/, desc: "The bolt network, mapped", hint: "Interactive"}
 - {title: World map, url: /worldmap/, desc: "Explore the world in your browser", hint: "Interactive"}

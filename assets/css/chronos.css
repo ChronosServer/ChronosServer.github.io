@@ -28,6 +28,22 @@ a{color:inherit}
 .links a[aria-current]{color:#fff}
 .links a[aria-current]::after{transform:scaleX(1)}
 @media (hover:hover) and (pointer:fine){.links a:hover::after{transform:scaleX(1)}}
+/* nav dropdown (entries with children in _data/nav.yml). The menu is position:fixed and placed
+   from the button's rect in chronos.js, so .links{overflow-x:auto} cannot clip it */
+.dd{display:flex;height:100%}
+.dd-btn{position:relative;display:flex;align-items:center;height:100%;margin:0;padding:0 .9rem;background:none;border:0;color:var(--mute);font:500 .74rem var(--sans);letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
+.dd-btn span{font-size:.9em;letter-spacing:0;margin-left:.3em}
+.dd-btn:hover,.dd-btn[aria-current],.dd-btn[aria-expanded="true"]{color:#fff}
+.dd-btn::after{content:"";position:absolute;left:.9rem;right:.9rem;bottom:0;height:2px;background:var(--teal);transform:scaleX(0);transform-origin:left;transition:transform .2s var(--ease)}
+.dd-btn[aria-current]::after,.dd-btn[aria-expanded="true"]::after{transform:scaleX(1)}
+.dd-menu{position:fixed;z-index:30;min-width:12rem;display:flex;flex-direction:column;padding:.35rem 0;background:rgba(8,11,13,.97);border:1px solid var(--line);border-top:0;border-radius:0 0 3px 3px;box-shadow:0 14px 30px rgba(0,0,0,.45)}
+.dd-menu[hidden]{display:none}
+.links .dd-menu a{padding:.6rem 1.1rem}
+.links .dd-menu a::after{left:0;right:auto;top:.45rem;bottom:.45rem;width:2px;height:auto;transform:scaleY(0);transform-origin:center}
+.links .dd-menu a:hover,.links .dd-menu a:focus-visible{background:rgba(235,232,230,.05)}
+.links .dd-menu a:focus-visible{outline-offset:-2px}
+.links .dd-menu a[aria-current]::after{transform:scaleY(1)}
+@media (hover:hover) and (pointer:fine){.dd-btn:hover::after{transform:scaleX(1)}.links .dd-menu a:hover::after{transform:scaleY(1)}}
 
 .page{max-width:1000px;margin:0 auto;padding:6.5rem 1.4rem 2rem;animation:up .45s var(--ease) both}
 .page h1{font:700 clamp(1.8rem,5vw,2.8rem)/1.1 var(--display);letter-spacing:.04em;text-transform:uppercase;margin:0 0 .7rem;color:#fff}
@@ -98,7 +114,7 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
   .mark,.wordmark span,.tag,.page{animation:fade .3s linear both!important;animation-delay:0s!important}
   .kind-home .bg img{animation:none}
   .js .reveal,.js .reveal.in{opacity:1!important;transform:none!important;transition:none!important}
-  .links a::after,.meter b{transition:none}
+  .links a::after,.dd-btn::after,.meter b{transition:none}
 }
 
 /* home: learn more, explore tiles, join cards */

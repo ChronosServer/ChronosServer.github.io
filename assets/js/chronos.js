@@ -28,6 +28,52 @@
   }), {rootMargin: '0px 0px -10% 0px'});
   window.C = {esc, json, ago, stamp, fail, reveal: el => io.observe(el)};
 
+  // nav dropdowns. The menu is position:fixed (so the scrolling .links bar cannot clip it) and
+  // placed under its button here. .nav has a backdrop-filter, which makes it the containing
+  // block for fixed children; it sits at 0,0 so viewport coordinates still line up.
+  document.querySelectorAll('.nav .dd').forEach(dd => {
+    const btn = dd.querySelector('.dd-btn'), menu = dd.querySelector('.dd-menu');
+    const links = dd.closest('.links');
+    const items = () => [...menu.querySelectorAll('a')];
+    const isOpen = () => !menu.hidden;
+    function place() {
+      if (!isOpen()) return;
+      const r = btn.getBoundingClientRect(), w = menu.offsetWidth;
+      menu.style.top = r.bottom + 'px';
+      menu.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+    }
+    function open(focus) {
+      menu.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+      place();
+      if (focus) { const l = items(); (focus === 'last' ? l[l.length - 1] : l[0]).focus(); }
+    }
+    function close(refocus) {
+      if (!isOpen()) return;
+      menu.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+      if (refocus) btn.focus();
+    }
+    // click also covers Enter and Space, which buttons turn into clicks
+    btn.addEventListener('click', () => (isOpen() ? close() : open()));
+    btn.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(e.key === 'ArrowUp' ? 'last' : 'first'); }
+      else if (e.key === 'Escape' && isOpen()) { e.preventDefault(); close(true); }
+    });
+    menu.addEventListener('keydown', e => {
+      const l = items(), i = l.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); l[(i + 1) % l.length].focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); l[(i - 1 + l.length) % l.length].focus(); }
+      else if (e.key === 'Home') { e.preventDefault(); l[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); l[l.length - 1].focus(); }
+      else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+    });
+    dd.addEventListener('focusout', e => { if (!dd.contains(e.relatedTarget)) close(); });
+    document.addEventListener('click', e => { if (!dd.contains(e.target)) close(); });
+    addEventListener('resize', place);
+    if (links) links.addEventListener('scroll', place, {passive: true});
+  });
+
   addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
     if (!document.body.classList.contains('kind-home')) return;
