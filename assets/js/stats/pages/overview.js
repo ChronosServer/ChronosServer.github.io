@@ -72,8 +72,12 @@
   function parts(res) {
     const series = (res && res.series) || {};
     return info.parts.map(p => {
-      const pts = S.cm.trimLeading((series[p] || []).filter(x => x && isFinite(x[1])));
-      return { part: p, last: pts.length ? pts[pts.length - 1][1] : 0, first: pts.length ? pts[0][1] : 0, n: pts.length };
+      const pts = (series[p] || []).filter(x => x && isFinite(x[0]) && isFinite(x[1])).sort((a, b) => a[0] - b[0]);
+      const last = pts.length ? pts[pts.length - 1][1] : 0;
+      // gain over the window: last minus the value at effective_from (untrimmed, so a stat
+      // that starts at 0 inside the range reports its full gain; no point yet means 0)
+      const atFrom = S.cm.valueAt(pts, res.effective_from);
+      return { part: p, last, gain: Math.max(0, last - (atFrom == null ? 0 : atFrom)) };
     });
   }
 
@@ -98,7 +102,7 @@
         '<div class="st-legend">' + ps.map(p => '<span>' + esc(partLabel(p.part)) + ' ' + esc(F.display(h[0], h[1], p.last).text) + '</span>').join('') + '</div>';
     }
     if (isDelta()) {
-      const gain = ps.reduce((a, p) => a + Math.max(0, p.last - p.first), 0);
+      const gain = ps.reduce((a, p) => a + p.gain, 0);
       out += '<div class="st-rk"><b>+' + esc(F.display(h[0], h[1], gain).text) + '</b> since ' + esc(F.date(res.effective_from)) + '</div>';
     } else if (!split) {
       out += '<div class="st-rk">All time</div>';
@@ -129,7 +133,7 @@
   }
 
   function requestedStart(res) {
-    if (st.range && st.range !== 'all') return res.to - ((meta.settings.range_presets || {})[st.range] || 0);
+    if (st.range && st.range !== 'all') return res.to - (((meta.settings && meta.settings.range_presets) || {})[st.range] || 0);
     if (!st.range && st.from != null) return st.from;
     return null;
   }
@@ -177,16 +181,18 @@
     paintNote(null);
   }
 
-  // `pending` is the selected tile's /totals promise when the caller already holds it.
-  async function drawSelected(my, pending) {
-    const h = selected();
+  // `pending` is tile `forH`'s /totals promise when the caller already holds it; if the
+  // selection has moved on by then, the result (or failure) is dropped.
+  async function drawSelected(my, pending, forH) {
+    const h = forH || selected();
+    if (forH && selected() !== forH) return;
     if (!h) { chartMessage('<div class="st-chart"><div class="st-empty">None of the headline stats are tracked on this scope yet.</div></div>'); return; }
     try {
       const res = await (pending || totals(h));
       if (my !== gen || selected() !== h) return;
       showChart(h, res);
     } catch (err) {
-      if (my !== gen) return;
+      if (my !== gen || selected() !== h) return;
       chartMessage('<div class="st-chart"></div>');
       S.ui.error(el.chart.firstChild, err);
     }
@@ -229,25 +235,35 @@
     el.spot.parentNode.classList.toggle('st-one', !on);
   }
 
-  async function loadSpot(my) {
+  function spotLoading() {
+    setSpotVisible(true);
+    el.spot.innerHTML = '<div><span class="st-lab">Spotlight</span></div><div class="st-empty">Loading…</div>';
+  }
+
+  // `another`: the reader asked for a different fact, so a null answer keeps the current one.
+  async function loadSpot(my, another) {
     const btn = el.spot.querySelector('.st-again');
     if (btn) btn.disabled = true;
+    const keep = () => { if (btn) btn.disabled = false; };
     let sp;
     try {
       sp = await S.api('spotlight', { scope: st.scope, seen: seenList().join(',') });
     } catch (err) {
       if (my !== gen) return;
       setSpotVisible(true);
-      el.spot.innerHTML = '<div><span class="st-lab">Spotlight</span></div><div class="st-spot-err"></div>';
-      S.ui.error(el.spot.lastChild, err);
+      el.spot.innerHTML = '<div><span class="st-lab">Spotlight</span><div class="st-spot-err"></div></div>' +
+        '<div class="st-who"><button type="button" class="st-again">Try again</button></div>';
+      S.ui.error(el.spot.querySelector('.st-spot-err'), err);
       return;
     }
     if (my !== gen) return;
-    if (!sp || !sp.trigger) { setSpotVisible(false); el.spot.innerHTML = ''; return; }
+    const name = sp && sp.trigger ? F.playerName(sp) : null;
+    const text = name != null ? F.spotlight(Object.assign({}, sp, { name }), serverLabel(sp.server_key)) : '';
+    if (!text) {
+      if (another) { keep(); return; }
+      setSpotVisible(false); el.spot.innerHTML = ''; return;
+    }
     if (sp.category && sp.key) pushSeen(sp.category + '|' + sp.key);
-    const name = F.playerName(sp);
-    const text = F.spotlight(Object.assign({}, sp, { name }), serverLabel(sp.server_key));
-    if (!text) { setSpotVisible(false); return; }
     const detail = spotDetail(sp);
     setSpotVisible(true);
     el.spot.innerHTML =
@@ -423,6 +439,11 @@
     tileData.clear();
     paintTiles();
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
+    // the previous scope's spotlight and pulse must not sit under the new controls
+    spotLoading();
+    pulseData = null;
+    el.pulseBody.className = '';
+    el.pulseBody.innerHTML = '<div class="st-empty">Loading…</div>';
 
     // first paint: the selected tile's totals
     const first = selected();
@@ -430,7 +451,7 @@
     try { tileData.set(idOf(first), await pending); } catch (e) { tileData.set(idOf(first), null); }
     if (my !== gen) return;
     paintTile(first);
-    await drawSelected(my, pending);
+    await drawSelected(my, pending, first);
     if (my !== gen) return;
 
     // then everything else in parallel
@@ -451,7 +472,8 @@
   });
   el.spot.addEventListener('click', e => {
     const b = e.target.closest('.st-again');
-    if (b && !b.disabled) loadSpot(gen);
+    // "Another" keeps the current fact on a null answer; "Try again" after an error is a fresh load
+    if (b && !b.disabled) loadSpot(gen, !!el.spot.querySelector('.st-who-t'));
   });
   el.pulseMode.addEventListener('click', e => {
     const b = e.target.closest('button');
