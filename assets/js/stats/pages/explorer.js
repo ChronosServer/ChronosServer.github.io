@@ -15,7 +15,7 @@
  * Every API string goes through S.fmt.esc (or textContent) before it reaches the DOM.
  * Page-only classes (stats.css): st-ex st-ex-search st-ex-q st-ex-grid st-ex-browse st-ex-cats
  * st-ex-cat st-ex-keys st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head
- * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot.
+ * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot st-ex-moreerr.
  */
 (function () {
   const S = window.S, F = S.fmt, esc = F.esc;
@@ -40,7 +40,7 @@
   let keys = null, keysErr = null;   // /keys for the scope
   let browseCat = null;              // category shown in the key list (stats only)
   let mode = 'top';                  // chart mode: top | servers
-  let board = null, boardErr = null, limit = STEP, loadingMore = false;
+  let board = null, boardErr = null, moreErr = null, limit = STEP, loadingMore = false;
   let picked = [];                   // uuids drawn in Top players, in click order
   const colorOf = new Map();         // uuid -> LINES index while picked
   const names = new Map();           // uuid -> display name
@@ -136,6 +136,8 @@
 
   function paintCats() {
     if (!el.cats) return;
+    // the repaint replaces the buttons: keep keyboard focus on the same category
+    const focused = el.cats.contains(document.activeElement) ? document.activeElement.dataset.cat : null;
     el.cats.innerHTML = (meta.categories || []).map(c => {
       const on = c === browseCat;
       const first = catKeys(c)[0];
@@ -145,6 +147,10 @@
         art + '<span>' + esc(catLabel(c)) + '</span>' + (n != null ? '<small>' + esc(fmtCount(n)) + '</small>' : '') + '</button>';
     }).join('');
     S.ui.hydrate(el.cats);
+    if (focused != null) {
+      const b = Array.from(el.cats.querySelectorAll('.st-ex-cat')).find(x => x.dataset.cat === focused);
+      if (b) b.focus();
+    }
   }
 
   function listItems() {
@@ -266,7 +272,8 @@
     let text = 'Showing ' + fmtCount(rows.length) + ' of ' + fmtCount(board.total_count);
     if (rows.length >= maxRows() && board.total_count > rows.length) text += '. The board stops at ' + fmtCount(maxRows()) + '; search a player to see their own rank.';
     foot.innerHTML = '<span class="st-table-count">' + esc(text) + '</span>' +
-      (rows.length < cap && limit < maxRows() ? '<button type="button" class="st-more">Load more</button>' : '');
+      (moreErr ? '<span class="st-ex-moreerr" role="alert">' + esc(S.errorText(moreErr)) + '</span>' : '') +
+      (rows.length < cap && limit < maxRows() ? '<button type="button" class="st-more">' + (moreErr ? 'Try again' : 'Load more') + '</button>' : '');
     tblEl.appendChild(foot);
     if (focusFrom != null) {
       const tr = tblEl.querySelector('tr[data-i="' + focusFrom + '"]');
@@ -274,20 +281,29 @@
     }
   }
 
-  async function loadBoard(my, focusFrom) {
+  // `more` = {prevLimit} when this is a "Load more": a failure then keeps the rows already
+  // shown, puts the limit back and shows the error next to the button.
+  async function loadBoard(my, focusFrom, more) {
     const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), limit }, S.rangeParams(st));
     let res;
     try {
       res = await get('leaderboard', req);
     } catch (err) {
       if (my !== gen) return false;
+      if (more && board) {
+        limit = more.prevLimit; moreErr = err;
+        paintBoard();
+        const b = el.board.querySelector('.st-ex-foot .st-more');
+        if (b) b.focus();
+        return false;
+      }
       boardErr = err; board = null;
       paintBoard(); paintHead();
       return false;
     }
     if (my !== gen) return false;
     const first = !board;
-    board = res; boardErr = null;
+    board = res; boardErr = null; moreErr = null;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
       picked = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
@@ -303,9 +319,9 @@
     loadingMore = true;
     const btn = el.board.querySelector('.st-ex-foot .st-more');
     if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
-    const from = (board.rows || []).length;
+    const from = (board.rows || []).length, prevLimit = limit;
     limit = Math.min(limit + STEP, maxRows());
-    await loadBoard(gen, from);
+    await loadBoard(gen, from, { prevLimit });
     loadingMore = false;
   }
 
@@ -402,7 +418,7 @@
 
   // ---- loading
   function resetStat() {
-    board = null; boardErr = null; limit = STEP; picked = []; colorOf.clear();
+    board = null; boardErr = null; moreErr = null; limit = STEP; picked = []; colorOf.clear();
     paintBoard(); paintHead();
   }
 
@@ -415,18 +431,28 @@
     drawChart();
   }
 
-  async function load() {
+  // `scopeChange`: called from the controls. On Scoreboards an objective the new scope
+  // doesn't have then falls back to that scope's first objective.
+  async function load(scopeChange) {
     const my = ++gen, km = ++kgen;
     info = S.scopeInfo(meta, st.scope);
     keys = null; keysErr = null;
     paintBrowse();
     resetStat();
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
-    if (SB && !st.key) {
+    if (SB && (!st.key || scopeChange)) {
       // the default objective is the first one in this scope's list
       const k = await loadKeys(km);
       if (my !== gen) return;
-      const first = k && (k.objectives || [])[0];
+      const objs = (k && k.objectives) || [];
+      const first = objs.find(o => o.objective === st.key) || objs[0];
+      if (!first && st.key && keysErr) {
+        // the list failed but an objective is chosen: its board may still load
+        await loadBoard(my);
+        if (my !== gen) return;
+        drawChart();
+        return;
+      }
       if (!first) {
         el.board.innerHTML = '';
         if (keysErr) S.ui.error(el.board, keysErr);
@@ -542,7 +568,12 @@
     browseCat = SB ? null : st.cat;
     S.state.write(st);
     if (serverParts().length < 2) el.mode.style.display = 'none';   // one line is no comparison
-    S.ui.controls(el.controls, meta, st, () => load(), { range: true });
+    let lastScope = st.scope;
+    S.ui.controls(el.controls, meta, st, () => {
+      const changed = st.scope !== lastScope;
+      lastScope = st.scope;
+      load(changed);
+    }, { range: true });
     S.ui.autocomplete(el.q, { limit: 10, onPick });
     load();
   }

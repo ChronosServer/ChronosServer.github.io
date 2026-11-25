@@ -18,6 +18,7 @@
  *   explorer  st-ex st-ex-search st-ex-q st-ex-grid st-ex-browse st-ex-cats st-ex-cat st-ex-keys
  *             st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head st-ex-title
  *             st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot
+ *             st-ex-moreerr
  * Widget classes come from assets/js/stats/{chart,viz,ui}.js (see their header comments).
  */
 :root{--cmp:#c9b37e;--st-tint:color-mix(in srgb,var(--teal) 22%,transparent);--st-pop:rgba(8,11,13,.97)}
@@ -203,6 +204,7 @@ input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans
 .st-ex-pl{display:inline-flex;align-items:center;min-width:0;color:var(--ink);text-decoration:none}
 .st-ex-pl:hover{color:#fff;text-decoration:underline}
 .st-ex-board .panel.err{margin:1rem 1.1rem}
+.st-ex-moreerr{flex:1 1 220px;color:#ffb9a8}
 
 /* ---- heads, item icons, fallback squares (S.ui) */
 .st-head,.st-icon{flex:none;display:inline-block;vertical-align:middle;image-rendering:pixelated}
