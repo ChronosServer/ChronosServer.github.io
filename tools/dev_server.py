@@ -1,4 +1,4 @@
-"""Local dev server: serves _site/ and forwards /api/stats/* and /cache/items/* (item icons,
+"""Local dev server: serves _site/ and forwards /api/stats/* and /cache/items/* and /cache/heads/* (item icons, player heads,
 built on the server only) to the live site."""
 import argparse
 import functools
@@ -9,7 +9,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 DEFAULT_ORIGIN = "https://www.chronosmc.com"
-PREFIXES = ("/api/stats/", "/cache/items/")
+PREFIXES = ("/api/stats/", "/cache/items/", "/cache/heads/")
 # Cloudflare rejects Python's default User-Agent.
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")

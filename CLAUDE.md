@@ -106,11 +106,13 @@ the scope doc. Open backend issues go in
     `HEADLINES` (the only curated list), `esc`.
   - `chartmath.js` `S.cm`: scales, step paths, `valueAt`. `activity.js` `S.act.bin`.
   - `core.js`: `S.api`, `S.ApiError`, `S.errorText`, `S.meta`, `S.state` (URL state with
-    fallbacks), `S.scopeInfo`, `S.rangeParams`, `S.scopeServers`, `S.liveAt`, `S.tracked`, `S.memo`.
+    fallbacks), `S.scopeInfo`, `S.rangeParams`, `S.scopeServers`, `S.serverLines`, `S.liveAt`, `S.tracked`, `S.memo`.
   - `chart.js` `S.chart(el, opts)` SVG step chart (hover/keyboard). `viz.js`
     `S.viz.clock/heatmap`.
-  - `ui.js` `S.ui`: heads/icons, controls bar, autocomplete, tabs, paged table, empty/error.
-  - `pagekit.js` `S.kit`: shared range/live/untracked/leader/axis helpers.
+  - `ui.js` `S.ui`: heads/icons, controls bar, autocomplete, tabs, paged table + `pager`,
+    `tip` (styled `[data-tip]` tooltips), `filterBox`, empty/error.
+  - `pagekit.js` `S.kit`: shared range/live/untracked/leader/axis helpers, `boardHref`,
+    `lineStart` (each `/totals` line's own start).
   - `pages/*.js`: one per page (overview, explorer — also used by scoreboards, player,
     compare, milestones).
 
@@ -123,11 +125,14 @@ the scope doc. Open backend issues go in
   → amber "by <date>". Dates `en-GB` short.
 - `live_started_at` for a multi-server scope is the latest of its servers' starts.
   `track_stats` / `track_scoreboards` false on a server → empty states, not zeros.
+- Bots: the "Include bots" toggle shows where a server in view has `has_bots`
+  (`scopeInfo().hasBots`); `is_bot` / `is_fake` label bots (`S.fmt.isBot`/`botLabel`).
 - No cache-busters on API calls, no polling faster than 5 min. Everything from the API
   goes through `C.esc()`. Item icons `/cache/items/<id>.png`; missing → letter square.
+  Heads `/cache/heads/<uuid>.png` first (404 = no head for that player, not an outage).
 
 **Local dev** (API sends no CORS headers): `python tools/dev_server.py` (port 4000) serves
-`_site/`, forwards `/api/stats/*` and `/cache/items/*` to `https://www.chronosmc.com`
+`_site/`, forwards `/api/stats/*`, `/cache/items/*` and `/cache/heads/*` to `https://www.chronosmc.com`
 (`STATS_API_ORIGIN` overrides). Rebuild with `bundle exec jekyll build --watch`
 (Ruby is at `C:\Ruby32-x64\bin`; add it to PATH).
 
@@ -161,5 +166,5 @@ the scope doc. Open backend issues go in
   serif display fonts, stock gradient hero buttons, and cliché "Explore our features"
   copy patterns. Plain, specific copy. Nav/headers are always caps. No home-page buttons
   for Discord/GitHub/Patreon — footer links (and the Join cards) only, with icons.
-- Crafatar was down in Nov 2026: heads fall back to mc-heads, then a lettered square
+- Crafatar was down in Nov 2026: heads try our `/cache/heads` first, then Crafatar, mc-heads, then a lettered square
   (`S.ui.head`). Don't "fix" it by dropping Crafatar, it recovers.

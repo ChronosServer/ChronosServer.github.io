@@ -172,7 +172,7 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-dim{opacity:.4}
 .st-feed-head{margin:0 0 1rem}
 .st-feed-head .st-h2{margin:0}
-.st-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.2rem}
+.st-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1.2rem}
 .st-top-card{display:flex;flex-direction:column;gap:.7rem;padding:1.1rem 1.2rem}
 .st-top-list{margin:0;padding:0;list-style:none}
 .st-top-list li{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.42rem 0;border-top:1px solid var(--line)}
@@ -185,6 +185,11 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-top-v{font:600 .9rem var(--mono);color:#fff;font-variant-numeric:tabular-nums}
 .st-top-empty{margin:0;font-size:.84rem;color:var(--mute)}
 .st-top-card .st-board-link{align-self:flex-end}
+.st-top-more{padding:0;background:none;border:0;cursor:pointer}
+.st-rank{margin-top:1.2rem}
+.st-rank[hidden]{display:none}
+.st-rank-body{padding:.4rem 1.2rem 1rem}
+.st-rank-list li{grid-template-columns:2.6rem minmax(0,1fr) auto}
 .st-feed-t .st-icon,.st-feed-t .st-letter{width:20px;height:20px;margin:0 .15rem;vertical-align:-4px}
 .st-feed > .st-tabs{padding:0 .3rem}
 
@@ -385,6 +390,8 @@ button.st-pod:focus-visible{outline-offset:-2px}
 .st-ph{display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:end}
 .st-body{width:110px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 10px 18px rgba(0,0,0,.6))}
 .st-ph h1{margin-bottom:.5rem;font-size:clamp(2.2rem,6vw,3.6rem);overflow-wrap:anywhere}
+/* --n = name length: long names shrink to fit the column instead of breaking mid-word */
+.st-ph h1[style*="--n"]{font-size:clamp(1.1rem,calc(min(20rem,56vw) / var(--n)),3.6rem)}
 .st-meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font:400 .8rem var(--mono);color:var(--mute)}
 .st-chip{white-space:nowrap;padding:.12rem .5rem;border:1px solid var(--line);border-radius:2px;font:500 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
 .st-bigcount{font:700 clamp(3rem,9vw,6rem)/1 var(--display);letter-spacing:.02em;color:#fff}

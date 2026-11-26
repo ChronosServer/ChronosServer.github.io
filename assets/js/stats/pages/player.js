@@ -115,7 +115,7 @@
     }
     const merged = mergedFrom ? '<p class="st-pl-merged">Showing ' + esc(name()) + ' — ' + esc(mergedFrom) + ' is counted as the same player.</p>' : '';
     return '<header class="st-pl-head"><div class="st-ph"><span class="st-pl-skin" id="pl-skin"></span>' +
-      '<div><h1>' + esc(name()) + '</h1>' + akaHtml() + '<div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
+      '<div><h1 style="--n:' + Math.max(6, name().length) + '">' + esc(name()) + '</h1>' + akaHtml() + '<div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
   }
 
   function paintSkin() {
