@@ -33,7 +33,7 @@
   const hasIcon = cat => !['custom', 'killed', 'killed_by'].includes(F.itemId(cat));
   const idOf = h => F.itemId(h[1]);
   const selected = () => shown.find(h => idOf(h) === st.stat) || shown[0];
-  const bots = () => (info.hasBots && st.bots ? 'true' : null);
+  const bots = () => (info && st && info.hasBots && st.bots ? 'true' : null);
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
