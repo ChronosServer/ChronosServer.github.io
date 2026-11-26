@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { compact, display, statLabel, playerName, when, badge, spotlight, catIcon } = require('../../assets/js/stats/format.js');
+const { compact, display, statLabel, playerName, when, badge, spotlight, catIcon, isBot, botLabel } = require('../../assets/js/stats/format.js');
 
 test('compact', () => {
   assert.equal(compact(1552), '1,552'); assert.equal(compact(9999), '9,999');
@@ -166,4 +166,14 @@ test('catIcon maps every category', () => {
   assert.equal(catIcon('minecraft:picked_up'), 'netherrack');
   assert.equal(catIcon('minecraft:used'), 'firework_rocket');
   assert.equal(catIcon('minecraft:nope'), null);
+});
+test('isBot and botLabel read the new flags, falling back to is_bot_on_smp', () => {
+  assert.equal(isBot({ is_bot: true, is_bot_on_smp: false }), true);
+  assert.equal(isBot({ is_bot: false, is_bot_on_smp: true }), false);
+  assert.equal(isBot({ is_bot_on_smp: true }), true);
+  assert.equal(isBot({}), false);
+  assert.equal(botLabel({ is_fake: true, is_bot: true }), 'Fake player');
+  assert.equal(botLabel({ is_fake: false, is_bot_on_smp: true, is_bot: true }), 'Bot account on SMP');
+  assert.equal(botLabel({ is_bot_on_smp: true }), 'Bot account on SMP');
+  assert.equal(botLabel({ is_bot: false }), null);
 });

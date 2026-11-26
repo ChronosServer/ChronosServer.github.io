@@ -20,7 +20,7 @@
  *             st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot
  *             st-ex-moreerr
  *   player    st-pl st-pl-landing st-pl-lede st-pl-top (.st-pl-big) st-pl-find st-pl-ctl st-pl-head
- *             st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-merged st-pl-tiles st-pl-sh st-pl-n st-pl-see
+ *             st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-aka st-pl-merged st-pl-tiles st-pl-sh st-pl-n st-pl-see
  *             st-pod-more st-pl-graph st-pl-range st-pl-chart st-pl-tabs st-pl-panel st-pl-filt
  *             st-pl-one st-pl-rk st-pl-top1 st-pl-row st-pl-quiet st-pl-early st-pl-intro st-pl-by
  *             st-pl-ek st-pl-link st-pl-trend st-pl-empty st-pl-none
@@ -259,6 +259,7 @@ input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans
 .st-pl-ones:focus-visible{outline-offset:6px}
 .st-pl-bot{border-color:rgba(229,169,60,.55);color:var(--amber)}
 .st-pl-anon{font-style:italic}
+.st-pl-aka{margin:.15rem 0 .35rem;font-family:var(--mono);font-size:.78rem;color:var(--mute)}
 .st-pl-merged{margin:.5rem 0 0;font:400 .85rem/1.45 var(--sans);color:var(--mute)}
 .st-pl-tiles .st-v{font-size:1.55rem}
 .st-sec > h2 .st-pl-n,.st-pl-sh .st-pl-n{margin-left:.5rem;font:400 .8rem var(--mono);letter-spacing:0;color:var(--mute)}

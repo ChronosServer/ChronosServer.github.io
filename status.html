@@ -15,7 +15,7 @@ bg: chronos_spawn
 <script>
 const $ = id => document.getElementById(id);
 // Owner's fixed order; anything else goes after, A to Z.
-const ORDER = ['smp', 'cmp', 'cmp2', 'cmp3', 'cmp4', 'mirror', 'snapshot', 'tour', 'public'];
+const ORDER = ['smp', 'cmp', 'cmp2', 'cmp3', 'cmp4', 'mirror', 'building', 'building2', 'snapshot', 'tour', 'public'];
 const rank = n => { const i = ORDER.indexOf(n.toLowerCase()); return i < 0 ? ORDER.length : i; };
 const lvl = (p, w, b) => p > b ? 'bad' : p > w ? 'warn' : '';
 const row = (name, p, val, sub, w = 70, b = 90) =>

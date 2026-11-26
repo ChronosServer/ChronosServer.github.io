@@ -59,7 +59,9 @@
     img.decoding = 'async';
     img.onload = () => { headFails[i] = 0; };
     img.onerror = () => {
-      headFails[i]++;
+      // a 404 from our own cache means "no head for this player" (default skin, fake player),
+      // not an outage, so only the third-party services get switched off after 3 failures
+      if (i > 0) headFails[i]++;
       i++;
       while (i < HEADS.length && headFails[i] >= 3) i++;
       if (i < HEADS.length) img.src = HEADS[i](uuid, size);
@@ -232,7 +234,7 @@
       sel.value = sp.sel.includes(st.scope) ? st.scope : '';
       sel.classList.toggle('on', sp.sel.includes(st.scope));
       bot.checked = !!st.bots;
-      show(botWrap, !!(S.scopeInfo && S.scopeInfo(meta, st.scope).hasSmp));
+      show(botWrap, !!(S.scopeInfo && S.scopeInfo(meta, st.scope).hasBots));
       if (rangeSeg) {
         const isCustom = customOpen || (!st.range && st.from != null && st.to != null);
         press(rangeSeg, isCustom ? 'custom' : st.range);
@@ -241,8 +243,8 @@
       }
     }
     function commit() {
-      // bots only means something where SMP data is in view; don't carry it into the URL elsewhere
-      if (st.bots && S.scopeInfo && !S.scopeInfo(meta, st.scope).hasSmp) st.bots = false;
+      // bots only mean something where a server with bots is in view; don't carry it into the URL elsewhere
+      if (st.bots && S.scopeInfo && !S.scopeInfo(meta, st.scope).hasBots) st.bots = false;
       if (S.state) S.state.write(st);
       paint();
       onChange(st);
@@ -444,7 +446,7 @@
       const my = ++seq;
       let data;
       // ids use _ where labels show spaces: "redstone block" -> redstone_block (names can't hold spaces)
-      try { data = await S.api('search', { q: q.replace(/\s+/g, '_'), limit }); } catch (e) { if (my === seq) close(); return; }
+      try { data = await S.api('search', { q: q.replace(/\s+/g, '_'), limit, include_bots: opts.bots && opts.bots() ? 'true' : null }); } catch (e) { if (my === seq) close(); return; }
       if (my !== seq || input.value.trim() !== q) return;
       render(data);
     }

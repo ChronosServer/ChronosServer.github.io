@@ -25,6 +25,10 @@
     killed: 'diamond_sword', killed_by: 'creeper_spawn_egg', mined: 'diamond_pickaxe', picked_up: 'netherrack', used: 'firework_rocket' };
   const catIcon = (category) => CAT_ICON[itemId(category)] || null;
 
+  // /player and /compare bot flags: is_bot = is_fake (Carpet fake player) or is_bot_on_smp (team rule)
+  const isBot = (r) => !!(r && (typeof r.is_bot === 'boolean' ? r.is_bot : r.is_bot_on_smp));
+  const botLabel = (r) => (!isBot(r) ? null : r.is_fake ? 'Fake player' : r.is_bot_on_smp ? 'Bot account on SMP' : 'Bot account');
+
   const itemId = (key) => String(key == null ? '' : key).replace(/^[^:]*:/, '');
   const sentence = (s) => { s = s.replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); };
   const titleCase = (s) => s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -205,6 +209,6 @@
     }
   }
 
-  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, catIcon, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
+  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, catIcon, isBot, botLabel, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
   if (typeof module !== 'undefined') module.exports = S.fmt;
 })(typeof window !== 'undefined' ? window : globalThis);

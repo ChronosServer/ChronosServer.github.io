@@ -51,7 +51,7 @@
 
   const limits = () => (meta.settings && meta.settings.limits) || {};
   const maxLines = () => Math.max(1, Math.min(LINES.length, limits().series_players || 6));
-  const bots = () => (info.hasSmp && st.bots ? 'true' : null);
+  const bots = () => (info.hasBots && st.bots ? 'true' : null);
   const hasIcon = cat => !SB && !['custom', 'killed', 'killed_by'].includes(F.itemId(cat));
   const catLabel = c => (F.itemId(c) === 'custom' ? 'General' : F.statLabel(c, 'x').cat);
   const label = () => (SB ? { cat: 'Objective', name: st.key, full: st.key } : F.statLabel(st.cat, st.key));
@@ -552,7 +552,7 @@
       lastScope = st.scope;
       load(changed);
     }, { range: true });
-    S.ui.autocomplete(el.q, { limit: 10, onPick });
+    S.ui.autocomplete(el.q, { limit: 10, onPick, bots: () => !!bots() });
     load();
   }
 
