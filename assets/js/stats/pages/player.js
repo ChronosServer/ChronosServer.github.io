@@ -116,7 +116,7 @@
     }
     const merged = mergedFrom ? '<p class="st-pl-merged">Showing ' + esc(name()) + ' — ' + esc(mergedFrom) + ' is counted as the same player.</p>' : '';
     return '<header class="st-pl-head"><div class="st-ph"><span class="st-pl-skin" id="pl-skin"></span>' +
-      '<div><h1 style="--n:' + Math.max(6, name().length) + '">' + esc(name()) + '</h1>' + akaHtml() + '<div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
+      '<div class="st-ph-name"><h1 style="--n:' + Math.max(6, name().length) + '">' + esc(name()) + '</h1>' + akaHtml() + '<div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
   }
 
   function paintSkin() {
@@ -404,7 +404,7 @@
         { id: 'stat', label: 'Stat', sort: r => r.lab.toLowerCase() },
         { id: 'value', label: 'Value', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
-        { id: 'board', label: '', sort: null },
+        { id: 'board', label: '', srLabel: 'Leaderboard', sort: null },
       ],
       rows: hits, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {
@@ -428,7 +428,7 @@
         { id: 'objective', label: 'Objective', sort: r => String(r.objective).toLowerCase() },
         { id: 'value', label: 'Score', num: true, sort: true },
         { id: 'rank', label: 'Rank', num: true, sort: r => r.rank / r.of },
-        { id: 'board', label: '', sort: null },
+        { id: 'board', label: '', srLabel: 'Leaderboard', sort: null },
       ],
       rows: list, pageSize: PAGE, sortBy: 'rank', sortDir: 'asc',
       rowHtml: r => {

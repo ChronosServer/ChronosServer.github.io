@@ -632,7 +632,8 @@
     if (tipFor && tipFor !== t) tipFor.removeAttribute('aria-describedby');
     tipFor = t;
     bubble.textContent = t.dataset.tip;
-    t.setAttribute('aria-describedby', bubble.id);
+    // an element that already carries the text (e.g. an sr-only copy) would be read twice
+    if (!t.textContent.includes(t.dataset.tip)) t.setAttribute('aria-describedby', bubble.id);
     bubble.hidden = false;
     const r = t.getBoundingClientRect(), b = bubble.getBoundingClientRect();
     const vw = document.documentElement.clientWidth;
@@ -691,7 +692,8 @@
       if (c.num) th.className = 'st-num';
       if (c.sort) {
         th.innerHTML = '<button type="button" class="st-sort">' + esc(c.label) + '<span class="st-sort-ind" aria-hidden="true"></span></button>';
-      } else th.textContent = c.label;
+      } else if (!c.label && c.srLabel) th.innerHTML = '<span class="sr-only">' + esc(c.srLabel) + '</span>';
+      else th.textContent = c.label;
       htr.appendChild(th);
     });
     thead.appendChild(htr);

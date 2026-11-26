@@ -93,7 +93,7 @@
     }
     if (isDelta()) {
       const gain = ps.reduce((a, p) => a + p.gain, 0);
-      out += '<div class="st-rk"><b>' + esc(F.signed(h[0], h[1], gain).text) + '</b> since ' + esc(F.date(res.effective_from)) + '</div>';
+      out += '<div class="st-rk"><b>' + esc(F.signed(h[0], h[1], gain).text) + '</b> ' + esc(S.kit.gainSince(res, info.parts, st)) + '</div>';
     } else if (!split) {
       out += '<div class="st-rk">All time</div>';
     }
@@ -409,11 +409,18 @@
   // below the cards.
   const TOP_N = 5, RANK_PAGE = 50;
   const TOP_LISTS = [
-    { title: 'Most hours played', cat: 'minecraft:custom', key: 'minecraft:play_time' },
-    { title: 'Most #1 spots', by: 'top1', what: 'Stats and scoreboards held at #1' },
-    { title: 'Most firsts', by: 'firsts', what: 'Firsts on record (not counting players who had it before tracking)' },
-    { title: 'Most badges', by: 'badges', what: 'Different badges earned' },
+    { title: 'Most hours played', cat: 'minecraft:custom', key: 'minecraft:play_time', needs: ['stat'] },
+    { title: 'Most #1 spots', by: 'top1', what: 'Stats and scoreboards held at #1', needs: ['stat', 'scoreboard'] },
+    { title: 'Most firsts', by: 'firsts', what: 'Firsts on record (not counting players who had it before tracking)', needs: ['stat'] },
+    { title: 'Most badges', by: 'badges', what: 'Different badges earned', needs: [] },
   ];
+  // why a list can't fill on this scope: every kind of data it counts is switched off there
+  // (#1 spots counts stats or scoreboards; badges include ones that belong to no server)
+  function topOff(t) {
+    if (!t.needs.length || t.needs.some(k => S.tracked(meta, st.scope, k))) return '';
+    const msg = S.kit.untracked(meta, st.scope, t.needs[0]);
+    return t.needs.length > 1 ? msg.replace(/^Stats /, 'Stats and scoreboards ') : msg;
+  }
   const valueText = (t, v) => (t.by ? { text: F.compact(v), exact: Number(v).toLocaleString('en-GB') } : F.display(t.cat, t.key, v));
   const fetchRaw = (t, limit, offset) => (t.by
     ? get('rankings', { by: t.by, scope: st.scope, include_bots: bots(), limit, offset: offset || null })
@@ -449,11 +456,11 @@
   }
 
   async function loadTop(my) {
-    const off = S.kit.untracked(meta, st.scope, 'stat');
-    if (off) { el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">' + esc(off) + '</p>')).join(''); closeRank(); return; }
-    el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">Loading…</p>')).join('');
-    if (rank.t) loadRank(rank.t, 1);
+    el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">' + esc(topOff(t) || 'Loading…') + '</p>')).join('');
+    if (rank.t) { if (topOff(rank.t)) closeRank(); else loadRank(rank.t, 1, true); }
     const cards = await Promise.all(TOP_LISTS.map(async (t, i) => {
+      const off = topOff(t);
+      if (off) return topCard(t, '<p class="st-top-empty">' + esc(off) + '</p>');
       let res;
       try { res = await fetchTop(t, TOP_N); } catch (err) {
         return topCard(t, '<p class="st-top-empty">' + esc(S.errorText(err)) + '</p>');
@@ -481,7 +488,8 @@
     paintExpanded();
     if (back && t) { const b = el.top.querySelector('.st-top-more[data-i="' + TOP_LISTS.indexOf(t) + '"]'); if (b) b.focus(); }
   }
-  async function loadRank(t, pg) {
+  // `fresh`: the scope or bots changed, so the rows on screen belong to the old view
+  async function loadRank(t, pg, fresh) {
     const seq = ++rank.seq, first = rank.t !== t;
     rank.t = t; rank.page = pg;
     el.rank.hidden = false;
@@ -491,6 +499,9 @@
         '<span class="st-ex-hint">' + esc(t.what) + '</span>' +
         '<button type="button" class="st-again st-rank-close">Close</button></div><div class="st-rank-body"><div class="st-empty">Loading…</div></div>';
       el.rank.querySelector('.st-rank-close').addEventListener('click', () => closeRank(true));
+    } else if (fresh) {
+      el.rank.querySelector('.st-rank-body').innerHTML = '<div class="st-empty">Loading…</div>';
+      rank.pager = null;
     }
     let res;
     try { res = await fetchTop(t, RANK_PAGE, (pg - 1) * RANK_PAGE); } catch (err) {

@@ -16,10 +16,14 @@ let DATA = null;
 function render() {
   const q = $('q').value.trim().toLowerCase();
   $('out').innerHTML = G.map(([label, key, cls]) => {
-    const list = (DATA[key] || []).filter(m => !q || m.name.toLowerCase().includes(q));
+    // the account's own name (C.person), not the server nickname; the filter also finds the
+    // username and nickname
+    const list = (DATA[key] || []).filter(m => !q || [C.person.name(m), m.username, m.name].some(n => n && n.toLowerCase().includes(q)))
+      .sort((a, b) => C.person.name(a).localeCompare(C.person.name(b), 'en', {sensitivity: 'base'}));
     if (!list.length) return '';
     return `<h2>${label} <span class="pill">${list.length}</span></h2><div class="members">` +
-      list.map(m => `<div class="member${cls}"><img src="${C.esc(m.avatar)}" alt="" width="36" height="36" loading="lazy"><span>${C.esc(m.name)}</span></div>`).join('') + '</div>';
+      list.map(m => { const n = C.person.name(m), u = m.username && m.username !== n ? m.username : '';
+        return `<div class="member${cls}"${u ? ` title="@${C.esc(u)}"` : ''}><img src="${C.esc(m.avatar)}" alt="" width="36" height="36" loading="lazy"><span>${C.esc(n)}</span></div>`; }).join('') + '</div>';
   }).join('') || '<div class="panel err">No members match.</div>';
 }
 C.json('/data/members.json').then(({data, at}) => { DATA = data; C.stamp($('st'), at); render(); }).catch(e => { $('st').textContent = 'Unavailable'; C.fail($('out'), e); });

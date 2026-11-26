@@ -26,7 +26,15 @@
   const io = new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }), {rootMargin: '0px 0px -10% 0px'});
-  window.C = {esc, json, ago, stamp, fail, reveal: el => io.observe(el)};
+  // Discord people (members.json, archive.json). Server nicknames can't be trusted (members
+  // rename each other as a joke), so a person is their Discord user id, and their name is the
+  // account's own: global display name, then username, the nickname only as a last resort.
+  const person = {
+    name: m => (m && (m.global_name || m.username || m.name)) || '',
+    // members.json: `id`, or the user id inside the Discord avatar URL (/avatars/<id>/…, /users/<id>/…)
+    id: m => (m && m.id != null ? String(m.id) : ((/\/(?:avatars|users)\/(\d{15,21})\//.exec((m && m.avatar) || '') || [])[1] || null)),
+  };
+  window.C = {esc, json, ago, stamp, fail, person, reveal: el => io.observe(el)};
 
   // nav dropdowns. The menu is position:fixed (so the scrolling .links bar cannot clip it) and
   // placed under its button here. .nav has a backdrop-filter, which makes it the containing

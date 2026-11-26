@@ -105,3 +105,13 @@ test('TOP_HIDDEN lists Placer and Raid by uuid', () => {
   assert.ok(F.TOP_HIDDEN.has('d06cdb59-d362-48c8-847f-1b4d279ae580'));
   assert.ok(F.TOP_HIDDEN.has('7bb4365e-ed94-4ee3-b22a-243c35265713'));
 });
+
+test('gainSince names one date when every line starts together, else the range', () => {
+  const same = { effective_from: 1795500000, starts: { smp: 1795500000, cmp: 1795500000 } };
+  assert.equal(kit.gainSince(same, ['smp', 'cmp'], { range: '1w' }), 'since ' + globalThis.S.fmt.date(1795500000));
+  const mixed = { effective_from: 1700000000, starts: { smp: 1700000000, cmp: 1795500000, cmp2: null } };
+  assert.equal(kit.gainSince(mixed, ['smp', 'cmp', 'cmp2'], { range: '1w' }), 'in the last week');
+  assert.equal(kit.gainSince(mixed, ['smp', 'cmp'], { range: 'all' }), 'since tracking began');
+  assert.equal(kit.gainSince(mixed, ['cmp', 'cmp2'], { range: '1m' }), 'since ' + globalThis.S.fmt.date(1795500000), 'null starts ignored');
+  assert.equal(kit.gainSince({ effective_from: 1795500000 }, ['smp', 'cmp'], { range: '1w' }), 'since ' + globalThis.S.fmt.date(1795500000), 'no starts: effective_from');
+});

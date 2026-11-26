@@ -225,7 +225,9 @@
     const tblEl = boardShell();
     const hintEl = el.board.querySelector('.st-ex-hint');
     hintEl.textContent = '';
-    filter.el.hidden = !!off || !!boardErr || (!board && !filterQ);
+    // no filter on an empty board (nobody to filter), unless one is typed in already
+    const emptyBoard = board && !(board.total_count > 0) && !(board.rows || []).length;
+    filter.el.hidden = !!off || !!boardErr || (!filterQ && (!board || emptyBoard));
     if (off) { S.ui.empty(tblEl, off); paintReset(); return; }
     if (boardErr) { S.ui.error(tblEl, boardErr); paintReset(); return; }
     if (!board) { tblEl.innerHTML = '<div class="st-empty">Loading…</div>'; paintReset(); return; }
@@ -424,9 +426,10 @@
   }
 
   // ---- loading
-  function resetStat() {
+  // `keepFilter`: a range or bots change keeps the name filter (same players, same stat)
+  function resetStat(keepFilter) {
     board = null; boardErr = null; pageErr = null; page = 1; shownPage = 1; picked = []; defaultPicks = []; colorOf.clear();
-    filterQ = ''; shownQ = ''; if (filter) filter.clear();
+    if (!keepFilter) { filterQ = ''; shownQ = ''; if (filter) filter.clear(); }
     paintBoard(); paintHead();
   }
 
@@ -440,14 +443,15 @@
   }
 
   // `scopeChange`: called from the controls. On Scoreboards an objective the new scope
-  // doesn't have then falls back to that scope's first objective.
-  async function load(scopeChange) {
+  // doesn't have then falls back to that scope's first objective. `keepFilter`: the controls
+  // changed range or bots only.
+  async function load(scopeChange, keepFilter) {
     const my = ++gen, km = ++kgen;
     info = S.scopeInfo(meta, st.scope);
     off = S.kit.untracked(meta, st.scope, KIND);
     keys = null; keysErr = null;
     paintBrowse();
-    resetStat();
+    resetStat(keepFilter);
     if (off) { drawChart(); return; }
     if (!chart) el.chart.innerHTML = '<div class="st-chart"><div class="st-empty">Loading…</div></div>';
     if (SB && (!st.key || scopeChange)) {
@@ -578,7 +582,7 @@
     S.ui.controls(el.controls, meta, st, () => {
       const changed = st.scope !== lastScope;
       lastScope = st.scope;
-      load(changed);
+      load(changed, !changed);
     }, { range: true });
     S.ui.autocomplete(el.q, { limit: 10, onPick, bots: () => !!bots() });
     load();
