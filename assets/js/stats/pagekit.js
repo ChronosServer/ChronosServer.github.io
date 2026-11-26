@@ -97,6 +97,14 @@
     return '/stats/explorer/?' + q.join('&');
   }
 
-  S.kit = { playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
+  // /totals: each line starts at its own data (starts[part]; null = no data in the window).
+  // Older responses without `starts` share effective_from.
+  function lineStart(res, part) {
+    if (!res) return null;
+    if (res.starts && Object.prototype.hasOwnProperty.call(res.starts, part)) return res.starts[part];
+    return res.effective_from == null ? null : res.effective_from;
+  }
+
+  S.kit = { lineStart, playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);

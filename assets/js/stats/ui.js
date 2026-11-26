@@ -768,7 +768,40 @@
     el.innerHTML = '<div class="panel err" role="alert">' + esc(msg) + '</div>';
   }
 
-  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, tip, empty, error,
+  // ---- filter box: a search input that reports its trimmed value 200ms after typing stops,
+  // and only when it changed. Escape clears it.
+  function filterBox(opts) {
+    opts = opts || {};
+    const wrap = document.createElement('div');
+    wrap.className = 'st-fbox';
+    const input = document.createElement('input');
+    input.type = 'search';
+    input.className = 'st-sel';
+    input.placeholder = opts.placeholder || opts.label || 'Filter';
+    input.setAttribute('aria-label', opts.label || 'Filter');
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    wrap.appendChild(input);
+    let last = '', timer = null;
+    const fire = () => {
+      clearTimeout(timer); timer = null;
+      const v = input.value.trim();
+      if (v === last) return;
+      last = v;
+      if (opts.onChange) opts.onChange(v);
+    };
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(fire, 200); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && input.value) { e.preventDefault(); input.value = ''; fire(); }
+    });
+    return {
+      el: wrap, input,
+      value: () => last,
+      clear() { clearTimeout(timer); timer = null; input.value = ''; last = ''; },
+    };
+  }
+
+  S.ui = { head, icon, headHtml, iconHtml, hydrate, controls, autocomplete, tabs, table, pager, tip, filterBox, empty, error,
            splitScopes, dayStart, dayEnd };
   if (typeof module !== 'undefined') module.exports = S.ui;
 })(typeof window !== 'undefined' ? window : globalThis);

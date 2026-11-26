@@ -63,9 +63,10 @@
     return info.parts.map(p => {
       const pts = (series[p] || []).filter(x => x && isFinite(x[0]) && isFinite(x[1])).sort((a, b) => a[0] - b[0]);
       const last = pts.length ? pts[pts.length - 1][1] : 0;
-      // gain over the window: last minus the value at effective_from (untrimmed, so a stat
-      // that starts at 0 inside the range reports its full gain; no point yet means 0)
-      const atFrom = S.cm.valueAt(pts, res.effective_from);
+      // gain over the window: last minus the value at the line's own start (untrimmed, so a
+      // stat that starts at 0 inside the range reports its full gain; no point yet means 0)
+      const from = S.kit.lineStart(res, p);
+      const atFrom = from == null ? null : S.cm.valueAt(pts, from);
       return { part: p, last, gain: Math.max(0, last - (atFrom == null ? 0 : atFrom)) };
     });
   }

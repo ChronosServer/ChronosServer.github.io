@@ -79,3 +79,11 @@ test('boardHref carries the stat, scope and bots', () => {
   assert.equal(kit.boardHref('scoreboard', null, 'dig pickaxe&x', st({ scope: 'all' })),
     '/stats/scoreboards/?scope=all&key=dig%20pickaxe%26x');
 });
+test('lineStart reads /totals starts per line, else effective_from', () => {
+  const res = { effective_from: 100, starts: { smp: 100, cmp: 500, cmp2: null } };
+  assert.equal(kit.lineStart(res, 'smp'), 100);
+  assert.equal(kit.lineStart(res, 'cmp'), 500);
+  assert.equal(kit.lineStart(res, 'cmp2'), null);
+  assert.equal(kit.lineStart({ effective_from: 300 }, 'smp'), 300);
+  assert.equal(kit.lineStart({ effective_from: 300, starts: {} }, 'smp'), 300);
+});

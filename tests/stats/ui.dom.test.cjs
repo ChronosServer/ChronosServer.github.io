@@ -460,3 +460,23 @@ test('our head cache stays first after many players without a cached head', asyn
   await page.waitForFunction(() => { const i = document.querySelector('#c img.st-head[src*="aaaaaaaa"]'); return i && i.complete; });
   assert.equal(await page.getAttribute('#c img.st-head[src*="aaaaaaaa"]', 'src'), '/cache/heads/aaaaaaaa-2222-3333-4444-555555555555.png');
 });
+test('filterBox debounces, trims and clears on Escape', async () => {
+  await mount();
+  await page.evaluate(() => {
+    window.got = [];
+    const f = S.ui.filterBox({ label: 'Filter players', onChange: v => window.got.push(v) });
+    document.getElementById('c').appendChild(f.el);
+  });
+  assert.equal(await page.getAttribute('#c input', 'aria-label'), 'Filter players');
+  await page.focus('#c input');
+  await page.keyboard.type('not quite ');
+  await page.waitForTimeout(350);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite']);
+  await page.keyboard.type(' ');            // same trimmed value: no new call
+  await page.waitForTimeout(350);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite']);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(50);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite', '']);
+  assert.equal(await page.inputValue('#c input'), '');
+});

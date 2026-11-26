@@ -18,7 +18,7 @@
  * Every API string goes through S.fmt.esc (or textContent) before it reaches the DOM.
  * Page-only classes (stats.css): st-ex st-ex-search st-ex-q st-ex-grid st-ex-browse st-ex-cats
  * st-ex-cat st-ex-keys st-ex-key st-ex-tag st-ex-cap st-ex-main st-ex-stat st-ex-top st-ex-head
- * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-moreerr.
+ * st-ex-title st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-moreerr; S.ui.filterBox st-fbox.
  */
 (function () {
   const S = window.S, F = S.fmt, esc = F.esc;
@@ -44,6 +44,7 @@
   let board = null, boardErr = null, pageErr = null, page = 1, shownPage = 1, pageSeq = 0, focusPager = false;
   let picked = [];                   // uuids drawn in Top players, in click order
   let defaultPicks = [];             // the top rows picked when the board first loaded
+  let filterQ = '', filter = null;   // leaderboard name filter (/leaderboard q) and its box
   const colorOf = new Map();         // uuid -> LINES index while picked
   const names = new Map();           // uuid -> display name
   const get = S.memo();
@@ -205,31 +206,38 @@
     return SB ? 'Nobody on this scope has a score in ' + thing + ' yet.' : 'Nobody on this scope has any ' + thing + ' yet.';
   }
 
+  // The header (title, hint, filter, reset) is built once so the filter keeps focus while
+  // the rows under it repaint.
+  function boardShell() {
+    let tbl = el.board.querySelector('.st-ex-tbl');
+    if (tbl) { tbl.innerHTML = ''; return tbl; }
+    el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2><span class="st-ex-hint"></span>' +
+      '<button type="button" class="st-again st-ex-reset" hidden></button></div><div class="st-ex-tbl"></div>';
+    const reset = el.board.querySelector('.st-ex-reset');
+    reset.addEventListener('click', resetPicks);
+    filter = S.ui.filterBox({ label: 'Filter players', placeholder: 'Filter players', onChange: setFilter });
+    reset.before(filter.el);
+    return el.board.querySelector('.st-ex-tbl');
+  }
+
   function paintBoard() {
-    if (off) {
-      el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-ex-tbl"></div>';
-      S.ui.empty(el.board.lastChild, off);
-      return;
-    }
-    if (boardErr) {
-      el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-ex-tbl"></div>';
-      S.ui.error(el.board.lastChild, boardErr);
-      return;
-    }
-    if (!board) {
-      el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2></div><div class="st-empty">Loading…</div>';
-      return;
-    }
+    const tblEl = boardShell();
+    const hintEl = el.board.querySelector('.st-ex-hint');
+    hintEl.textContent = '';
+    filter.el.hidden = !!off || !!boardErr || (!board && !filterQ);
+    if (off) { S.ui.empty(tblEl, off); paintReset(); return; }
+    if (boardErr) { S.ui.error(tblEl, boardErr); paintReset(); return; }
+    if (!board) { tblEl.innerHTML = '<div class="st-empty">Loading…</div>'; paintReset(); return; }
     const rows = board.rows || [];
     const delta = board.mode === 'delta';
-    const hint = rows.length ? 'Click or press Enter on a row to add or remove its line (up to ' + maxLines() + ').' : '';
-    el.board.innerHTML = '<div class="st-ex-bh"><h2 class="st-h2">Leaderboard</h2><span class="st-ex-hint">' + esc(hint) + '</span>' +
-      '<button type="button" class="st-again st-ex-reset" hidden>Reset to top ' + esc(defaultPicks.length) + '</button></div>' +
-      '<div class="st-ex-tbl"></div>';
-    el.board.querySelector('.st-ex-reset').addEventListener('click', resetPicks);
+    hintEl.textContent = rows.length ? 'Click or press Enter on a row to add or remove its line (up to ' + maxLines() + ').' : '';
+    el.board.querySelector('.st-ex-reset').textContent = 'Reset to top ' + defaultPicks.length;
     paintReset();
-    const tblEl = el.board.lastChild;
-    if (!rows.length) { S.ui.empty(tblEl, boardEmpty()); return; }
+    if (!rows.length) {
+      S.ui.empty(tblEl, filterQ ? 'No player on this board matches “' + filterQ + '”.' : boardEmpty());
+      if (pageErr) pageErrLine(tblEl);
+      return;
+    }
     S.ui.table(tblEl, {
       columns: [
         { id: 'rank', label: '#', num: true },
@@ -247,27 +255,32 @@
       onRow: r => toggle(r.uuid),
     });
     // pages come from the API (limit/offset), so the pager sits outside the one-page table
-    if (pageErr) {
-      const e = document.createElement('p');
-      e.className = 'st-ex-moreerr'; e.setAttribute('role', 'alert');
-      e.textContent = S.errorText(pageErr) + ' Pick the page again to retry.';
-      tblEl.appendChild(e);
-    }
+    if (pageErr) pageErrLine(tblEl);
     // a page change rebuilds the board: focus lands back on the pager for keyboard users
     S.ui.pager(tblEl, { total: board.total_count || 0, pageSize: PAGE, page, onPage: n => goPage(n), focus: focusPager });
     focusPager = false;
   }
 
+  function pageErrLine(tblEl) {
+    const e = document.createElement('p');
+    e.className = 'st-ex-moreerr'; e.setAttribute('role', 'alert');
+    e.textContent = S.errorText(pageErr) + (pageErr.byFilter ? ' Change the filter to retry.' : ' Pick the page again to retry.');
+    tblEl.appendChild(e);
+  }
+
   // `keep`: a page change. A failure then keeps the page already shown and says so.
   async function loadBoard(my, keep) {
     const seq = ++pageSeq;   // only the latest page request may paint
-    const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), limit: PAGE, offset: (page - 1) * PAGE }, S.rangeParams(st));
+    const req = Object.assign(statParams(), { scope: st.scope, include_bots: bots(), q: filterQ || null, limit: PAGE, offset: (page - 1) * PAGE }, S.rangeParams(st));
     let res;
     try {
       res = await get('leaderboard', req);
     } catch (err) {
       if (my !== gen || seq !== pageSeq) return false;
-      if (keep && board) { page = keep.prev; pageErr = err; focusPager = true; paintBoard(); return false; }
+      if (keep && board) {
+        page = keep.prev; pageErr = err; if (pageErr) pageErr.byFilter = !!keep.filter;
+        focusPager = !keep.filter; paintBoard(); return false;
+      }
       boardErr = err; board = null;
       paintBoard(); paintHead();
       return false;
@@ -284,6 +297,13 @@
     }
     paintBoard(); paintHead();
     return true;
+  }
+
+  // Rows keep their real rank; total_count is the number of matches. Picks and chart stay.
+  async function setFilter(v) {
+    filterQ = v;
+    page = 1;
+    await loadBoard(gen, { prev: shownPage, filter: true });
   }
 
   async function goPage(n) {
@@ -399,6 +419,7 @@
   // ---- loading
   function resetStat() {
     board = null; boardErr = null; pageErr = null; page = 1; shownPage = 1; picked = []; defaultPicks = []; colorOf.clear();
+    filterQ = ''; if (filter) filter.clear();
     paintBoard(); paintHead();
   }
 
