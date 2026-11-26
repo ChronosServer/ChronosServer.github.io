@@ -117,7 +117,8 @@ the scope doc. Open backend issues go in
   - `ui.js` `S.ui`: heads/icons, controls bar, autocomplete, tabs, paged table + `pager`,
     `tip` (styled `[data-tip]` tooltips), `filterBox`, empty/error.
   - `pagekit.js` `S.kit`: shared range/live/untracked/leader/axis helpers, `boardHref`,
-    `lineStart` (each `/totals` line's own start).
+    `lineStart` (each `/totals` line's own start), `gainSince` (tile "since" wording), `hideRows`
+    (drop players from a ranking and renumber).
   - `pages/*.js`: one per page (overview, explorer — also used by scoreboards, player,
     compare, milestones).
 
