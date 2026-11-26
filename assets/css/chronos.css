@@ -19,6 +19,8 @@ a{color:inherit}
 .dim{position:fixed;inset:0;z-index:-1;background:rgba(8,11,13,.93);opacity:0;pointer-events:none}
 
 .nav{position:fixed;inset:0 0 auto;z-index:10;display:flex;align-items:center;gap:1.8rem;padding:0 1.4rem;height:54px;background:rgba(8,11,13,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav::after{content:"";position:absolute;top:0;right:0;bottom:1px;width:3rem;background:linear-gradient(to right,rgba(8,11,13,0),rgba(8,11,13,.95));pointer-events:none;opacity:0;transition:opacity .2s}
+.nav.more-r::after{opacity:1}
 .brand{display:flex;align-items:center;gap:.7rem;font:700 .9rem var(--display);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;color:#fff}
 .brand img{height:24px;width:auto;display:block}
 .brand span{transform:translateY(.1em)}

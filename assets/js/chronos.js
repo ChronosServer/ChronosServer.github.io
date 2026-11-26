@@ -74,6 +74,28 @@
     if (links) links.addEventListener('scroll', place, {passive: true});
   });
 
+  // narrow screens: the nav links scroll sideways with no scrollbar. Start with the current
+  // page's link in view, and fade the right edge while more links are hidden there.
+  const bar = document.querySelector('.nav .links');
+  if (bar) {
+    const nav = bar.closest('.nav');
+    const edge = () => nav.classList.toggle('more-r', bar.scrollLeft + bar.clientWidth < bar.scrollWidth - 2);
+    const cur = bar.querySelector('[aria-current]');
+    // run again once the web fonts are in: they make the links wider
+    const center = () => {
+      if (cur && bar.scrollWidth > bar.clientWidth) {
+        const el = cur.closest('.dd') || cur;
+        const r = el.getBoundingClientRect(), b = bar.getBoundingClientRect();
+        bar.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
+      }
+      edge();
+    };
+    center();
+    if (document.fonts) document.fonts.ready.then(center);
+    bar.addEventListener('scroll', edge, {passive: true});
+    addEventListener('resize', edge);
+  }
+
   addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.reveal').forEach(el => io.observe(el));
     if (!document.body.classList.contains('kind-home')) return;

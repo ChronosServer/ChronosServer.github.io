@@ -22,7 +22,9 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
   - `kind:` sets `body.kind-<kind>`: `inner` (default, darker scrim), `home` (hero,
     scroll-dim + pointer parallax in chronos.js), `map` (full-bleed iframe, no footer).
   - Nav from `_data/nav.yml` (`title`, `url`, `desc`, optional `hint`, `blank`); active
-    link gets `aria-current`. `desc`/`hint` also feed the home page's explore tiles.
+    link gets `aria-current`. On narrow screens the links scroll sideways (no scrollbar): chronos.js
+    centres the current link (again after fonts load) and `.nav.more-r` fades the right edge while
+    links are hidden there. `desc`/`hint` also feed the home page's explore tiles.
   - Footer from `_data/social.yml` (Discord, Patreon, GitHub; icons are Simple Icons/CC0
     SVG paths on a 24×24 viewBox, not image files).
 - CSS/JS cache-busted via `?v={{ site.time | date: '%s' }}` on every deploy — without
