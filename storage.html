@@ -24,7 +24,8 @@ let tab = 'ms';
 const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'k' : n.toLocaleString();
 function render() {
   const cur = S[tab];
-  if (!cur) return;
+  // the other tab's file can still be loading: don't leave this tab's items under its name
+  if (!cur) { $('sum').textContent = ''; $('out').innerHTML = '<p class="lede">Loading…</p>'; return; }
   if (cur.error) { $('sum').textContent = ''; C.fail($('out'), cur.error); $('st').textContent = 'Unavailable'; return; }
   const q = $('q').value.trim().toLowerCase();
   const e = Object.entries(cur.data).filter(([n]) => !q || n.toLowerCase().includes(q));

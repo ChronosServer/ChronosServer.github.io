@@ -46,7 +46,8 @@
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const hasIcon = cat => !['custom', 'killed', 'killed_by', 'scoreboard'].includes(F.itemId(cat));
-  const bots = () => (info.hasBots && st.bots ? 'true' : null);
+  // info/st are null on the landing page (no player yet), where the search box still asks
+  const bots = () => (info && st && info.hasBots && st.bots ? 'true' : null);
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const serverIdx = k => { const i = (meta.servers || []).findIndex(x => x.key === k); return i < 0 ? 999 : i; };
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);

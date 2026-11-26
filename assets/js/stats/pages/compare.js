@@ -46,7 +46,7 @@
   const maxPlayers = () => Math.min(LINES.length, cfg().max_players);
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const bots = () => (info.hasBots && st.bots ? 'true' : null);
+  const bots = () => (info && st && info.hasBots && st.bots ? 'true' : null);
   const hasIcon = cat => !['custom', 'killed', 'killed_by', 'scoreboard'].includes(F.itemId(cat));
   const pName = p => (p.name || p.uuid ? F.playerName({ name: p.name, uuid: p.uuid || p.tok }) : p.tok);
   const norm = s => String(s || '').toLowerCase().replace(/-/g, '');

@@ -49,5 +49,9 @@ async function sv() {
     $('sv-t').textContent = e.filter(([, s]) => s === 'Online').length + ' of ' + e.length + ' online. ' + $('sv-t').textContent;
   } catch (e) { C.fail($('sv'), e); }
 }
-hw(); sv(); setInterval(hw, 10000); setInterval(sv, 300000);
+// live host numbers every 10 s, but only while the tab is visible; catch up on return
+hw(); sv();
+setInterval(() => { if (!document.hidden) hw(); }, 10000);
+setInterval(sv, 300000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) hw(); });
 </script>
