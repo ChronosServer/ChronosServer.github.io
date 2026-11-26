@@ -31,8 +31,9 @@
   // account's own: global display name, then username, the nickname only as a last resort.
   const person = {
     name: m => (m && (m.global_name || m.username || m.name)) || '',
-    // members.json: `id`, or the user id inside the Discord avatar URL (/avatars/<id>/…, /users/<id>/…)
-    id: m => (m && m.id != null ? String(m.id) : ((/\/(?:avatars|users)\/(\d{15,21})\//.exec((m && m.avatar) || '') || [])[1] || null)),
+    // members.json: `id` (a string: user ids don't fit a JS number, so a numeric one is useless
+    // and ignored), or the user id inside the Discord avatar URL (/avatars/<id>/…, /users/<id>/…)
+    id: m => (m && typeof m.id === 'string' && m.id ? m.id : ((/\/(?:avatars|users)\/(\d{15,21})\//.exec((m && m.avatar) || '') || [])[1] || null)),
   };
   window.C = {esc, json, ago, stamp, fail, person, reveal: el => io.observe(el)};
 

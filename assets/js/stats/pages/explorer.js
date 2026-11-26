@@ -295,10 +295,18 @@
     }
     if (my !== gen || seq !== pageSeq) return false;
     const first = !board;
+    // the chart's default lines are the board's top players, also when a kept filter (range or
+    // bots change) narrows the rows shown: those come from an unfiltered first page
+    let top = res;
+    if (first && req.q) {
+      try { top = await get('leaderboard', Object.assign({}, req, { q: null, offset: 0, limit: maxLines() })); } catch (e) { top = null; }
+      if (my !== gen || seq !== pageSeq) return false;
+    }
     board = res; boardErr = null; pageErr = null; shownPage = page; shownQ = filterQ;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
+    if (top && top !== res) (top.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
-      defaultPicks = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
+      defaultPicks = ((top && top.rows) || []).slice(0, maxLines()).map(r => r.uuid);
       picked = defaultPicks.slice();
       colorOf.clear();
       picked.forEach((u, i) => colorOf.set(u, i));

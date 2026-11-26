@@ -27,8 +27,8 @@ const fname = u => { try { return decodeURIComponent(u.split('/').pop().split('?
 // each other as a joke), so without an id the post keeps its own author name and avatar.
 const small = u => u.replace(/\?size=\d+$/, '') + '?size=64';
 function person(x) {
-  const m = x.author_id != null && WHO[String(x.author_id)];
-  if (m) return {name: C.person.name(m), avatar: small(m.avatar)};
+  const m = typeof x.author_id === 'string' && WHO[x.author_id];   // ids are strings (see C.person.id)
+  if (m) return {name: C.person.name(m), avatar: m.avatar ? small(m.avatar) : x.author_avatar};
   return {name: x.author_global_name || x.author_username || x.author, avatar: x.author_avatar};
 }
 // plain text with bare URLs, <URL> and Discord's [text](URL) turned into links; the rest escaped

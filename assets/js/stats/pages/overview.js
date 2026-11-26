@@ -411,11 +411,11 @@
   const TOP_LISTS = [
     { title: 'Most hours played', cat: 'minecraft:custom', key: 'minecraft:play_time', needs: ['stat'] },
     { title: 'Most #1 spots', by: 'top1', what: 'Stats and scoreboards held at #1', needs: ['stat', 'scoreboard'] },
-    { title: 'Most firsts', by: 'firsts', what: 'Firsts on record (not counting players who had it before tracking)', needs: ['stat'] },
+    { title: 'Most firsts', by: 'firsts', what: 'Firsts on record (not counting players who had it before tracking)', needs: ['stat', 'scoreboard'] },
     { title: 'Most badges', by: 'badges', what: 'Different badges earned', needs: [] },
   ];
   // why a list can't fill on this scope: every kind of data it counts is switched off there
-  // (#1 spots counts stats or scoreboards; badges include ones that belong to no server)
+  // (#1 spots and firsts count stats or scoreboards; badges include ones that belong to no server)
   function topOff(t) {
     if (!t.needs.length || t.needs.some(k => S.tracked(meta, st.scope, k))) return '';
     const msg = S.kit.untracked(meta, st.scope, t.needs[0]);

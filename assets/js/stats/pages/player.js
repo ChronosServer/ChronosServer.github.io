@@ -555,17 +555,47 @@
       el.body.innerHTML = headerHtml() + '<div class="panel st-empty st-pl-none"><b>Nothing ' + esc(scopeText()) + ' yet</b>' +
         esc(name()) + ' has no stats or scores ' + esc(scopeText()) + '.' +
         (st.scope !== 'all' ? ' <a href="' + esc(allHref()) + '">See all servers</a>' : '') + '</div>';
-      paintSkin();
+      paintSkin(); fitName();
       return;
     }
     el.body.innerHTML = headerHtml() + tilesHtml() + badgesHtml() + onesHtml() + graphHtml() + tabsHtml();
     S.ui.tip(el.body);
     S.ui.hydrate(el.body);
-    paintSkin();
+    paintSkin(); fitName();
     const big = el.body.querySelector('.st-bigcount[data-count]');
     if (big) countUp(big);
     buildTabs();
     drawChart();
+  }
+
+  // The name fills its column on one line. CSS gives a first guess from the name's length;
+  // letters differ a lot in width (W is ~1.35em, i far less), so measure and scale to fit,
+  // again when the column changes width or the web font arrives. Below 16px it may wrap.
+  let nameRO = null;
+  function fitName() {
+    if (nameRO) { nameRO.disconnect(); nameRO = null; }
+    const h = el.body.querySelector('.st-ph-name h1');
+    if (!h) return;
+    const root = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    const fit = () => {
+      if (!h.isConnected || !h.clientWidth) return;
+      h.style.fontSize = ''; h.style.whiteSpace = 'nowrap';
+      const fs = parseFloat(getComputedStyle(h).fontSize);
+      const want = Math.min(3.6 * root, fs * h.clientWidth / h.scrollWidth * 0.98);
+      h.style.fontSize = Math.max(root, Math.floor(want * 10) / 10) + 'px';
+      if (h.scrollWidth > h.clientWidth + 1) h.style.whiteSpace = '';
+    };
+    fit();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+    if (window.ResizeObserver) {
+      let w = h.parentElement.clientWidth, raf = 0;
+      nameRO = new ResizeObserver(() => {
+        const nw = h.parentElement.clientWidth;
+        if (nw === w) return;
+        w = nw; cancelAnimationFrame(raf); raf = requestAnimationFrame(fit);
+      });
+      nameRO.observe(h.parentElement);
+    }
   }
 
   function allHref() {
