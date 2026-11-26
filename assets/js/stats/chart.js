@@ -111,6 +111,7 @@
 
       if (!live.length) {
         wrap.innerHTML = '<div class="st-empty">' + esc(opts.emptyText || 'No data for this range.') + '</div>';
+        inst.valueCard = false;
         return;
       }
       if (live.every(s => s.points.length === 1)) {

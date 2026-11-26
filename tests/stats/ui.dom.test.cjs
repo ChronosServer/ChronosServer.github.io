@@ -227,6 +227,18 @@ test('pager hides for one page', async () => {
   assert.equal(await page.locator('#c .st-pager').count(), 0);
 });
 
+test('table header without a visible label still names the column for screen readers', async () => {
+  await mount();
+  await page.evaluate(() => {
+    S.ui.table(document.getElementById('c'), {
+      columns: [{ id: 'name', label: 'Player' }, { id: 'board', label: '', srLabel: 'Leaderboard' }],
+      rows: [{ name: 'a' }], rowHtml: r => '<td>' + r.name + '</td><td></td>',
+    });
+  });
+  assert.equal((await page.textContent('#c th[data-col="board"]')).trim(), 'Leaderboard');
+  assert.equal(await page.locator('#c th[data-col="board"] .sr-only').count(), 1);
+});
+
 test('pager gaps and ends', async () => {
   await mount();
   const got = await page.evaluate(() => {
@@ -346,6 +358,18 @@ test('tip shows on hover and focus, one at a time', async () => {
   assert.equal(await page.locator('.st-bubble').count(), 1);
   await page.keyboard.press('Escape');
   assert.equal(await bubble.isVisible(), false);
+});
+
+test('tip does not describe an element whose own text already says it', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const c = document.getElementById('c');
+    c.innerHTML = '<p style="margin:80px"><span id=t1 data-tip="Ten real firsts" tabindex=0>Pioneer<span class="sr-only">. Ten real firsts</span></span></p>';
+    S.ui.tip(c);
+  });
+  await page.focus('#t1');
+  await page.locator('.st-bubble').waitFor({ state: 'visible' });
+  assert.equal(await page.getAttribute('#t1', 'aria-describedby'), null);
 });
 
 test('tip toggles on tap', async () => {

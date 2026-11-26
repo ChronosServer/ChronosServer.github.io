@@ -60,6 +60,14 @@ test('valueCard flag clears when lines draw', async () => {
   assert.ok(await page.locator('#c path.st-line').count() > 0);
 });
 
+test('valueCard flag clears when the chart goes empty', async () => {
+  await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0 + DAY},1]]}]`));
+  assert.equal(await page.evaluate(() => window.chartInst.valueCard), true);
+  await page.evaluate(() => window.chartInst.update({ series: [{ id: 'a', label: 'SMP', color: 'teal', points: [] }] }));
+  assert.equal(await page.locator('#c .st-empty').count(), 1);
+  assert.equal(await page.evaluate(() => window.chartInst.valueCard), false);
+});
+
 test('zone labels sit above the plotted lines', async () => {
   await mount(base(`[{id:'a',label:'SMP',color:'teal',points:[[${T0},3],[${T0 + 2 * DAY},5],[${T0 + 9 * DAY},100]]}]`, `, liveAt:${T0 + 8 * DAY}`));
   const labelYs = await page.$$eval('#c .st-zonel', ts => ts.map(t => +t.getAttribute('y')));

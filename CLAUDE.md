@@ -50,6 +50,9 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
     Stats API wants normal HTTP caching, so don't blindly reuse it there.
   - `C.stamp(el, at, maxHours=12)` synced/stale pill, `C.ago(date)`,
     `C.fail(el, err)` error panel, `C.reveal(el)` for dynamically added `.reveal` nodes.
+  - `C.person.name(m)` / `C.person.id(m)`: Discord people. Never identify anyone by server
+    nickname or avatar (members rename each other as a joke); the user id is the identity,
+    the account's global name/username the name. Bot request for the ids: `TEMP_FOR_BOT.md`.
   - `C.esc()` HTML-escape — every page that renders Discord- or player-sourced text MUST
     use this; nicknames can contain `<script>`.
 
@@ -57,10 +60,10 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | Page | File | Data |
 |---|---|---|
 | Home | `index.html` (`kind: home`) | hero, about/spec, explore tiles with live counts, gallery strip, Join cards from `social.yml`; `/data/server_status.json`, `/api/status`, members/ms_storage/archive JSON, `/gallery/index.json` |
-| Members | `members.html` | `/data/members.json` |
+| Members | `members.html` | `/data/members.json` (shows `C.person.name`: global name, username, nickname last) |
 | Gallery | `gallery.html` | `/gallery/index.json` + `/gallery/thumbs/` (built by deploy.sh, images live only on the server) |
 | Storage | `storage.html` (main/dig tabs) | `/data/ms_storage.json`, `/data/dig_storage.json` |
-| Archive | `archive.html` (Discord forum mirror, tag-filterable, 18 a page, links clickable) | `/data/archive.json`; `/data/members.json` for names/avatars (archive has nicknames; matched on the Discord avatar hash, nickname if no match) |
+| Archive | `archive.html` (Discord forum mirror, tag-filterable, 18 a page, links clickable) | `/data/archive.json`; `/data/members.json` for names/avatars, matched by Discord user id (`author_id`), else the post's own name |
 | Status | `status.html` | `/api/status` (live host CPU/RAM/etc.) + `/data/server_status.json` (per-server up/down) |
 | Bolt map | `boltmap.html` (`kind: map`, canvas with pan/zoom) | `/data/boltmap.json` (polls every 5 s only while the scanner reports `progress.complete: false`) |
 | World map | `worldmap.html` (`kind: map`) | Overviewer at `/map/` in an iframe below the nav; `/map` still works standalone (served on the server, not in this repo) |
@@ -114,7 +117,8 @@ the scope doc. Open backend issues go in
   - `ui.js` `S.ui`: heads/icons, controls bar, autocomplete, tabs, paged table + `pager`,
     `tip` (styled `[data-tip]` tooltips), `filterBox`, empty/error.
   - `pagekit.js` `S.kit`: shared range/live/untracked/leader/axis helpers, `boardHref`,
-    `lineStart` (each `/totals` line's own start).
+    `lineStart` (each `/totals` line's own start), `gainSince` (tile "since" wording), `hideRows`
+    (drop players from a ranking and renumber).
   - `pages/*.js`: one per page (overview, explorer — also used by scoreboards, player,
     compare, milestones).
 

@@ -105,6 +105,15 @@
     return res.effective_from == null ? null : res.effective_from;
   }
 
+  // Overview tiles: what "+X <when>" covers. Each line's gain runs from its own start, so one
+  // date is only true when the lines start together; otherwise name the range instead.
+  function gainSince(res, parts, st) {
+    const ds = [...new Set((parts || []).map(p => lineStart(res, p)).filter(t => t != null))];
+    if (ds.length > 1) return rangeText(st) || 'since ' + S.fmt.date(Math.min.apply(null, ds));
+    const t = ds.length ? ds[0] : res && res.effective_from;
+    return t == null ? '' : 'since ' + S.fmt.date(t);
+  }
+
   // A ranking without some players: each row moves up by the number of hidden rows ranked
   // above it, so ties stay ties. Rows must start at rank 1 (offset 0) for the numbers to hold.
   function hideRows(rows, hide) {
@@ -117,6 +126,6 @@
     return out;
   }
 
-  S.kit = { hideRows, lineStart, playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
+  S.kit = { gainSince, hideRows, lineStart, playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);

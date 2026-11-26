@@ -22,11 +22,15 @@ const isImg = u => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u);
 const url = u => /^(https?:\/\/|\/(?!\/))/i.test(u || '') ? C.esc(u) : '#';
 const when = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
 const fname = u => { try { return decodeURIComponent(u.split('/').pop().split('?')[0]); } catch (e) { return 'Download'; } };
-// archive.json has server nicknames; members.json has the names the Members page shows.
-// Both keep the Discord avatar hash in the file name, so that hash identifies the person.
-const avHash = u => ((u || '').split('?')[0].split('/').pop() || '').replace(/\.\w+$/, '');
+// Who wrote it: by Discord user id (author_id), looked up in members.json for the name and
+// avatar the Members page shows. Nicknames and avatars can't identify anyone (members rename
+// each other as a joke), so without an id the post keeps its own author name and avatar.
 const small = u => u.replace(/\?size=\d+$/, '') + '?size=64';
-const person = (n, av) => { const m = WHO[avHash(av)]; return m ? {name: m.name, avatar: small(m.avatar)} : {name: n, avatar: av}; };
+function person(x) {
+  const m = typeof x.author_id === 'string' && WHO[x.author_id];   // ids are strings (see C.person.id)
+  if (m) return {name: C.person.name(m), avatar: m.avatar ? small(m.avatar) : x.author_avatar};
+  return {name: x.author_global_name || x.author_username || x.author, avatar: x.author_avatar};
+}
 // plain text with bare URLs, <URL> and Discord's [text](URL) turned into links; the rest escaped
 const LINK = /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)|<(https?:\/\/[^\s>]+)>|(https?:\/\/[^\s<>"]+)/g;
 const ext = u => `<a href="${C.esc(u)}" target="_blank" rel="noopener noreferrer nofollow">`;
@@ -57,7 +61,7 @@ function render() {
   page = Math.min(page, pages);
   $('posts').innerHTML = f.slice((page - 1) * PAGE, page * PAGE).map(p => {
     const t = thumb(p);
-    return `<button class="post" type="button" data-id="${C.esc(p.id)}">${t ? `<img src="${url(t)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="pb"><span class="pa">${C.esc(person(p.author, p.author_avatar).name)}, ${when(p.timestamp)}</span><span class="pt">${C.esc(p.title)}</span><span class="tg">${(p.tags || []).map(x => `<i>${C.esc(x)}</i>`).join('')}</span></span></button>`;
+    return `<button class="post" type="button" data-id="${C.esc(p.id)}">${t ? `<img src="${url(t)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="pb"><span class="pa">${C.esc(person(p).name)}, ${when(p.timestamp)}</span><span class="pt">${C.esc(p.title)}</span><span class="tg">${(p.tags || []).map(x => `<i>${C.esc(x)}</i>`).join('')}</span></span></button>`;
   }).join('') || '<p class="lede">No posts match.</p>';
   pager(pages);
 }
@@ -82,15 +86,15 @@ function embeds(es) {
   return (es || []).filter(e => e.title || e.url).map(e => `<div class="emb"><a href="${url(e.url)}" target="_blank" rel="noopener">${C.esc(e.title || e.url)}</a>${e.description ? `<p>${C.esc(e.description)}</p>` : ''}</div>`).join('');
 }
 function openPost(p) {
-  const who = (n, av, ts) => { const w = person(n, av); return `<div class="dm"><img src="${url(w.avatar)}" alt="">${C.esc(w.name)}, ${when(ts)}</div>`; };
-  $('dc').innerHTML = `<h2 class="dt">${C.esc(p.title)}</h2>${who(p.author, p.author_avatar, p.timestamp)}<div class="db">${linkify(p.content)}</div>${media(p.attachments)}${embeds(p.embeds)}` +
-    (p.messages || []).filter(m => m.content || (m.attachments || []).length || (m.embeds || []).length).map(m => `<div class="rp">${who(m.author, m.author_avatar, m.timestamp)}<div class="db">${linkify(m.content)}</div>${media(m.attachments)}${embeds(m.embeds)}</div>`).join('');
+  const who = x => { const w = person(x); return `<div class="dm"><img src="${url(w.avatar)}" alt="">${C.esc(w.name)}, ${when(x.timestamp)}</div>`; };
+  $('dc').innerHTML = `<h2 class="dt">${C.esc(p.title)}</h2>${who(p)}<div class="db">${linkify(p.content)}</div>${media(p.attachments)}${embeds(p.embeds)}` +
+    (p.messages || []).filter(m => m.content || (m.attachments || []).length || (m.embeds || []).length).map(m => `<div class="rp">${who(m)}<div class="db">${linkify(m.content)}</div>${media(m.attachments)}${embeds(m.embeds)}</div>`).join('');
   $('dlg').showModal();
 }
 
 // members.json only improves names; the archive still works without it
 const members = C.json('/data/members.json').then(({data}) => {
-  for (const k of Object.keys(data)) for (const m of data[k] || []) { const h = avHash(m.avatar); if (h.length > 8) WHO[h] = m; }
+  for (const k of Object.keys(data)) for (const m of data[k] || []) { const id = C.person.id(m); if (id) WHO[id] = m; }
 }).catch(() => {});
 Promise.all([C.json('/data/archive.json'), members]).then(([{data, at}]) => {
   ALL = data;
