@@ -443,7 +443,8 @@
       if (!rows.length) return topCard(t, '<p class="st-top-empty">Nobody here yet.</p>');
       const list = '<ol class="st-top-list">' + rows.map(r => '<li>' + topRow(t, r) + '</li>').join('') + '</ol>';
       const foot = t.by
-        ? '<button type="button" class="st-board-link st-top-more" data-i="' + i + '" aria-controls="ov-rank">Full ranking →</button>'
+        ? '<button type="button" class="st-board-link st-top-more" data-i="' + i + '" aria-controls="ov-rank" aria-expanded="' + (rank.t === t) + '"' +
+          ' aria-label="Full ranking: ' + esc(t.title) + '">Full ranking →</button>'
         : '<a class="st-board-link" href="' + esc(S.kit.boardHref('stat', t.cat, t.key, st)) + '">Full ranking →</a>';
       return topCard(t, list, foot);
     }));
@@ -453,17 +454,19 @@
   }
 
   // the full ranking for one /rankings list, paged by the API (limit/offset)
-  const rank = { t: null, seq: 0, page: 1, focus: false };
+  const rank = { t: null, seq: 0, page: 1, shown: 1, total: 0, pager: null, focus: false };
   function closeRank(back) {
     const t = rank.t;
-    rank.t = null; rank.seq++;
+    rank.t = null; rank.seq++; rank.focus = false;
     el.rank.hidden = true; el.rank.innerHTML = '';
+    paintExpanded();
     if (back && t) { const b = el.top.querySelector('.st-top-more[data-i="' + TOP_LISTS.indexOf(t) + '"]'); if (b) b.focus(); }
   }
   async function loadRank(t, pg) {
     const seq = ++rank.seq, first = rank.t !== t;
     rank.t = t; rank.page = pg;
     el.rank.hidden = false;
+    paintExpanded();
     if (first || !el.rank.querySelector('.st-rank-body')) {
       el.rank.innerHTML = '<div class="st-ex-bh"><h3 class="st-h2" id="ov-rank-h" tabindex="-1">' + esc(t.title) + '</h3>' +
         '<span class="st-ex-hint">' + esc(t.what) + '</span>' +
@@ -473,7 +476,16 @@
     let res;
     try { res = await fetchTop(t, RANK_PAGE, (pg - 1) * RANK_PAGE); } catch (err) {
       if (seq !== rank.seq) return;
-      S.ui.error(el.rank.querySelector('.st-rank-body'), err);
+      rank.focus = false;
+      const body = el.rank.querySelector('.st-rank-body');
+      const list = body.querySelector('.st-rank-list');
+      if (!list) { S.ui.error(body, err); return; }
+      if (rank.pager) rank.pager.set(rank.total, rank.shown);   // the pager moved on click: back to the rows shown
+      // a page change failed: keep the rows and pager on screen (focus stays on the button
+      // just pressed) and say so above them
+      let line = body.querySelector('.st-ex-moreerr');
+      if (!line) { line = document.createElement('p'); line.className = 'st-ex-moreerr'; line.setAttribute('role', 'alert'); body.prepend(line); }
+      line.textContent = S.errorText(err) + ' Pick the page again to retry.';
       return;
     }
     if (seq !== rank.seq) return;
@@ -482,10 +494,14 @@
     if (!rows.length) { S.ui.empty(body, 'Nobody here yet.'); return; }
     body.innerHTML = '<ol class="st-top-list st-rank-list">' + rows.map(r => '<li>' + topRow(t, r) + '</li>').join('') + '</ol>';
     S.ui.hydrate(body);
-    S.ui.pager(body, { total: res.total_count || rows.length, pageSize: RANK_PAGE, page: pg, focus: rank.focus,
+    rank.shown = pg; rank.total = res.total_count || rows.length;
+    rank.pager = S.ui.pager(body, { total: rank.total, pageSize: RANK_PAGE, page: pg, focus: rank.focus,
       onPage: n => { rank.focus = true; loadRank(t, n); } });
     rank.focus = false;
     if (first) { el.rank.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); el.rank.querySelector('#ov-rank-h').focus({ preventScroll: true }); }
+  }
+  function paintExpanded() {
+    el.top.querySelectorAll('.st-top-more').forEach(b => b.setAttribute('aria-expanded', String(TOP_LISTS[+b.dataset.i] === rank.t)));
   }
   el.top.addEventListener('click', e => {
     const b = e.target.closest('.st-top-more');

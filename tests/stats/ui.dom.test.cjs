@@ -480,3 +480,19 @@ test('filterBox debounces, trims and clears on Escape', async () => {
   assert.deepEqual(await page.evaluate(() => window.got), ['not quite', '']);
   assert.equal(await page.inputValue('#c input'), '');
 });
+test('filterBox.reset(v) makes the same text fire again', async () => {
+  await mount();
+  await page.evaluate(() => {
+    window.got = [];
+    window.fb = S.ui.filterBox({ label: 'Filter players', onChange: v => window.got.push(v) });
+    document.getElementById('c').appendChild(window.fb.el);
+  });
+  await page.focus('#c input');
+  await page.keyboard.type('zz');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.fb.reset(''));   // the "zz" request failed: forget it
+  assert.equal(await page.inputValue('#c input'), 'zz');
+  await page.keyboard.press('End'); await page.keyboard.type(' ');   // trims to the same "zz"
+  await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(() => window.got), ['zz', 'zz']);
+});

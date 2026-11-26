@@ -798,6 +798,8 @@
       el: wrap, input,
       value: () => last,
       clear() { clearTimeout(timer); timer = null; input.value = ''; last = ''; },
+      // forget what was last reported (its request failed), so the same text fires again
+      reset(v) { last = v == null ? '' : v; },
     };
   }
 

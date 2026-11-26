@@ -45,6 +45,7 @@
   let picked = [];                   // uuids drawn in Top players, in click order
   let defaultPicks = [];             // the top rows picked when the board first loaded
   let filterQ = '', filter = null;   // leaderboard name filter (/leaderboard q) and its box
+  let shownQ = '', errByFilter = false;  // the filter behind the rows on screen; pageErr came from a filter change
   const colorOf = new Map();         // uuid -> LINES index while picked
   const names = new Map();           // uuid -> display name
   const get = S.memo();
@@ -236,6 +237,9 @@
     if (!rows.length) {
       S.ui.empty(tblEl, filterQ ? 'No player on this board matches “' + filterQ + '”.' : boardEmpty());
       if (pageErr) pageErrLine(tblEl);
+      // a page past the end (the board shrank meanwhile): keep the pager so there's a way back
+      if (board.total_count > 0) S.ui.pager(tblEl, { total: board.total_count, pageSize: PAGE, page, onPage: n => goPage(n), focus: focusPager });
+      focusPager = false;
       return;
     }
     S.ui.table(tblEl, {
@@ -264,7 +268,7 @@
   function pageErrLine(tblEl) {
     const e = document.createElement('p');
     e.className = 'st-ex-moreerr'; e.setAttribute('role', 'alert');
-    e.textContent = S.errorText(pageErr) + (pageErr.byFilter ? ' Change the filter to retry.' : ' Pick the page again to retry.');
+    e.textContent = S.errorText(pageErr) + (errByFilter ? ' Change the filter to retry.' : ' Pick the page again to retry.');
     tblEl.appendChild(e);
   }
 
@@ -278,7 +282,9 @@
     } catch (err) {
       if (my !== gen || seq !== pageSeq) return false;
       if (keep && board) {
-        page = keep.prev; pageErr = err; if (pageErr) pageErr.byFilter = !!keep.filter;
+        // the rows on screen stay, so the filter they were fetched with comes back too
+        page = keep.prev; pageErr = err; errByFilter = !!keep.filter;
+        if (keep.filter) { filterQ = shownQ; if (filter) filter.reset(shownQ); }
         focusPager = !keep.filter; paintBoard(); return false;
       }
       boardErr = err; board = null;
@@ -287,7 +293,7 @@
     }
     if (my !== gen || seq !== pageSeq) return false;
     const first = !board;
-    board = res; boardErr = null; pageErr = null; shownPage = page;
+    board = res; boardErr = null; pageErr = null; shownPage = page; shownQ = filterQ;
     (res.rows || []).forEach(r => names.set(r.uuid, F.playerName(r)));
     if (first) {
       defaultPicks = (res.rows || []).slice(0, maxLines()).map(r => r.uuid);
@@ -303,6 +309,7 @@
   async function setFilter(v) {
     filterQ = v;
     page = 1;
+    focusPager = false;   // the user is typing: a page click still in flight mustn't take focus
     await loadBoard(gen, { prev: shownPage, filter: true });
   }
 
@@ -419,7 +426,7 @@
   // ---- loading
   function resetStat() {
     board = null; boardErr = null; pageErr = null; page = 1; shownPage = 1; picked = []; defaultPicks = []; colorOf.clear();
-    filterQ = ''; if (filter) filter.clear();
+    filterQ = ''; shownQ = ''; if (filter) filter.clear();
     paintBoard(); paintHead();
   }
 
