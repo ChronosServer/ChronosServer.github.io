@@ -177,6 +177,5 @@ the scope doc. Open backend issues go in
 - Crafatar was down in Nov 2026: heads try our `/cache/heads` first, then Crafatar, mc-heads, then a lettered square
   (`S.ui.head`). Don't "fix" it by dropping Crafatar, it recovers.
 - `/cache/heads/` fills in gradually (the bot fetches a batch every run). A head not fetched yet
-  currently comes back as the site's 404 page with status 200, not a real 404 — the `<img>`
-  fails to decode and falls back, so it works. Not an nginx outage; check a sample of uuids
+  is a real 404 and the `<img>` falls back. Not an nginx outage; check a sample of uuids
   before concluding heads are broken.
