@@ -10,7 +10,7 @@
  *
  * Requests: first paint is /meta + /compare. /compare returns every key's series, so picking
  * a row costs nothing. Bot check: when the scope includes SMP, a player /compare reports
- * with is_bot_on_smp turns the bot toggle on (once per bot, so the viewer can turn it off
+ * with is_bot (fake player or SMP team rule) turns the bot toggle on (once per bot, so the viewer can turn it off
  * again); no separate /player request. After a 404, /player
  * on each player typed into the URL finds the unknown name. Responses are kept per
  * parameter set; `gen` drops stale compares.
@@ -46,7 +46,7 @@
   const maxPlayers = () => Math.min(LINES.length, cfg().max_players);
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const bots = () => (info.hasSmp && st.bots ? 'true' : null);
+  const bots = () => (info.hasBots && st.bots ? 'true' : null);
   const hasIcon = cat => !['custom', 'killed', 'killed_by', 'scoreboard'].includes(F.itemId(cat));
   const pName = p => (p.name || p.uuid ? F.playerName({ name: p.name, uuid: p.uuid || p.tok }) : p.tok);
   const norm = s => String(s || '').toLowerCase().replace(/-/g, '');
@@ -106,7 +106,7 @@
       '<span class="st-k" style="background:' + LINES[i] + '" aria-hidden="true"></span>' +
       (p.uuid ? S.ui.headHtml(p.uuid, 20) : S.ui.iconHtml('', 20, '?')) +
       '<span class="st-cmp-cn">' + esc(pName(p)) + '</span>' +
-      (p.bot && info.hasSmp ? '<span class="st-cmp-tag">Bot</span>' : '') +
+      (p.bot && info.hasBots ? '<span class="st-cmp-tag">Bot</span>' : '') +
       (p.unknown ? '<span class="st-cmp-tag">Not found</span>' : '') +
       '<button type="button" class="st-cmp-x" data-list="players" data-i="' + i + '" aria-label="Remove ' + esc(pName(p)) + '">×</button></li>').join('');
     el.keys.innerHTML = keys.map((k, i) =>
@@ -187,11 +187,11 @@
 
   // ---- message area: minimum copy, errors, bot note
   function botNote() {
-    if (!info.hasSmp) return '';
+    if (!info.hasBots) return '';
     const b = players.filter(p => p.bot).map(pName);
     if (!b.length) return '';
-    if (st.bots) return 'Bots included because ' + andList(b) + (b.length === 1 ? ' is a bot account' : ' are bot accounts') + ' on SMP.';
-    return andList(b) + (b.length === 1 ? ' is a bot account' : ' are bot accounts') + ' on SMP. Turn on Include bots to count ' + (b.length === 1 ? 'its' : 'their') + ' SMP numbers.';
+    if (st.bots) return 'Bots included because ' + andList(b) + (b.length === 1 ? ' is a bot account.' : ' are bot accounts.');
+    return andList(b) + (b.length === 1 ? ' is a bot account' : ' are bot accounts') + '. Turn on Include bots to count ' + (b.length === 1 ? 'its' : 'their') + ' numbers.';
   }
 
   function paintMsg() {
@@ -324,7 +324,7 @@
       const r = left.splice(j, 1)[0];
       if (!p.uuid && norm(r.uuid) !== norm(p.tok) && norm(r.name) !== norm(p.tok)) merged.push(p.tok + ' is counted as ' + F.playerName(r));
       p.uuid = r.uuid; p.name = r.name || null; p.unknown = false;
-      if (typeof r.is_bot_on_smp === 'boolean') p.bot = r.is_bot_on_smp;
+      if (typeof r.is_bot === 'boolean' || typeof r.is_bot_on_smp === 'boolean') p.bot = F.isBot(r);
     });
     return merged;
   }
@@ -413,7 +413,7 @@
   async function findUnknown(my) {
     const todo = players.filter(p => !p.uuid);
     const out = await Promise.all(todo.map(p => get('player/' + encodeURIComponent(p.tok), { scope: st.scope })
-      .then(r => { p.uuid = r.uuid; p.name = r.name || null; p.bot = !!r.is_bot_on_smp; return null; },
+      .then(r => { p.uuid = r.uuid; p.name = r.name || null; p.bot = F.isBot(r); return null; },
             e => (e && e.status === 404 ? p : null))));
     if (my !== gen) return;
     const bad = out.filter(Boolean);
@@ -440,16 +440,16 @@
     paintChips(); paintMsg();
   }
 
-  // The bot flag comes with each /compare player (is_bot_on_smp, read in resolve). A newly
+  // The bot flag comes with each /compare player (is_bot, read in resolve). A newly
   // found bot turns the toggle on once (STATS_API: compare with bots included).
   function checkBots() {
-    if (info.hasSmp) applyBots();
+    if (info.hasBots) applyBots();
   }
 
   function applyBots() {
     const fresh = players.filter(p => p.bot && !botAuto.has(norm(p.uuid)));
     players.filter(p => p.bot).forEach(p => botAuto.add(norm(p.uuid)));
-    if (fresh.length && !st.bots && info.hasSmp) {
+    if (fresh.length && !st.bots && info.hasBots) {
       st.bots = true;
       writeState();
       buildControls();
@@ -541,7 +541,7 @@
     readUrl();
     writeState();
     buildControls();
-    S.ui.autocomplete(el.pq, { limit: 10, types: ['players'], noneText: 'No players match that.', onPick: it => { el.pq.value = ''; addPlayer(it); } });
+    S.ui.autocomplete(el.pq, { limit: 10, bots: () => !!bots(), types: ['players'], noneText: 'No players match that.', onPick: it => { el.pq.value = ''; addPlayer(it); } });
     S.ui.autocomplete(el.kq, {
       limit: 10, types: ['stats', 'objectives'], noneText: 'No stats or objectives match that.',
       onPick: it => {

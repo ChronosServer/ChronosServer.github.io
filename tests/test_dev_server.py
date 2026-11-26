@@ -134,6 +134,10 @@ class DevServerTest(unittest.TestCase):
         self.assertEqual(r.status, 404)
         self.assertEqual(Upstream.seen[-1][0], "/cache/items/nope.png")
 
+    def test_player_heads_proxied(self):
+        self.get("/cache/heads/nope.png")
+        self.assertEqual(Upstream.seen[-1][0], "/cache/heads/nope.png")
+
     def test_other_cache_paths_not_proxied(self):
         r, _ = self.get("/cache/other/x.png")
         self.assertEqual(r.status, 404)

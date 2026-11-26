@@ -136,7 +136,8 @@
     const groups = m && m.scope_groups;
     if (groups) {
       const keys = servers.map(s => s.key);
-      const bots = k => servers.some(s => s.key === k && s.filters_bots);
+      const hasB = s => (s.has_bots != null ? !!s.has_bots : !!s.filters_bots);
+      const bots = k => servers.some(s => s.key === k && hasB(s));
       if (scope === 'all') {
         const parts = [];
         keys.forEach(k => {
@@ -144,17 +145,17 @@
           const part = g || k;
           if (!parts.includes(part)) parts.push(part);
         });
-        return { servers: keys, hasSmp: keys.some(bots), parts };
+        return { servers: keys, hasBots: keys.some(bots), parts };
       }
       if (groups[scope]) {
         const members = groups[scope];
-        return { servers: members.slice(), hasSmp: members.some(bots), parts: [scope] };
+        return { servers: members.slice(), hasBots: members.some(bots), parts: [scope] };
       }
-      return { servers: [scope], hasSmp: bots(scope), parts: [scope] };
+      return { servers: [scope], hasBots: bots(scope), parts: [scope] };
     }
-    if (scope === 'all') return { servers: null, hasSmp: true, parts: ['all'] };
+    if (scope === 'all') return { servers: null, hasBots: true, parts: ['all'] };
     const one = servers.find(s => s.key === scope);
-    return { servers: one ? [scope] : null, hasSmp: !!(one && one.filters_bots), parts: [scope] };
+    return { servers: one ? [scope] : null, hasBots: !!(one && (one.has_bots != null ? one.has_bots : one.filters_bots)), parts: [scope] };
   }
 
   function rangeParams(st) {

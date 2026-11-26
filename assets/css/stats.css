@@ -20,7 +20,7 @@
  *             st-ex-name st-ex-meta st-ex-board st-ex-bh st-ex-hint st-ex-sw st-ex-pl st-ex-foot
  *             st-ex-moreerr
  *   player    st-pl st-pl-landing st-pl-lede st-pl-top (.st-pl-big) st-pl-find st-pl-ctl st-pl-head
- *             st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-merged st-pl-tiles st-pl-sh st-pl-n st-pl-see
+ *             st-pl-skin st-pl-ones st-pl-bot st-pl-anon st-pl-aka st-pl-merged st-pl-tiles st-pl-sh st-pl-n st-pl-see
  *             st-pod-more st-pl-graph st-pl-range st-pl-chart st-pl-tabs st-pl-panel st-pl-filt
  *             st-pl-one st-pl-rk st-pl-top1 st-pl-row st-pl-quiet st-pl-early st-pl-intro st-pl-by
  *             st-pl-ek st-pl-link st-pl-trend st-pl-empty st-pl-none
@@ -172,7 +172,7 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-dim{opacity:.4}
 .st-feed-head{margin:0 0 1rem}
 .st-feed-head .st-h2{margin:0}
-.st-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:1.2rem}
+.st-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.2rem}
 .st-top-card{display:flex;flex-direction:column;gap:.7rem;padding:1.1rem 1.2rem}
 .st-top-list{margin:0;padding:0;list-style:none}
 .st-top-list li{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.42rem 0;border-top:1px solid var(--line)}
@@ -185,6 +185,11 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-top-v{font:600 .9rem var(--mono);color:#fff;font-variant-numeric:tabular-nums}
 .st-top-empty{margin:0;font-size:.84rem;color:var(--mute)}
 .st-top-card .st-board-link{align-self:flex-end}
+.st-top-more{padding:0;background:none;border:0;cursor:pointer}
+.st-rank{margin-top:1.2rem}
+.st-rank[hidden]{display:none}
+.st-rank-body{padding:.4rem 1.2rem 1rem}
+.st-rank-list li{grid-template-columns:2.6rem minmax(0,1fr) auto}
 .st-feed-t .st-icon,.st-feed-t .st-letter{width:20px;height:20px;margin:0 .15rem;vertical-align:-4px}
 .st-feed > .st-tabs{padding:0 .3rem}
 
@@ -226,6 +231,9 @@ input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans
 .st-ex-bh{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:baseline;justify-content:space-between;padding:1rem 1.1rem .7rem;border-bottom:1px solid var(--line)}
 .st-ex-bh .st-h2{margin:0}
 .st-ex-hint{font:400 .72rem var(--mono);color:var(--mute)}
+.st-ex-bh .st-fbox{margin-left:auto}
+.st-fbox input{width:min(220px,100%);min-width:0;background:rgba(0,0,0,.3)}
+.st-fbox[hidden]{display:none}
 .st-ex-board .st-table th:first-child{width:1%}
 .st-ex-rk{color:var(--mute)}
 .st-ex-sw{display:inline-block;width:8px;height:8px;margin-right:.6rem;border:1px solid var(--line);vertical-align:0}
@@ -259,6 +267,7 @@ input.st-ex-q{width:100%;min-width:0;padding:.8rem 1rem;font:400 1rem var(--sans
 .st-pl-ones:focus-visible{outline-offset:6px}
 .st-pl-bot{border-color:rgba(229,169,60,.55);color:var(--amber)}
 .st-pl-anon{font-style:italic}
+.st-pl-aka{margin:.15rem 0 .35rem;font-family:var(--mono);font-size:.78rem;color:var(--mute)}
 .st-pl-merged{margin:.5rem 0 0;font:400 .85rem/1.45 var(--sans);color:var(--mute)}
 .st-pl-tiles .st-v{font-size:1.55rem}
 .st-sec > h2 .st-pl-n,.st-pl-sh .st-pl-n{margin-left:.5rem;font:400 .8rem var(--mono);letter-spacing:0;color:var(--mute)}
@@ -381,6 +390,8 @@ button.st-pod:focus-visible{outline-offset:-2px}
 .st-ph{display:grid;grid-template-columns:auto 1fr;gap:1.6rem;align-items:end}
 .st-body{width:110px;height:auto;image-rendering:pixelated;filter:drop-shadow(0 10px 18px rgba(0,0,0,.6))}
 .st-ph h1{margin-bottom:.5rem;font-size:clamp(2.2rem,6vw,3.6rem);overflow-wrap:anywhere}
+/* --n = name length: long names shrink to fit the column instead of breaking mid-word */
+.st-ph h1[style*="--n"]{font-size:clamp(1.1rem,calc(min(20rem,56vw) / var(--n)),3.6rem)}
 .st-meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font:400 .8rem var(--mono);color:var(--mute)}
 .st-chip{white-space:nowrap;padding:.12rem .5rem;border:1px solid var(--line);border-radius:2px;font:500 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink)}
 .st-bigcount{font:700 clamp(3rem,9vw,6rem)/1 var(--display);letter-spacing:.02em;color:#fff}

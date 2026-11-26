@@ -46,7 +46,7 @@
   const fmtCount = n => Number(n || 0).toLocaleString('en-GB');
   const reduced = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
   const hasIcon = cat => !['custom', 'killed', 'killed_by', 'scoreboard'].includes(F.itemId(cat));
-  const bots = () => (info.hasSmp && st.bots ? 'true' : null);
+  const bots = () => (info.hasBots && st.bots ? 'true' : null);
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const serverIdx = k => { const i = (meta.servers || []).findIndex(x => x.key === k); return i < 0 ? 999 : i; };
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
@@ -91,13 +91,18 @@
   const disp = (s, v) => F.display(s.kind === 'scoreboard' ? 'scoreboard' : s.cat, s.key, v);
 
   // ---- header
+  // former names (renames, merged accounts), escaped: names come from players
+  function akaHtml() {
+    const aka = (prof.aka || []).filter(Boolean);
+    return aka.length ? '<p class="st-pl-aka">Also known as ' + aka.map(esc).join(', ') + '</p>' : '';
+  }
   function headerHtml() {
     const ones = prof.stats.filter(s => s.rank === 1).length;
     const chips = (prof.servers || []).map(k => '<span class="st-chip">' + esc(serverLabel(k)) + '</span>').join('');
     const bits = [chips];
     if (!prof.name) bits.push('<span class="st-pl-anon">Name not known yet</span>');
     if (prof.last_activity) bits.push('<span>· last seen ' + esc(ago(prof.last_activity)) + '</span>');
-    if (prof.is_bot_on_smp) bits.push('<span class="st-chip st-pl-bot">Bot account on SMP</span>');
+    if (F.isBot(prof)) bits.push('<span class="st-chip st-pl-bot">' + esc(F.botLabel(prof)) + '</span>');
     let big = '';
     if (prof.stats.length) {
       if (ones) {
@@ -110,7 +115,7 @@
     }
     const merged = mergedFrom ? '<p class="st-pl-merged">Showing ' + esc(name()) + ' — ' + esc(mergedFrom) + ' is counted as the same player.</p>' : '';
     return '<header class="st-pl-head"><div class="st-ph"><span class="st-pl-skin" id="pl-skin"></span>' +
-      '<div><h1>' + esc(name()) + '</h1><div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
+      '<div><h1 style="--n:' + Math.max(6, name().length) + '">' + esc(name()) + '</h1>' + akaHtml() + '<div class="st-meta">' + bits.join('') + '</div>' + merged + '</div></div>' + big + '</header>';
   }
 
   function paintSkin() {
@@ -662,7 +667,7 @@
   }
 
   async function start() {
-    S.ui.autocomplete(el.q, { limit: 10, types: ['players'], noneText: 'No players match that.', onPick });
+    S.ui.autocomplete(el.q, { limit: 10, types: ['players'], noneText: 'No players match that.', onPick, bots: () => !!bots() });
     const p = (new URLSearchParams(location.search).get('p') || '').trim();
     if (!p) {
       el.top.classList.add('st-pl-big');

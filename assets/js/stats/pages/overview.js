@@ -20,7 +20,7 @@
   const el = {
     controls: $('ov-controls'), app: $('ov-app'), tiles: $('ov-tiles'), chart: $('ov-chart'), note: $('ov-note'),
     spot: $('ov-spot'), pulse: $('ov-pulse'), pulseMode: $('ov-pulse-mode'), pulseBody: $('ov-pulse-body'),
-    tabs: $('ov-tabs'), feed: $('ov-feed'), top: $('ov-top'),
+    tabs: $('ov-tabs'), feed: $('ov-feed'), top: $('ov-top'), rank: $('ov-rank'),
   };
 
   let meta = null, st = null, info = null, gen = 0, chart = null, tabs = null;
@@ -33,7 +33,7 @@
   const hasIcon = cat => !['custom', 'killed', 'killed_by'].includes(F.itemId(cat));
   const idOf = h => F.itemId(h[1]);
   const selected = () => shown.find(h => idOf(h) === st.stat) || shown[0];
-  const bots = () => (info.hasSmp && st.bots ? 'true' : null);
+  const bots = () => (info.hasBots && st.bots ? 'true' : null);
   const serverLabel = k => { const s = (meta.servers || []).find(x => x.key === k); return s ? s.label : String(k).toUpperCase(); };
   const partLabel = k => (k === 'all' ? 'All' : serverLabel(k));
   const scopeServers = () => info.servers || (meta.servers || []).map(s => s.key);
@@ -63,9 +63,10 @@
     return info.parts.map(p => {
       const pts = (series[p] || []).filter(x => x && isFinite(x[0]) && isFinite(x[1])).sort((a, b) => a[0] - b[0]);
       const last = pts.length ? pts[pts.length - 1][1] : 0;
-      // gain over the window: last minus the value at effective_from (untrimmed, so a stat
-      // that starts at 0 inside the range reports its full gain; no point yet means 0)
-      const atFrom = S.cm.valueAt(pts, res.effective_from);
+      // gain over the window: last minus the value at the line's own start (untrimmed, so a
+      // stat that starts at 0 inside the range reports its full gain; no point yet means 0)
+      const from = S.kit.lineStart(res, p);
+      const atFrom = from == null ? null : S.cm.valueAt(pts, from);
       return { part: p, last, gain: Math.max(0, last - (atFrom == null ? 0 : atFrom)) };
     });
   }
@@ -403,42 +404,112 @@
     }
   }
 
-  // ---- top players: short all-time lists, each linking to its full ranking. Hours played
-  // comes from /leaderboard; more lists join when the backend ranks #1 spots, firsts, badges.
-  const TOP_N = 5;
+  // ---- top players: short all-time lists. Hours played comes from /leaderboard and links to
+  // the explorer; #1 spots, firsts and badges come from /rankings and open a paged ranking
+  // below the cards.
+  const TOP_N = 5, RANK_PAGE = 50;
   const TOP_LISTS = [
     { title: 'Most hours played', cat: 'minecraft:custom', key: 'minecraft:play_time' },
+    { title: 'Most #1 spots', by: 'top1', what: 'Stats and scoreboards held at #1' },
+    { title: 'Most firsts', by: 'firsts', what: 'Firsts on record (not counting players who had it before tracking)' },
+    { title: 'Most badges', by: 'badges', what: 'Different badges earned' },
   ];
+  const valueText = (t, v) => (t.by ? { text: F.compact(v), exact: Number(v).toLocaleString('en-GB') } : F.display(t.cat, t.key, v));
+  const fetchTop = (t, limit, offset) => (t.by
+    ? get('rankings', { by: t.by, scope: st.scope, include_bots: bots(), limit, offset: offset || null })
+    : get('leaderboard', { kind: 'stat', category: t.cat, key: t.key, scope: st.scope, include_bots: bots(), limit, offset: offset || null }));
 
   function topCard(t, body, foot) {
     return '<div class="panel st-top-card"><span class="st-lab">' + esc(t.title) + '</span>' + body + (foot || '') + '</div>';
   }
+  function topRow(t, r) {
+    const d = valueText(t, r.value);
+    return '<span class="st-top-rk">' + esc(r.rank) + '</span>' +
+      '<a class="st-top-pl" href="' + esc(S.kit.playerHref(st, r.name, r.uuid)) + '">' + S.ui.headHtml(r.uuid, 22) + '<span>' + esc(F.playerName(r)) + '</span></a>' +
+      '<span class="st-top-v" title="' + esc(d.exact) + '">' + esc(d.text) + '</span>';
+  }
 
   async function loadTop(my) {
     const off = S.kit.untracked(meta, st.scope, 'stat');
-    if (off) { el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">' + esc(off) + '</p>')).join(''); return; }
+    if (off) { el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">' + esc(off) + '</p>')).join(''); closeRank(); return; }
     el.top.innerHTML = TOP_LISTS.map(t => topCard(t, '<p class="st-top-empty">Loading…</p>')).join('');
-    const cards = await Promise.all(TOP_LISTS.map(async t => {
+    if (rank.t) loadRank(rank.t, 1);
+    const cards = await Promise.all(TOP_LISTS.map(async (t, i) => {
       let res;
-      try {
-        res = await get('leaderboard', { kind: 'stat', category: t.cat, key: t.key, scope: st.scope, include_bots: bots(), limit: TOP_N });
-      } catch (err) {
+      try { res = await fetchTop(t, TOP_N); } catch (err) {
         return topCard(t, '<p class="st-top-empty">' + esc(S.errorText(err)) + '</p>');
       }
       const rows = (res && res.rows) || [];
       if (!rows.length) return topCard(t, '<p class="st-top-empty">Nobody here yet.</p>');
-      const list = '<ol class="st-top-list">' + rows.map(r => {
-        const d = F.display(t.cat, t.key, r.value);
-        return '<li><span class="st-top-rk">' + esc(r.rank) + '</span>' +
-          '<a class="st-top-pl" href="' + esc(S.kit.playerHref(st, r.name, r.uuid)) + '">' + S.ui.headHtml(r.uuid, 22) + '<span>' + esc(F.playerName(r)) + '</span></a>' +
-          '<span class="st-top-v" title="' + esc(d.exact) + '">' + esc(d.text) + '</span></li>';
-      }).join('') + '</ol>';
-      return topCard(t, list, '<a class="st-board-link" href="' + esc(S.kit.boardHref('stat', t.cat, t.key, st)) + '">Full ranking →</a>');
+      const list = '<ol class="st-top-list">' + rows.map(r => '<li>' + topRow(t, r) + '</li>').join('') + '</ol>';
+      const foot = t.by
+        ? '<button type="button" class="st-board-link st-top-more" data-i="' + i + '" aria-controls="ov-rank" aria-expanded="' + (rank.t === t) + '"' +
+          ' aria-label="Full ranking: ' + esc(t.title) + '">Full ranking →</button>'
+        : '<a class="st-board-link" href="' + esc(S.kit.boardHref('stat', t.cat, t.key, st)) + '">Full ranking →</a>';
+      return topCard(t, list, foot);
     }));
     if (my !== gen) return;
     el.top.innerHTML = cards.join('');
     S.ui.hydrate(el.top);
   }
+
+  // the full ranking for one /rankings list, paged by the API (limit/offset)
+  const rank = { t: null, seq: 0, page: 1, shown: 1, total: 0, pager: null, focus: false };
+  function closeRank(back) {
+    const t = rank.t;
+    rank.t = null; rank.seq++; rank.focus = false;
+    el.rank.hidden = true; el.rank.innerHTML = '';
+    paintExpanded();
+    if (back && t) { const b = el.top.querySelector('.st-top-more[data-i="' + TOP_LISTS.indexOf(t) + '"]'); if (b) b.focus(); }
+  }
+  async function loadRank(t, pg) {
+    const seq = ++rank.seq, first = rank.t !== t;
+    rank.t = t; rank.page = pg;
+    el.rank.hidden = false;
+    paintExpanded();
+    if (first || !el.rank.querySelector('.st-rank-body')) {
+      el.rank.innerHTML = '<div class="st-ex-bh"><h3 class="st-h2" id="ov-rank-h" tabindex="-1">' + esc(t.title) + '</h3>' +
+        '<span class="st-ex-hint">' + esc(t.what) + '</span>' +
+        '<button type="button" class="st-again st-rank-close">Close</button></div><div class="st-rank-body"><div class="st-empty">Loading…</div></div>';
+      el.rank.querySelector('.st-rank-close').addEventListener('click', () => closeRank(true));
+    }
+    let res;
+    try { res = await fetchTop(t, RANK_PAGE, (pg - 1) * RANK_PAGE); } catch (err) {
+      if (seq !== rank.seq) return;
+      rank.focus = false;
+      const body = el.rank.querySelector('.st-rank-body');
+      const list = body.querySelector('.st-rank-list');
+      if (!list) { S.ui.error(body, err); return; }
+      if (rank.pager) rank.pager.set(rank.total, rank.shown);   // the pager moved on click: back to the rows shown
+      // a page change failed: keep the rows and pager on screen (focus stays on the button
+      // just pressed) and say so above them
+      let line = body.querySelector('.st-ex-moreerr');
+      if (!line) { line = document.createElement('p'); line.className = 'st-ex-moreerr'; line.setAttribute('role', 'alert'); body.prepend(line); }
+      line.textContent = S.errorText(err) + ' Pick the page again to retry.';
+      return;
+    }
+    if (seq !== rank.seq) return;
+    const body = el.rank.querySelector('.st-rank-body');
+    const rows = (res && res.rows) || [];
+    if (!rows.length) { S.ui.empty(body, 'Nobody here yet.'); return; }
+    body.innerHTML = '<ol class="st-top-list st-rank-list">' + rows.map(r => '<li>' + topRow(t, r) + '</li>').join('') + '</ol>';
+    S.ui.hydrate(body);
+    rank.shown = pg; rank.total = res.total_count || rows.length;
+    rank.pager = S.ui.pager(body, { total: rank.total, pageSize: RANK_PAGE, page: pg, focus: rank.focus,
+      onPage: n => { rank.focus = true; loadRank(t, n); } });
+    rank.focus = false;
+    if (first) { el.rank.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); el.rank.querySelector('#ov-rank-h').focus({ preventScroll: true }); }
+  }
+  function paintExpanded() {
+    el.top.querySelectorAll('.st-top-more').forEach(b => b.setAttribute('aria-expanded', String(TOP_LISTS[+b.dataset.i] === rank.t)));
+  }
+  el.top.addEventListener('click', e => {
+    const b = e.target.closest('.st-top-more');
+    if (!b) return;
+    const t = TOP_LISTS[+b.dataset.i];
+    if (rank.t === t) { closeRank(); return; }
+    loadRank(t, 1);
+  });
 
   // ---- one pass over the data for the current state
   async function load() {

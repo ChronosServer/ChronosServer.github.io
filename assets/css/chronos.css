@@ -58,6 +58,7 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 /* status readout */
 .row{display:grid;grid-template-columns:6.5rem 1fr 11rem;align-items:center;gap:.3rem 1rem;padding:.85rem 1.2rem;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
+.row{transition:background-color .2s}
 .row .name{font:500 .72rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
 .row .val{font:600 1rem var(--mono);text-align:right;white-space:nowrap}
 .row .val:has(.nw){grid-row:1;grid-column:2/4}
@@ -68,7 +69,7 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 .meter b.warn{background:var(--amber)}
 .meter b.bad{background:var(--red)}
 .servers{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));background:var(--panel);border-top:1px solid var(--line);border-left:1px solid var(--line)}
-.srv{display:flex;align-items:center;gap:.7rem;padding:.7rem 1.1rem;font:500 .85rem var(--mono);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.srv{display:flex;align-items:center;gap:.7rem;padding:.7rem 1.1rem;font:500 .85rem var(--mono);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transition:background-color .2s}
 .dot{width:8px;height:8px;background:var(--ok)}
 .dot.off{background:var(--red)}
 
@@ -117,6 +118,8 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
   .kind-home .bg img{animation:none}
   .js .reveal,.js .reveal.in{opacity:1!important;transform:none!important;transition:none!important}
   .links a::after,.dd-btn::after,.meter b{transition:none}
+  .member,.item,.post,.member img,.item img,.post img,.g img{transition:border-color .2s,background-color .2s,color .2s!important}
+  .member:hover,.item:hover,.post:hover,.member:active,.item:active,.post:active,.member:hover img,.item:hover img,.post:hover img,.g:hover img{transform:none!important}
 }
 
 /* home: learn more, explore tiles, join cards */
@@ -140,6 +143,18 @@ h2{font:500 .78rem var(--mono);letter-spacing:.18em;text-transform:uppercase;mar
 .card h3{margin:0;font:700 1.05rem/1.3 var(--display);letter-spacing:.05em;text-transform:uppercase;color:#fff}
 .card p{margin:0;max-width:30rem;color:var(--mute)}
 .card .go{margin-top:.3rem;font:500 .72rem var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--teal)}
+@media (hover:hover) and (pointer:fine){
+  .member:hover,.item:hover,.post:hover{border-color:var(--teal);background:rgba(14,20,23,.85);transform:translateY(-2px)}
+  .member:hover img{transform:scale(1.08)}
+  .member.off:hover{opacity:.8}
+  .item:hover img{transform:scale(1.15)}
+  .item:hover .ct{color:var(--ink)}
+  .post:hover img{transform:scale(1.04)}
+  .g:hover::after{border-color:var(--teal)}
+  .g:hover img{transform:scale(1.03);filter:brightness(1.08)}
+  .srv:hover,.row:hover{background:rgba(235,232,230,.04)}
+}
+.member:active,.item:active,.post:active{transform:translateY(0) scale(.99)}
 @media (hover:hover) and (pointer:fine){.tile:hover{border-color:var(--teal);background:rgba(14,20,23,.85)}.card:hover{border-color:var(--teal)}}
 @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.join{grid-template-columns:1fr}.card.big{grid-row:auto;min-height:0}}
 @media (max-width:420px){.tiles{grid-template-columns:1fr}}
@@ -156,22 +171,24 @@ select.search{width:auto}
 .tabs button[aria-selected="true"]{border-color:var(--teal)}
 .sum{color:var(--mute);font-size:.85rem;margin:0 0 .8rem}
 .members{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px}
-.member{display:flex;align-items:center;gap:.7rem;padding:.5rem .7rem;border:1px solid var(--line);background:var(--panel);border-radius:3px}
-.member img{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none}
+.member{display:flex;align-items:center;gap:.7rem;padding:.5rem .7rem;border:1px solid var(--line);background:var(--panel);border-radius:3px;transition:border-color .2s,background-color .2s,transform .2s var(--ease)}
+.member img{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;transition:transform .25s var(--ease)}
 .member span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .member.off{opacity:.5}
 .member.off img{filter:grayscale(1)}
 .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px}
-.item{display:flex;align-items:center;gap:.7rem;padding:.45rem .7rem;border:1px solid var(--line);background:var(--panel);border-radius:3px}
-.item img{width:28px;height:28px;image-rendering:pixelated;flex:none}
+.item{display:flex;align-items:center;gap:.7rem;padding:.45rem .7rem;border:1px solid var(--line);background:var(--panel);border-radius:3px;transition:border-color .2s,background-color .2s,transform .2s var(--ease)}
+.item img{width:28px;height:28px;image-rendering:pixelated;flex:none;transition:transform .25s var(--ease)}
 .item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.item .ct{font:500 .85rem var(--mono);color:var(--mute)}
+.item .ct{font:500 .85rem var(--mono);color:var(--mute);transition:color .2s}
 .chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1.2rem}
 .chips button{background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:.3rem .7rem;color:var(--mute);font:500 .68rem var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 .chips button:hover,.chips button[aria-pressed="true"]{color:#fff;border-color:var(--teal)}
 .posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-bottom:1.5rem}
 .post{display:flex;flex-direction:column;padding:0;text-align:left;font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:3px;cursor:pointer;overflow:hidden;transition:border-color .2s}
-.post img{width:100%;height:150px;object-fit:cover;display:block}
+.post{transition:border-color .2s,background-color .2s,transform .2s var(--ease)}
+.post img{width:100%;height:150px;object-fit:cover;display:block;transition:transform .5s var(--ease)}
+.post:focus-visible,.g:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
 .pb{display:flex;flex-direction:column;gap:.35rem;padding:.8rem .9rem}
 .pa{font-size:.72rem;color:var(--mute)}
 .pt{font-weight:500;color:#fff;line-height:1.35}
@@ -197,7 +214,9 @@ dialog[open]{animation:up .25s var(--ease)}
 .rp{margin-top:1.3rem;padding-top:1.1rem;border-top:1px solid var(--line)}
 .masonry{columns:3 300px;column-gap:8px}
 .g{display:block;width:100%;margin:0 0 8px;padding:0;border:0;background:#101315;break-inside:avoid;cursor:zoom-in}
-.g img{width:100%;display:block}
+.g{position:relative;overflow:hidden}
+.g::after{content:"";position:absolute;inset:0;border:1px solid transparent;transition:border-color .2s;pointer-events:none}
+.g img{width:100%;display:block;transition:transform .5s var(--ease),filter .3s}
 dialog.lb{width:100vw;height:100vh;max-width:none;max-height:none;border:0;background:transparent}
 dialog.lb[open]{display:flex;align-items:center;justify-content:center}
 .lb img{max-width:92vw;max-height:86vh;object-fit:contain}
@@ -213,9 +232,10 @@ dialog.lb[open]{display:flex;align-items:center;justify-content:center}
 /* world map: fills the viewport below the nav, no footer on this page */
 .mapwrap{position:fixed;inset:54px 0 0;background:#0a0d0f}
 .mapwrap iframe{width:100%;height:100%;border:0;display:block}
-.maphead{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:flex-end;align-items:center;gap:1rem;padding:.6rem 1rem;background:linear-gradient(rgba(5,8,10,.75),rgba(5,8,10,0));pointer-events:none}
+.maphead{position:absolute;right:1rem;bottom:1.8rem;z-index:5;display:flex;align-items:center;gap:1rem;pointer-events:none}
 .maphead *{pointer-events:auto}
 .maphead a{font:500 .72rem var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute);text-decoration:none;padding:.4rem .7rem;border:1px solid var(--line);border-radius:3px;background:rgba(10,13,15,.6);backdrop-filter:blur(6px)}
+.maphead a{transition:color .15s,border-color .15s}
 .maphead a:hover{color:#fff;border-color:var(--teal)}
 body.kind-map .foot{display:none}
 /* bolt map: full-bleed canvas with overlays in the panel style */

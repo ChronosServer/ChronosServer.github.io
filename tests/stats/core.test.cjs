@@ -127,15 +127,15 @@ test('errorText 5xx', () => {
 });
 test('scopeInfo with scope_groups', () => {
   const m = { scope_groups: { cmps: ['cmp', 'cmp2'] }, servers: meta.servers };
-  assert.deepEqual(scopeInfo(m, 'all'), { servers: ['smp', 'cmp', 'cmp2'], hasSmp: true, parts: ['smp', 'cmps'] });
-  assert.deepEqual(scopeInfo(m, 'cmps'), { servers: ['cmp', 'cmp2'], hasSmp: false, parts: ['cmps'] });
-  assert.deepEqual(scopeInfo(m, 'cmp'), { servers: ['cmp'], hasSmp: false, parts: ['cmp'] });
+  assert.deepEqual(scopeInfo(m, 'all'), { servers: ['smp', 'cmp', 'cmp2'], hasBots: true, parts: ['smp', 'cmps'] });
+  assert.deepEqual(scopeInfo(m, 'cmps'), { servers: ['cmp', 'cmp2'], hasBots: false, parts: ['cmps'] });
+  assert.deepEqual(scopeInfo(m, 'cmp'), { servers: ['cmp'], hasBots: false, parts: ['cmp'] });
 });
 test('scopeInfo fallback without scope_groups', () => {
-  assert.deepEqual(scopeInfo(meta, 'all'), { servers: null, hasSmp: true, parts: ['all'] });
-  assert.equal(scopeInfo(meta, 'cmps').hasSmp, false);
-  assert.equal(scopeInfo(meta, 'smp').hasSmp, true);
-  assert.equal(scopeInfo(meta, 'cmp').hasSmp, false);
+  assert.deepEqual(scopeInfo(meta, 'all'), { servers: null, hasBots: true, parts: ['all'] });
+  assert.equal(scopeInfo(meta, 'cmps').hasBots, false);
+  assert.equal(scopeInfo(meta, 'smp').hasBots, true);
+  assert.equal(scopeInfo(meta, 'cmp').hasBots, false);
 });
 test('rangeParams', () => {
   assert.deepEqual(rangeParams({ range: '1w', from: null, to: null }), { range: '1w' });
@@ -209,4 +209,13 @@ test('serverLines: one line per server in the scope, API order', () => {
   assert.deepEqual(core.serverLines(m, 'all'), ['smp', 'building', 'cmp', 'cmp2']);
   assert.deepEqual(core.serverLines(m, 'cmp2'), ['cmp2']);
   assert.deepEqual(core.serverLines({ servers: m.servers }, 'cmp'), ['cmp']);
+});
+test('scopeInfo uses has_bots when the server sends it', () => {
+  const m = { scope_groups: { cmps: ['cmp', 'building'] }, servers: [
+    { key: 'smp', filters_bots: true, has_bots: true },
+    { key: 'cmp', filters_bots: false, has_bots: true },
+    { key: 'building', filters_bots: false, has_bots: false }] };
+  assert.equal(scopeInfo(m, 'cmp').hasBots, true);
+  assert.equal(scopeInfo(m, 'building').hasBots, false);
+  assert.equal(scopeInfo(m, 'cmps').hasBots, true);
 });

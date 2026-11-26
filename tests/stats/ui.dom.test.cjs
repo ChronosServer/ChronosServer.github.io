@@ -429,3 +429,70 @@ test('icon never loads a protocol-relative or foreign path', async () => {
   await page.waitForSelector('#c .st-letter');
   assert.ok(!requests.some(u => new URL(u).host === 'evil.test'));
 });
+test('autocomplete sends include_bots only when opts.bots() is on', async () => {
+  await mount();
+  await page.evaluate(() => {
+    document.getElementById('c').innerHTML = '<input id=q>';
+    window.botsOn = false;
+    S.ui.autocomplete(document.getElementById('q'), { onPick: () => {}, bots: () => window.botsOn });
+  });
+  const last = () => { const u = requests.filter(x => x.includes('/api/stats/search')).pop(); return u && new URL(u).searchParams; };
+  await page.focus('#q');
+  await page.keyboard.type('chez');
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some(e => e.name.includes('q=chez')));
+  await page.waitForTimeout(50);
+  assert.equal(last().get('include_bots'), null);
+  await page.evaluate(() => { window.botsOn = true; });
+  await page.keyboard.type('l');
+  await page.waitForFunction(() => performance.getEntriesByType('resource').some(e => e.name.includes('q=chezl')));
+  await page.waitForTimeout(50);
+  assert.equal(last().get('include_bots'), 'true');
+});
+test('our head cache stays first after many players without a cached head', async () => {
+  await mount();
+  await page.evaluate(() => {
+    const c = document.getElementById('c');
+    for (let k = 0; k < 5; k++) c.appendChild(S.ui.head('1111111' + k + '-2222-3333-4444-555555555555', 32));
+  });
+  await page.waitForFunction(() => document.querySelectorAll('#c .st-letter, #c span.st-head').length >= 5 || document.querySelectorAll('#c img.st-head').length === 0);
+  await page.waitForTimeout(100);
+  await page.evaluate(() => document.getElementById('c').appendChild(S.ui.head('aaaaaaaa-2222-3333-4444-555555555555', 32)));
+  await page.waitForFunction(() => { const i = document.querySelector('#c img.st-head[src*="aaaaaaaa"]'); return i && i.complete; });
+  assert.equal(await page.getAttribute('#c img.st-head[src*="aaaaaaaa"]', 'src'), '/cache/heads/aaaaaaaa-2222-3333-4444-555555555555.png');
+});
+test('filterBox debounces, trims and clears on Escape', async () => {
+  await mount();
+  await page.evaluate(() => {
+    window.got = [];
+    const f = S.ui.filterBox({ label: 'Filter players', onChange: v => window.got.push(v) });
+    document.getElementById('c').appendChild(f.el);
+  });
+  assert.equal(await page.getAttribute('#c input', 'aria-label'), 'Filter players');
+  await page.focus('#c input');
+  await page.keyboard.type('not quite ');
+  await page.waitForTimeout(350);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite']);
+  await page.keyboard.type(' ');            // same trimmed value: no new call
+  await page.waitForTimeout(350);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite']);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(50);
+  assert.deepEqual(await page.evaluate(() => window.got), ['not quite', '']);
+  assert.equal(await page.inputValue('#c input'), '');
+});
+test('filterBox.reset(v) makes the same text fire again', async () => {
+  await mount();
+  await page.evaluate(() => {
+    window.got = [];
+    window.fb = S.ui.filterBox({ label: 'Filter players', onChange: v => window.got.push(v) });
+    document.getElementById('c').appendChild(window.fb.el);
+  });
+  await page.focus('#c input');
+  await page.keyboard.type('zz');
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.fb.reset(''));   // the "zz" request failed: forget it
+  assert.equal(await page.inputValue('#c input'), 'zz');
+  await page.keyboard.press('End'); await page.keyboard.type(' ');   // trims to the same "zz"
+  await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(() => window.got), ['zz', 'zz']);
+});
