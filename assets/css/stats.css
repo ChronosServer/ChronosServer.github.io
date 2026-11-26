@@ -172,7 +172,7 @@ a.st-feed-row:hover{background:rgba(235,232,230,.04)}
 .st-dim{opacity:.4}
 .st-feed-head{margin:0 0 1rem}
 .st-feed-head .st-h2{margin:0}
-.st-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1.2rem}
+.st-top{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1.2rem}
 .st-top-card{display:flex;flex-direction:column;gap:.7rem;padding:1.1rem 1.2rem}
 .st-top-list{margin:0;padding:0;list-style:none}
 .st-top-list li{display:grid;grid-template-columns:1.6rem minmax(0,1fr) auto;align-items:center;gap:.6rem;padding:.42rem 0;border-top:1px solid var(--line)}

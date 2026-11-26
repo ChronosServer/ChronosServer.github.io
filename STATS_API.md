@@ -27,7 +27,7 @@ the data contract.
    current name (NotQuiteRat_ -> NotQuiteRat, Q1306 -> DiggusMaximus123, EulerGauss ->
    UsernameAccount, Obi0081_ and Obi81 -> ObiWan81_, lukepourquoi -> justlukie, Alugia7 ->
    Algi_), and replaced accounts are merged into the
-   new one (NotAless50_ -> IBeatLIMBO, wRongo_ -> _wRongo, qstrql -> qstrqlw, plus the
+   new one (NotAless50 -> NotAless50_ -> IBeatLIMBO, Elongatedp00psok -> scatman_scatpant, wRongo_ -> _wRongo, qstrql -> qstrqlw, plus the
    earlier LordHamster42 -> hampter42). Merged accounts are **added together** (not "the new account's value once
    it exists"): the in-game `stattransfer` moved only scoreboard scores and reset the old
    name, and never touched stat files, so the old account's vanilla stats are its own.
@@ -51,8 +51,8 @@ stays alphabetical, so the site orders it.
   - `404 {"error": "player not found"}`.
   - `422 {"detail": [...]}`: a param has the wrong type or is out of range, e.g. a
     non-integer `from`.
-- Player heads: `https://crafatar.com/avatars/<uuid>?size=32&overlay` (works for every
-  uuid, named or not).
+- Player heads: **our own `/cache/heads/<uuid>.png` first** (see Images); only on a 404 fall
+  back to `https://crafatar.com/avatars/<uuid>?size=32&overlay`, then the letter square.
 - `/leaderboard` and `/rankings` share the row shape `{rank, uuid, name, value}`; ties share
   a rank (1, 1, 3).
 - `name` can be `null`: about 1.6k old players have no known name yet (lookups fill
