@@ -58,7 +58,7 @@ stats snapshotter, stats API) writes all the dynamic data this site reads.
 | Members | `members.html` | `/data/members.json` |
 | Gallery | `gallery.html` | `/gallery/index.json` + `/gallery/thumbs/` (built by deploy.sh, images live only on the server) |
 | Storage | `storage.html` (main/dig tabs) | `/data/ms_storage.json`, `/data/dig_storage.json` |
-| Archive | `archive.html` (Discord forum mirror, tag-filterable) | `/data/archive.json` |
+| Archive | `archive.html` (Discord forum mirror, tag-filterable, 18 a page, links clickable) | `/data/archive.json`; `/data/members.json` for names/avatars (archive has nicknames; matched on the Discord avatar hash, nickname if no match) |
 | Status | `status.html` | `/api/status` (live host CPU/RAM/etc.) + `/data/server_status.json` (per-server up/down) |
 | Bolt map | `boltmap.html` (`kind: map`, canvas with pan/zoom) | `/data/boltmap.json` (polls every 5 s only while the scanner reports `progress.complete: false`) |
 | World map | `worldmap.html` (`kind: map`) | Overviewer at `/map/` in an iframe below the nav; `/map` still works standalone (served on the server, not in this repo) |
@@ -119,7 +119,9 @@ the scope doc. Open backend issues go in
 **Data rules that matter**
 - Default scope `smp`. Servers/scopes show in API order, never sorted. Nothing hardcoded
   from data (categories, keys, objectives, servers, presets, limits, badges) except
-  `S.fmt.HEADLINES` and the owner's category pictures `S.fmt.catIcon` (a `/` path is a site
+  `S.fmt.HEADLINES`, `S.fmt.TOP_HIDDEN` (owner's list of team-exception bots, Placer and Raid by
+  uuid, left off the overview's Top players unless "Include bots" is on; `S.kit.hideRows` renumbers)
+  and the owner's category pictures `S.fmt.catIcon` (a `/` path is a site
   image, e.g. `assets/img/cat-broken.png`; anything else is an item id).
 - `earliest_known: 1` → "earliest known holder"/"before tracking", no date; `approximate: 1`
   → amber "by <date>". Dates `en-GB` short.

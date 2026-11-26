@@ -10,6 +10,9 @@
   const INFINITIVE = { mined: 'mine', used: 'use', crafted: 'craft', broken: 'break', picked_up: 'pick up', dropped: 'drop', killed: 'kill', killed_by: 'be killed by' };
   const MINUS = '−';
   const NOUN = { mined: 'Miner', used: 'Builder', crafted: 'Crafter', broken: 'Toolbreaker', picked_up: 'Collector', dropped: 'Dropper', killed: 'Hunter', killed_by: 'Victim' };
+  // Owner's list: team-exception bots (Placer, Raid) left off the overview's Top players
+  // unless "Include bots" is on. By uuid, so a rename doesn't bring them back.
+  const TOP_HIDDEN = new Set(['d06cdb59-d362-48c8-847f-1b4d279ae580', '7bb4365e-ed94-4ee3-b22a-243c35265713']);
   const HEADLINES = [
     ['minecraft:custom', 'minecraft:play_time', 'Hours played'],
     ['minecraft:custom', 'minecraft:walk_one_cm', 'Distance walked'],
@@ -209,6 +212,6 @@
     }
   }
 
-  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, catIcon, isBot, botLabel, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES };
+  S.fmt = { compact, display, signed, axisUnit, tick, INFINITIVE, statLabel, itemId, playerName, date, when, badge, catIcon, isBot, botLabel, spotlight, esc, CATEGORY, VERB, NOUN, HEADLINES, TOP_HIDDEN };
   if (typeof module !== 'undefined') module.exports = S.fmt;
 })(typeof window !== 'undefined' ? window : globalThis);

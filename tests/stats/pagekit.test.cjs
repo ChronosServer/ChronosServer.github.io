@@ -87,3 +87,21 @@ test('lineStart reads /totals starts per line, else effective_from', () => {
   assert.equal(kit.lineStart({ effective_from: 300 }, 'smp'), 300);
   assert.equal(kit.lineStart({ effective_from: 300, starts: {} }, 'smp'), 300);
 });
+
+test('hideRows drops hidden players and moves everyone below them up, ties kept', () => {
+  const rows = [
+    { rank: 1, uuid: 'bot1', value: 90 }, { rank: 2, uuid: 'a', value: 80 },
+    { rank: 3, uuid: 'bot2', value: 70 }, { rank: 4, uuid: 'b', value: 60 },
+    { rank: 4, uuid: 'c', value: 60 }, { rank: 6, uuid: 'd', value: 50 },
+  ];
+  const out = kit.hideRows(rows, new Set(['bot1', 'bot2']));
+  assert.deepEqual(out.map(r => [r.uuid, r.rank]), [['a', 1], ['b', 2], ['c', 2], ['d', 4]]);
+  assert.equal(rows[1].rank, 2, 'input rows untouched');
+  assert.deepEqual(kit.hideRows(rows, new Set()).map(r => r.rank), [1, 2, 3, 4, 4, 6]);
+});
+
+test('TOP_HIDDEN lists Placer and Raid by uuid', () => {
+  const F = globalThis.S.fmt;
+  assert.ok(F.TOP_HIDDEN.has('d06cdb59-d362-48c8-847f-1b4d279ae580'));
+  assert.ok(F.TOP_HIDDEN.has('7bb4365e-ed94-4ee3-b22a-243c35265713'));
+});

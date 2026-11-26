@@ -9,19 +9,42 @@ title: Public archive
   <input class="search" id="q" type="search" placeholder="Search posts" aria-label="Search posts">
   <div class="chips" id="chips"></div>
   <div class="posts" id="posts"></div>
-  <button class="toggle" id="more" type="button" hidden><span>Show more</span></button>
+  <nav class="pager" id="pager" aria-label="Pages" hidden></nav>
 </main>
 <dialog id="dlg"><div class="dbox"><button class="x" id="x" type="button" aria-label="Close">&times;</button><div id="dc"></div></div></dialog>
 <script>
 const $ = id => document.getElementById(id);
 const PAGE = 18;
-let ALL = [], tag = null, shown = PAGE;
+let ALL = [], tag = null, page = 1, WHO = {};
 const isImg = u => /\.(png|jpe?g|webp|gif)(\?|$)/i.test(u);
 // archive.json links bot-hosted copies as same-site paths (/cache/archive/...) and keeps
 // https:// links for files it couldn't copy; anything else (javascript:, //host) becomes #
 const url = u => /^(https?:\/\/|\/(?!\/))/i.test(u || '') ? C.esc(u) : '#';
 const when = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
 const fname = u => { try { return decodeURIComponent(u.split('/').pop().split('?')[0]); } catch (e) { return 'Download'; } };
+// archive.json has server nicknames; members.json has the names the Members page shows.
+// Both keep the Discord avatar hash in the file name, so that hash identifies the person.
+const avHash = u => ((u || '').split('?')[0].split('/').pop() || '').replace(/\.\w+$/, '');
+const small = u => u.replace(/\?size=\d+$/, '') + '?size=64';
+const person = (n, av) => { const m = WHO[avHash(av)]; return m ? {name: m.name, avatar: small(m.avatar)} : {name: n, avatar: av}; };
+// plain text with bare URLs, <URL> and Discord's [text](URL) turned into links; the rest escaped
+const LINK = /\[([^\]\n]{1,200})\]\((https?:\/\/[^\s)]+)\)|<(https?:\/\/[^\s>]+)>|(https?:\/\/[^\s<>"]+)/g;
+const ext = u => `<a href="${C.esc(u)}" target="_blank" rel="noopener noreferrer nofollow">`;
+function linkify(t) {
+  t = t || ''; let out = '', last = 0, m;
+  LINK.lastIndex = 0;
+  while ((m = LINK.exec(t))) {
+    out += C.esc(t.slice(last, m.index));
+    if (m[1]) out += ext(m[2]) + C.esc(m[1]) + '</a>';
+    else if (m[3]) out += ext(m[3]) + C.esc(m[3]) + '</a>';
+    else {
+      const u = m[4].replace(/[.,;:!?'*)\]]+$/, '');
+      out += ext(u) + C.esc(u) + '</a>' + C.esc(m[4].slice(u.length));
+    }
+    last = LINK.lastIndex;
+  }
+  return out + C.esc(t.slice(last));
+}
 const thumb = p => (p.attachments || []).find(isImg) || (p.embeds || []).map(e => e.thumbnail || e.image).find(Boolean) || '';
 
 function filtered() {
@@ -30,12 +53,24 @@ function filtered() {
 }
 function render() {
   const f = filtered();
-  $('posts').innerHTML = f.slice(0, shown).map(p => {
+  const pages = Math.max(1, Math.ceil(f.length / PAGE));
+  page = Math.min(page, pages);
+  $('posts').innerHTML = f.slice((page - 1) * PAGE, page * PAGE).map(p => {
     const t = thumb(p);
-    return `<button class="post" type="button" data-id="${C.esc(p.id)}">${t ? `<img src="${url(t)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="pb"><span class="pa">${C.esc(p.author)}, ${when(p.timestamp)}</span><span class="pt">${C.esc(p.title)}</span><span class="tg">${(p.tags || []).map(x => `<i>${C.esc(x)}</i>`).join('')}</span></span></button>`;
+    return `<button class="post" type="button" data-id="${C.esc(p.id)}">${t ? `<img src="${url(t)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="pb"><span class="pa">${C.esc(person(p.author, p.author_avatar).name)}, ${when(p.timestamp)}</span><span class="pt">${C.esc(p.title)}</span><span class="tg">${(p.tags || []).map(x => `<i>${C.esc(x)}</i>`).join('')}</span></span></button>`;
   }).join('') || '<p class="lede">No posts match.</p>';
-  $('more').hidden = f.length <= shown;
-  $('more').querySelector('span').textContent = 'Show more (' + (f.length - shown) + ' left)';
+  pager(pages);
+}
+// numbered pages: first, last and two either side of the current one, gaps as …
+function pager(pages) {
+  const el = $('pager');
+  el.hidden = pages < 2;
+  if (pages < 2) { el.innerHTML = ''; return; }
+  const nums = [...new Set([1, pages, ...[-2, -1, 0, 1, 2].map(d => page + d)])].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const btn = (n, label, aria, off) => `<button type="button" data-p="${n}"${off ? ' disabled' : ''}${n === page && !aria ? ' aria-current="page"' : ''} aria-label="${aria || 'Page ' + n}">${label}</button>`;
+  let h = btn(page - 1, '&lsaquo;', 'Previous page', page === 1), prev = 0;
+  for (const n of nums) { if (n - prev > 1) h += '<span aria-hidden="true">…</span>'; h += btn(n, n); prev = n; }
+  el.innerHTML = h + btn(page + 1, '&rsaquo;', 'Next page', page === pages);
 }
 function media(a) {
   a = a || [];
@@ -47,13 +82,17 @@ function embeds(es) {
   return (es || []).filter(e => e.title || e.url).map(e => `<div class="emb"><a href="${url(e.url)}" target="_blank" rel="noopener">${C.esc(e.title || e.url)}</a>${e.description ? `<p>${C.esc(e.description)}</p>` : ''}</div>`).join('');
 }
 function openPost(p) {
-  const who = (n, av, ts) => `<div class="dm"><img src="${url(av)}" alt="">${C.esc(n)}, ${when(ts)}</div>`;
-  $('dc').innerHTML = `<h2 class="dt">${C.esc(p.title)}</h2>${who(p.author, p.author_avatar, p.timestamp)}<div class="db">${C.esc(p.content)}</div>${media(p.attachments)}${embeds(p.embeds)}` +
-    (p.messages || []).filter(m => m.content || (m.attachments || []).length || (m.embeds || []).length).map(m => `<div class="rp">${who(m.author, m.author_avatar, m.timestamp)}<div class="db">${C.esc(m.content)}</div>${media(m.attachments)}${embeds(m.embeds)}</div>`).join('');
+  const who = (n, av, ts) => { const w = person(n, av); return `<div class="dm"><img src="${url(w.avatar)}" alt="">${C.esc(w.name)}, ${when(ts)}</div>`; };
+  $('dc').innerHTML = `<h2 class="dt">${C.esc(p.title)}</h2>${who(p.author, p.author_avatar, p.timestamp)}<div class="db">${linkify(p.content)}</div>${media(p.attachments)}${embeds(p.embeds)}` +
+    (p.messages || []).filter(m => m.content || (m.attachments || []).length || (m.embeds || []).length).map(m => `<div class="rp">${who(m.author, m.author_avatar, m.timestamp)}<div class="db">${linkify(m.content)}</div>${media(m.attachments)}${embeds(m.embeds)}</div>`).join('');
   $('dlg').showModal();
 }
 
-C.json('/data/archive.json').then(({data, at}) => {
+// members.json only improves names; the archive still works without it
+const members = C.json('/data/members.json').then(({data}) => {
+  for (const k of Object.keys(data)) for (const m of data[k] || []) { const h = avHash(m.avatar); if (h.length > 8) WHO[h] = m; }
+}).catch(() => {});
+Promise.all([C.json('/data/archive.json'), members]).then(([{data, at}]) => {
   ALL = data;
   const tags = [...new Set(ALL.flatMap(p => p.tags || []))].sort();
   $('chips').innerHTML = ['All', ...tags].map((t, i) => `<button type="button" aria-pressed="${i === 0}" data-t="${i ? C.esc(t) : ''}">${C.esc(t)}</button>`).join('');
@@ -61,11 +100,18 @@ C.json('/data/archive.json').then(({data, at}) => {
   render();
 }).catch(e => { $('st').textContent = 'Unavailable'; C.fail($('posts'), e); });
 
-$('q').addEventListener('input', () => { shown = PAGE; render(); });
-$('more').addEventListener('click', () => { shown += PAGE; render(); });
+$('q').addEventListener('input', () => { page = 1; render(); });
+$('pager').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  page = +b.dataset.p; render();
+  const top = $('chips').getBoundingClientRect().top + scrollY - 80;
+  if (scrollY > top) scrollTo({top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  const cur = $('pager').querySelector('[data-p="' + page + '"][aria-current]') || $('pager').querySelector('[aria-current]');
+  if (cur) cur.focus({preventScroll: true});
+});
 $('chips').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  tag = b.dataset.t || null; shown = PAGE;
+  tag = b.dataset.t || null; page = 1;
   $('chips').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
   render();
 });

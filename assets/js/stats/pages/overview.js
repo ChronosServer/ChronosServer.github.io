@@ -415,9 +415,28 @@
     { title: 'Most badges', by: 'badges', what: 'Different badges earned' },
   ];
   const valueText = (t, v) => (t.by ? { text: F.compact(v), exact: Number(v).toLocaleString('en-GB') } : F.display(t.cat, t.key, v));
-  const fetchTop = (t, limit, offset) => (t.by
+  const fetchRaw = (t, limit, offset) => (t.by
     ? get('rankings', { by: t.by, scope: st.scope, include_bots: bots(), limit, offset: offset || null })
     : get('leaderboard', { kind: 'stat', category: t.cat, key: t.key, scope: st.scope, include_bots: bots(), limit, offset: offset || null }));
+  // F.TOP_HIDDEN players are left out here unless bots are included. Their ranks shift
+  // everyone below them, so read from the top (200 rows a request, the API's cap) down to
+  // the wanted rows, then renumber and cut out the page.
+  const CHUNK = 200;
+  async function fetchTop(t, limit, offset) {
+    offset = offset || 0;
+    if (bots() || !F.TOP_HIDDEN.size) return fetchRaw(t, limit, offset);
+    const need = offset + limit + F.TOP_HIDDEN.size;
+    let rows = [], total = 0, res;
+    do {
+      res = await fetchRaw(t, Math.min(CHUNK, need - rows.length), rows.length);
+      total = (res && res.total_count) || 0;
+      const got = (res && res.rows) || [];
+      rows = rows.concat(got);
+      if (!got.length) break;
+    } while (rows.length < need && rows.length < total);
+    const kept = S.kit.hideRows(rows, F.TOP_HIDDEN);
+    return Object.assign({}, res, { rows: kept.slice(offset, offset + limit), total_count: Math.max(0, total - (rows.length - kept.length)) });
+  }
 
   function topCard(t, body, foot) {
     return '<div class="panel st-top-card"><span class="st-lab">' + esc(t.title) + '</span>' + body + (foot || '') + '</div>';

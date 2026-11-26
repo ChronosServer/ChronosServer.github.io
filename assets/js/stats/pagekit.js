@@ -105,6 +105,18 @@
     return res.effective_from == null ? null : res.effective_from;
   }
 
-  S.kit = { lineStart, playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
+  // A ranking without some players: each row moves up by the number of hidden rows ranked
+  // above it, so ties stay ties. Rows must start at rank 1 (offset 0) for the numbers to hold.
+  function hideRows(rows, hide) {
+    const gone = [];
+    const out = [];
+    for (const r of rows || []) {
+      if (hide && hide.has(r.uuid)) { gone.push(r.rank); continue; }
+      out.push(Object.assign({}, r, { rank: r.rank - gone.filter(g => g < r.rank).length }));
+    }
+    return out;
+  }
+
+  S.kit = { hideRows, lineStart, playerHref, boardHref, ranged, rangeText, requestedStart, sinceText, cap, liveNote, serverLabel, untracked, leader, axis };
   if (typeof module !== 'undefined') module.exports = S.kit;
 })(typeof window !== 'undefined' ? window : globalThis);
